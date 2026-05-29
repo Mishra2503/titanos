@@ -16,7 +16,16 @@ celery_app.conf.update(
     task_reject_on_worker_lost=True,
     worker_prefetch_multiplier=1,
     timezone="UTC",
+    beat_schedule={
+        "refresh-expiring-tokens": {
+            "task": "titan.refresh_expiring_tokens",
+            "schedule": 6 * 60 * 60,  # every 6 hours
+        },
+    },
 )
+
+# Import tasks so the worker registers them.
+celery_app.autodiscover_tasks(["app.worker"])
 
 
 @celery_app.task(name="titan.ping")
