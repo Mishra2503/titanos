@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 import time
 from datetime import UTC, datetime
 
@@ -13,9 +14,30 @@ from app.services import connection_service, instagram_service
 from app.services.instagram_service import InstagramApiError
 
 ACCOUNT_METRICS = ["profile_views"]
-MEDIA_METRICS = ["reach", "likes", "comments", "shares", "saved", "total_interactions"]
+# Reels-specific metrics (views, watch time) are dropped by the per-metric fallback
+# for non-reel media, so it's safe to request them for everything (FR-INS-6).
+MEDIA_METRICS = [
+    "reach",
+    "likes",
+    "comments",
+    "shares",
+    "saved",
+    "total_interactions",
+    "views",
+    "ig_reels_avg_watch_time",
+    "ig_reels_video_view_total_time",
+]
 MAX_MEDIA = 20
-CAPTION_PREVIEW = 120
+CAPTION_PREVIEW = 280
+_HASHTAG_RE = re.compile(r"#\w+", re.UNICODE)
+
+
+def _hashtags(caption: str | None) -> list[str]:
+    return _HASHTAG_RE.findall(caption) if caption else []
+
+
+def _ms_to_sec(ms: int | None) -> float | None:
+    return round(ms / 1000, 1) if isinstance(ms, int) else None
 
 # In-memory TTL cache so the dashboard doesn't hit the Graph API on every page view
 # (FR-INS-7). Production uses Redis; this is the single-process dev equivalent.
@@ -64,28 +86,42 @@ async def _build_account_insights(account: IgAccount) -> AccountInsights:
         likes += vals.get("likes", 0)
         comments += vals.get("comments", 0)
         inter = _interactions(vals)
-        if inter is not None and isinstance(vals.get("reach"), int):
+        post_reach = vals.get("reach")
+        if inter is not None and isinstance(post_reach, int):
             interactions_sum += inter
-            reach_sum += vals["reach"]
+            reach_sum += post_reach
+        post_er = (
+            round(inter / post_reach * 100, 1)
+            if inter is not None and isinstance(post_reach, int) and post_reach > 0
+            else None
+        )
         caption = media.get("caption")
         recent.append(
             RecentPost(
                 id=media["id"],
                 caption=(caption[:CAPTION_PREVIEW] if caption else None),
                 permalink=media.get("permalink"),
+                thumbnail_url=media.get("thumbnail_url") or media.get("media_url"),
                 timestamp=media.get("timestamp"),
                 media_product_type=media.get("media_product_type"),
-                reach=vals.get("reach"),
+                hashtags=_hashtags(caption),
+                reach=post_reach,
+                views=vals.get("views"),
                 likes=vals.get("likes"),
                 comments=vals.get("comments"),
                 shares=vals.get("shares"),
                 saved=vals.get("saved"),
+                avg_watch_time_sec=_ms_to_sec(vals.get("ig_reels_avg_watch_time")),
+                total_watch_time_sec=_ms_to_sec(vals.get("ig_reels_video_view_total_time")),
+                engagement_rate=post_er,
             )
         )
 
     engagement_rate = (
         round(interactions_sum / reach_sum * 100, 1) if reach_sum > 0 else None
     )
+    # Lead with top performers so "what's working" is obvious at a glance.
+    recent.sort(key=lambda p: (p.reach or 0), reverse=True)
 
     return AccountInsights(
         account_id=account.id,

@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
-import { ApiError, getInsightsSummary, type InsightsSummary, type Kpi } from "@/lib/api";
+import { VideoCard, WhatsWorking } from "@/components/VideoPerformance";
+import {
+  ApiError,
+  getInsightsSummary,
+  type InsightsSummary,
+  type Kpi,
+  type RecentPost,
+} from "@/lib/api";
 
 function formatValue(k: Kpi): string {
   if (!k.available || k.value === null) return "—";
@@ -22,11 +29,17 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  // All posts across every connected account, ranked best-first by reach.
+  const posts: RecentPost[] = useMemo(() => {
+    const all = (data?.accounts ?? []).flatMap((a) => a.recent_posts);
+    return [...all].sort((x, y) => (y.reach ?? 0) - (x.reach ?? 0));
+  }, [data]);
+
   const hasAccounts = (data?.accounts.length ?? 0) > 0;
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Cross-account performance and lead funnel." />
+      <PageHeader title="Dashboard" subtitle="Cross-account performance and per-video analytics." />
 
       {error && <p className="mb-4 font-mono text-sm text-red-400">{error}</p>}
 
@@ -44,16 +57,11 @@ export default function DashboardPage() {
             </p>
           </div>
         ))}
-        {!loading && !data &&
-          [0, 1, 2, 3, 4, 5].map((i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-charcoal-700 bg-charcoal-800 p-5"
-            >
-              <p className="font-mono text-3xl text-ink-muted">—</p>
-            </div>
-          ))}
       </div>
+
+      {loading && (
+        <p className="mt-8 font-mono text-sm text-ink-faint">Loading live video analytics…</p>
+      )}
 
       {!loading && !hasAccounts && (
         <div className="mt-8 animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-8 text-center">
@@ -63,11 +71,26 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {data && hasAccounts && (
-        <p className="mt-6 font-mono text-[11px] text-ink-faint">
-          Last updated {new Date(data.generated_at).toLocaleTimeString()} · {data.range_days}-day
-          window · {data.accounts.length} account(s)
-        </p>
+      {hasAccounts && (
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_320px]">
+          <div>
+            <h2 className="mb-4 text-lg text-ink">Video performance</h2>
+            <div className="grid gap-4 xl:grid-cols-2">
+              {posts.map((p, i) => (
+                <VideoCard key={p.id} post={p} rank={i + 1} />
+              ))}
+            </div>
+          </div>
+          <aside className="space-y-4 lg:sticky lg:top-8 lg:self-start">
+            <WhatsWorking posts={posts} />
+            {data && (
+              <p className="font-mono text-[11px] text-ink-faint">
+                Last updated {new Date(data.generated_at).toLocaleTimeString()} ·{" "}
+                {posts.length} posts analyzed · {data.accounts.length} account(s)
+              </p>
+            )}
+          </aside>
+        </div>
       )}
     </div>
   );

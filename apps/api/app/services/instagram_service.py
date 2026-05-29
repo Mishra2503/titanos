@@ -176,7 +176,10 @@ async def fetch_media_list(ig_user_id: str, token: str, *, limit: int = 25) -> l
             client,
             f"{GRAPH_BASE}/{settings.instagram_graph_version}/{ig_user_id}/media",
             {
-                "fields": "id,media_type,media_product_type,caption,timestamp,permalink",
+                "fields": (
+                    "id,media_type,media_product_type,caption,timestamp,"
+                    "permalink,thumbnail_url,media_url"
+                ),
                 "limit": str(limit),
                 "access_token": token,
             },

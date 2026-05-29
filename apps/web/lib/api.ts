@@ -95,13 +95,19 @@ export interface RecentPost {
   id: string;
   caption: string | null;
   permalink: string | null;
+  thumbnail_url: string | null;
   timestamp: string | null;
   media_product_type: string | null;
+  hashtags: string[];
   reach: number | null;
+  views: number | null;
   likes: number | null;
   comments: number | null;
   shares: number | null;
   saved: number | null;
+  avg_watch_time_sec: number | null;
+  total_watch_time_sec: number | null;
+  engagement_rate: number | null;
 }
 
 export interface AccountInsights {

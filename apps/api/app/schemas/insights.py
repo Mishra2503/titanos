@@ -19,13 +19,20 @@ class RecentPost(BaseModel):
     id: str
     caption: str | None = None
     permalink: str | None = None
+    thumbnail_url: str | None = None
     timestamp: str | None = None
     media_product_type: str | None = None
+    hashtags: list[str] = []
     reach: int | None = None
+    views: int | None = None
     likes: int | None = None
     comments: int | None = None
     shares: int | None = None
     saved: int | None = None
+    # Reels watch-time metrics (seconds). None for non-reels / when unavailable.
+    avg_watch_time_sec: float | None = None
+    total_watch_time_sec: float | None = None
+    engagement_rate: float | None = None
 
 
 class AccountInsights(BaseModel):
