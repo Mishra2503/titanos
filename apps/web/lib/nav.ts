@@ -9,6 +9,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Connections", href: "/connections", ownerOnly: true },
+  { label: "Content Board", href: "/board" },
   { label: "Scriptwriter", href: "/scriptwriter" },
   { label: "Bulk Scheduler", href: "/scheduler" },
   { label: "Insights", href: "/insights" },

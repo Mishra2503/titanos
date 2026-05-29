@@ -134,3 +134,54 @@ export interface InsightsSummary {
 
 export const getInsightsSummary = () =>
   apiFetch<InsightsSummary>("/api/insights/summary");
+
+export interface BoardCard {
+  id: string;
+  column_id: string;
+  title: string;
+  notes: string | null;
+  position: number;
+}
+
+export interface BoardColumn {
+  id: string;
+  name: string;
+  color: string;
+  position: number;
+  cards: BoardCard[];
+}
+
+export const getBoard = () => apiFetch<{ columns: BoardColumn[] }>("/api/board");
+
+export const createCard = (column_id: string, title: string, notes?: string) =>
+  apiFetch<BoardCard>("/api/board/cards", {
+    method: "POST",
+    body: JSON.stringify({ column_id, title, notes }),
+  });
+
+export const updateCard = (id: string, body: { title?: string; notes?: string | null }) =>
+  apiFetch<BoardCard>(`/api/board/cards/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const deleteCard = (id: string) =>
+  apiFetch<void>(`/api/board/cards/${id}`, { method: "DELETE" });
+
+export const reorderColumn = (column_id: string, card_ids: string[]) =>
+  apiFetch<void>(`/api/board/columns/${column_id}/reorder`, {
+    method: "POST",
+    body: JSON.stringify({ card_ids }),
+  });
+
+export const createColumn = (name: string, color = "slate") =>
+  apiFetch<BoardColumn>("/api/board/columns", {
+    method: "POST",
+    body: JSON.stringify({ name, color }),
+  });
+
+export const updateColumn = (id: string, body: { name?: string; color?: string }) =>
+  apiFetch<BoardColumn>(`/api/board/columns/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+
+export const deleteColumn = (id: string) =>
+  apiFetch<void>(`/api/board/columns/${id}`, { method: "DELETE" });
