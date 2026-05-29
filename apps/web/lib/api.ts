@@ -81,3 +81,50 @@ export interface Me {
 }
 
 export const getMe = () => apiFetch<Me>("/api/auth/me");
+
+export interface Kpi {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: string | null;
+  available: boolean;
+  note: string | null;
+}
+
+export interface RecentPost {
+  id: string;
+  caption: string | null;
+  permalink: string | null;
+  timestamp: string | null;
+  media_product_type: string | null;
+  reach: number | null;
+  likes: number | null;
+  comments: number | null;
+  shares: number | null;
+  saved: number | null;
+}
+
+export interface AccountInsights {
+  account_id: string;
+  username: string;
+  followers: number | null;
+  reach: number | null;
+  profile_views: number | null;
+  saves: number | null;
+  shares: number | null;
+  likes: number | null;
+  comments: number | null;
+  engagement_rate: number | null;
+  posts_analyzed: number;
+  recent_posts: RecentPost[];
+}
+
+export interface InsightsSummary {
+  generated_at: string;
+  range_days: number;
+  kpis: Kpi[];
+  accounts: AccountInsights[];
+}
+
+export const getInsightsSummary = () =>
+  apiFetch<InsightsSummary>("/api/insights/summary");

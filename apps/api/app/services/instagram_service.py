@@ -122,3 +122,96 @@ async def fetch_publishing_limit(ig_user_id: str, token: str) -> dict[str, Any]:
             f"{GRAPH_BASE}/{settings.instagram_graph_version}/{ig_user_id}/content_publishing_limit",
             {"fields": "quota_usage,config", "access_token": token},
         )
+
+
+def _insights_url(obj_id: str) -> str:
+    return f"{GRAPH_BASE}/{settings.instagram_graph_version}/{obj_id}/insights"
+
+
+async def fetch_account_insights(
+    ig_user_id: str, token: str, metrics: list[str], *, period: str = "days_28"
+) -> dict[str, int]:
+    """Account-level insights as {metric: value}. Reads `total_value.value`.
+
+    IG rejects the whole batch if ANY metric is invalid for the account, so on a
+    batch error we retry metric-by-metric and keep whatever succeeds (FR-INS-6).
+    """
+
+    async def _call(client: httpx.AsyncClient, ms: list[str]) -> list[dict[str, Any]]:
+        resp = await client.get(
+            _insights_url(ig_user_id),
+            params={
+                "metric": ",".join(ms),
+                "period": period,
+                "metric_type": "total_value",
+                "access_token": token,
+            },
+        )
+        data = resp.json()
+        if resp.status_code >= 400 or "error" in data:
+            raise InstagramApiError("account insights error", status=resp.status_code, payload=data)
+        return data.get("data", [])
+
+    out: dict[str, int] = {}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            rows = await _call(client, metrics)
+        except InstagramApiError:
+            rows = []
+            for m in metrics:
+                try:
+                    rows.extend(await _call(client, [m]))
+                except InstagramApiError:
+                    continue
+    for row in rows:
+        value = (row.get("total_value") or {}).get("value")
+        if isinstance(value, int):
+            out[row["name"]] = value
+    return out
+
+
+async def fetch_media_list(ig_user_id: str, token: str, *, limit: int = 25) -> list[dict[str, Any]]:
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        data = await _get_json(
+            client,
+            f"{GRAPH_BASE}/{settings.instagram_graph_version}/{ig_user_id}/media",
+            {
+                "fields": "id,media_type,media_product_type,caption,timestamp,permalink",
+                "limit": str(limit),
+                "access_token": token,
+            },
+        )
+    return data.get("data", [])
+
+
+async def fetch_media_insights(
+    media_id: str, token: str, metrics: list[str]
+) -> dict[str, int]:
+    """Per-post insights as {metric: value}. Reads `values[0].value`, with per-metric fallback."""
+
+    async def _call(client: httpx.AsyncClient, ms: list[str]) -> list[dict[str, Any]]:
+        resp = await client.get(
+            _insights_url(media_id),
+            params={"metric": ",".join(ms), "access_token": token},
+        )
+        data = resp.json()
+        if resp.status_code >= 400 or "error" in data:
+            raise InstagramApiError("media insights error", status=resp.status_code, payload=data)
+        return data.get("data", [])
+
+    out: dict[str, int] = {}
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        try:
+            rows = await _call(client, metrics)
+        except InstagramApiError:
+            rows = []
+            for m in metrics:
+                try:
+                    rows.extend(await _call(client, [m]))
+                except InstagramApiError:
+                    continue
+    for row in rows:
+        values = row.get("values") or []
+        if values and isinstance(values[0].get("value"), int):
+            out[row["name"]] = values[0]["value"]
+    return out

@@ -7,6 +7,9 @@ os.environ.setdefault("JWT_SECRET", "test-secret-test-secret-test-secret")
 os.environ.setdefault("FERNET_KEY", "")  # set below to a valid key
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite://")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
+# Force-clear IG creds so tests don't pick up a developer's real .env values.
+os.environ["INSTAGRAM_APP_ID"] = ""
+os.environ["INSTAGRAM_APP_SECRET"] = ""
 
 from cryptography.fernet import Fernet  # noqa: E402
 
