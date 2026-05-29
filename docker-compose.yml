@@ -1,0 +1,35 @@
+# Local dev infra for Titan OS: Postgres + Redis.
+# Usage: docker compose up -d   (then run the API and worker locally)
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-titan}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-titan_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-titan}
+    ports:
+      - "5432:5432"
+    volumes:
+      - titan_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-titan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - titan_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  titan_pg:
+  titan_redis:
