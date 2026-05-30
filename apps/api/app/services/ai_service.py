@@ -6,7 +6,9 @@ or scraping behavior.
 """
 from __future__ import annotations
 
-from anthropic import AsyncAnthropic
+import os
+
+from anthropic import AsyncAnthropic, AsyncAnthropicBedrock
 
 from app.core.config import settings
 from app.core.errors import bad_request
@@ -24,13 +26,19 @@ _SYSTEM = (
 )
 
 
-def _client() -> AsyncAnthropic:
-    if not settings.anthropic_api_key:
-        raise bad_request(
-            "ai_not_configured",
-            "Add ANTHROPIC_API_KEY to apps/api/.env to enable AI features.",
-        )
-    return AsyncAnthropic(api_key=settings.anthropic_api_key)
+def _client_and_model() -> tuple[AsyncAnthropic | AsyncAnthropicBedrock, str]:
+    """Pick the configured Claude provider. Bedrock takes priority if set."""
+    if settings.bedrock_api_key:
+        # AsyncAnthropicBedrock uses boto3, which reads this env var as a bearer token.
+        os.environ.setdefault("AWS_BEARER_TOKEN_BEDROCK", settings.bedrock_api_key)
+        client = AsyncAnthropicBedrock(aws_region=settings.bedrock_aws_region)
+        return client, settings.bedrock_model
+    if settings.anthropic_api_key:
+        return AsyncAnthropic(api_key=settings.anthropic_api_key), settings.anthropic_model
+    raise bad_request(
+        "ai_not_configured",
+        "Add BEDROCK_API_KEY (or ANTHROPIC_API_KEY) to apps/api/.env to enable AI features.",
+    )
 
 
 def _card_context(card: BoardCard) -> str:
@@ -92,9 +100,9 @@ def _prompt_for(action: AiAction, card: BoardCard, instruction: str | None) -> s
 async def run_card_action(
     card: BoardCard, *, action: AiAction, instruction: str | None
 ) -> str:
-    client = _client()
+    client, model = _client_and_model()
     msg = await client.messages.create(
-        model=settings.anthropic_model,
+        model=model,
         max_tokens=_MAX_TOKENS,
         system=_SYSTEM,
         messages=[{"role": "user", "content": _prompt_for(action, card, instruction)}],

@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-opus-4-7"
     anthropic_monthly_token_budget: int = 2_000_000
 
+    # --- AWS Bedrock (alternative auth path to Claude) ---
+    # When bedrock_api_key is set we route AI calls through Bedrock instead of the
+    # Anthropic API directly. Set AWS_BEARER_TOKEN_BEDROCK at process start.
+    bedrock_api_key: str = ""
+    bedrock_aws_region: str = "us-east-1"
+    bedrock_model: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
