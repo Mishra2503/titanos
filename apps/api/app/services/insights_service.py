@@ -27,7 +27,7 @@ MEDIA_METRICS = [
     "ig_reels_avg_watch_time",
     "ig_reels_video_view_total_time",
 ]
-MAX_MEDIA = 20
+MAX_MEDIA = 50
 CAPTION_PREVIEW = 280
 _HASHTAG_RE = re.compile(r"#\w+", re.UNICODE)
 
