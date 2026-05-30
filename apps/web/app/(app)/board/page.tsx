@@ -2,9 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
+import { CardDetail } from "@/components/CardDetail";
 import {
   ApiError,
+  type BoardCard,
   type BoardColumn,
+  type CardPatch,
   createCard,
   createColumn,
   deleteCard,
@@ -24,12 +27,6 @@ const COLOR: Record<string, { chip: string; bar: string }> = {
 };
 const color = (c: string) => COLOR[c] ?? COLOR.slate;
 
-interface EditState {
-  id: string;
-  title: string;
-  notes: string;
-}
-
 export default function BoardPage() {
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +34,7 @@ export default function BoardPage() {
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [newColumn, setNewColumn] = useState<string | null>(null);
-  const [editing, setEditing] = useState<EditState | null>(null);
+  const [editing, setEditing] = useState<BoardCard | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const drag = useRef<{ cardId: string; from: string } | null>(null);
 
@@ -70,11 +67,10 @@ export default function BoardPage() {
     );
   }
 
-  async function saveEdit() {
+  async function saveEdit(patch: CardPatch) {
     if (!editing) return;
-    const { id, title, notes } = editing;
-    setEditing(null);
-    const updated = await updateCard(id, { title, notes });
+    const id = editing.id;
+    const updated = await updateCard(id, patch);
     setColumns((cols) =>
       cols.map((c) => ({
         ...c,
@@ -194,14 +190,49 @@ export default function BoardPage() {
                       e.stopPropagation();
                       void drop(col.id, card.id);
                     }}
-                    onClick={() =>
-                      setEditing({ id: card.id, title: card.title, notes: card.notes ?? "" })
-                    }
+                    onClick={() => setEditing(card)}
                     className="press cursor-grab rounded-lg border border-charcoal-700 bg-charcoal-700/50 p-3 hover:border-charcoal-600 active:cursor-grabbing"
                   >
-                    <p className="text-sm text-ink">{card.title}</p>
-                    {card.notes && (
+                    <div className="flex items-start gap-2">
+                      {card.emoji && <span className="text-base leading-tight">{card.emoji}</span>}
+                      <p className="flex-1 text-sm text-ink">{card.title}</p>
+                    </div>
+                    {(card.status || card.publish_date) && (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {card.status && (
+                          <span className={`rounded-md px-1.5 py-0.5 font-mono text-[10px] ${c.chip}`}>
+                            {card.status}
+                          </span>
+                        )}
+                        {card.publish_date && (
+                          <span className="font-mono text-[10px] text-ink-faint">
+                            {new Date(card.publish_date).toLocaleDateString(undefined, {
+                              month: "short",
+                              day: "numeric",
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {card.platforms.length > 0 && (
+                      <div className="mt-1.5 flex flex-wrap gap-1">
+                        {card.platforms.map((p) => (
+                          <span
+                            key={p}
+                            className="rounded-full border border-charcoal-600 px-1.5 py-0.5 font-mono text-[9px] text-ink-muted"
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {card.notes && !card.status && !card.publish_date && (
                       <p className="mt-1 line-clamp-2 text-xs text-ink-faint">{card.notes}</p>
+                    )}
+                    {card.hashtags.length > 0 && (
+                      <p className="mt-1.5 truncate font-mono text-[10px] text-lime/70">
+                        {card.hashtags.slice(0, 4).join(" ")}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -295,53 +326,13 @@ export default function BoardPage() {
         </div>
       </div>
 
-      {/* Edit modal */}
       {editing && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-          onClick={() => setEditing(null)}
-        >
-          <div
-            className="w-full max-w-lg animate-reveal rounded-xl border border-charcoal-600 bg-charcoal-800 p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="mb-4 font-mono text-xs uppercase tracking-wider text-lime">Edit card</p>
-            <input
-              value={editing.title}
-              onChange={(e) => setEditing({ ...editing, title: e.target.value })}
-              className="w-full rounded-lg border border-charcoal-600 bg-charcoal-700 px-3 py-2 text-ink outline-none focus:border-lime"
-            />
-            <textarea
-              value={editing.notes}
-              onChange={(e) => setEditing({ ...editing, notes: e.target.value })}
-              rows={5}
-              placeholder="Notes, hook variations, hashtags…"
-              className="mt-3 w-full resize-none rounded-lg border border-charcoal-600 bg-charcoal-700 px-3 py-2 text-sm text-ink outline-none focus:border-lime placeholder:text-ink-faint"
-            />
-            <div className="mt-4 flex justify-between">
-              <button
-                onClick={() => removeCard(editing.id)}
-                className="press rounded-lg border border-red-400/30 px-3 py-1.5 text-sm text-red-400 hover:bg-red-400/10"
-              >
-                Delete
-              </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setEditing(null)}
-                  className="press rounded-lg px-3 py-1.5 text-sm text-ink-muted hover:text-ink"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={saveEdit}
-                  className="press rounded-lg bg-lime px-4 py-1.5 text-sm font-semibold text-charcoal"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CardDetail
+          card={editing}
+          onClose={() => setEditing(null)}
+          onSave={saveEdit}
+          onDelete={() => removeCard(editing.id)}
+        />
       )}
     </div>
   );

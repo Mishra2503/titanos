@@ -4,6 +4,8 @@ from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
 from app.schemas.board import (
+    AiActionIn,
+    AiOut,
     BoardOut,
     CardCreate,
     CardOut,
@@ -13,7 +15,7 @@ from app.schemas.board import (
     ColumnUpdate,
     ReorderIn,
 )
-from app.services import board_service
+from app.services import ai_service, board_service
 
 router = APIRouter(prefix="/api/board", tags=["board"])
 
@@ -55,12 +57,11 @@ async def reorder(column_id: str, payload: ReorderIn, user: CurrentUser, db: DbS
 
 @router.post("/cards", response_model=CardOut, status_code=status.HTTP_201_CREATED)
 async def create_card(payload: CardCreate, user: CurrentUser, db: DbSession) -> CardOut:
+    data = payload.model_dump(exclude_unset=True)
+    column_id = data.pop("column_id")
+    title = data.pop("title")
     card = await board_service.create_card(
-        db,
-        user.workspace_id,
-        column_id=payload.column_id,
-        title=payload.title,
-        notes=payload.notes,
+        db, user.workspace_id, column_id=column_id, title=title, payload=data
     )
     return CardOut.model_validate(card)
 
@@ -70,7 +71,7 @@ async def update_card(
     card_id: str, payload: CardUpdate, user: CurrentUser, db: DbSession
 ) -> CardOut:
     card = await board_service.update_card(
-        db, user.workspace_id, card_id, title=payload.title, notes=payload.notes
+        db, user.workspace_id, card_id, payload=payload.model_dump(exclude_unset=True)
     )
     return CardOut.model_validate(card)
 
@@ -78,3 +79,14 @@ async def update_card(
 @router.delete("/cards/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_card(card_id: str, user: CurrentUser, db: DbSession) -> None:
     await board_service.delete_card(db, user.workspace_id, card_id)
+
+
+@router.post("/cards/{card_id}/ai", response_model=AiOut)
+async def card_ai_action(
+    card_id: str, payload: AiActionIn, user: CurrentUser, db: DbSession
+) -> AiOut:
+    card = await board_service.get_card(db, user.workspace_id, card_id)
+    text = await ai_service.run_card_action(
+        card, action=payload.action, instruction=payload.instruction
+    )
+    return AiOut(action=payload.action, text=text)

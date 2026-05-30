@@ -111,8 +111,31 @@ async def delete_column(db: AsyncSession, workspace_id: str, column_id: str) -> 
     await db.commit()
 
 
+_EDITABLE_FIELDS = (
+    "title",
+    "notes",
+    "emoji",
+    "status",
+    "platforms",
+    "publish_date",
+    "hook",
+    "visual_hook",
+    "caption",
+    "hashtags",
+    "reference_url",
+    "raw_footage_url",
+    "cover_image_url",
+)
+
+
+def _apply_fields(card: BoardCard, payload: dict) -> None:
+    for key in _EDITABLE_FIELDS:
+        if key in payload and payload[key] is not None:
+            setattr(card, key, payload[key])
+
+
 async def create_card(
-    db: AsyncSession, workspace_id: str, *, column_id: str, title: str, notes: str | None
+    db: AsyncSession, workspace_id: str, *, column_id: str, title: str, payload: dict
 ) -> BoardCard:
     await _owned_column(db, workspace_id, column_id)
     max_pos = await db.scalar(
@@ -122,24 +145,25 @@ async def create_card(
         workspace_id=workspace_id,
         column_id=column_id,
         title=title,
-        notes=notes,
         position=(max_pos or 0.0) + 1.0,
     )
+    _apply_fields(card, payload)
     db.add(card)
     await db.commit()
     return card
 
 
 async def update_card(
-    db: AsyncSession, workspace_id: str, card_id: str, *, title: str | None, notes: str | None
+    db: AsyncSession, workspace_id: str, card_id: str, *, payload: dict
 ) -> BoardCard:
     card = await _owned_card(db, workspace_id, card_id)
-    if title is not None:
-        card.title = title
-    if notes is not None:
-        card.notes = notes
+    _apply_fields(card, payload)
     await db.commit()
     return card
+
+
+async def get_card(db: AsyncSession, workspace_id: str, card_id: str) -> BoardCard:
+    return await _owned_card(db, workspace_id, card_id)
 
 
 async def delete_card(db: AsyncSession, workspace_id: str, card_id: str) -> None:

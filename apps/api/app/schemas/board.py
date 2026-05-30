@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -9,6 +12,18 @@ class CardOut(BaseModel):
     title: str
     notes: str | None = None
     position: float
+
+    emoji: str | None = None
+    status: str | None = None
+    platforms: list[str] = []
+    publish_date: date | None = None
+    hook: str | None = None
+    visual_hook: str | None = None
+    caption: str | None = None
+    hashtags: list[str] = []
+    reference_url: str | None = None
+    raw_footage_url: str | None = None
+    cover_image_url: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -37,16 +52,48 @@ class ColumnUpdate(BaseModel):
     color: str | None = None
 
 
-class CardCreate(BaseModel):
+class _CardFields(BaseModel):
+    """Editable fields shared between create + update."""
+
+    emoji: str | None = None
+    status: str | None = None
+    platforms: list[str] | None = None
+    publish_date: date | None = None
+    hook: str | None = None
+    visual_hook: str | None = None
+    caption: str | None = None
+    hashtags: list[str] | None = None
+    reference_url: str | None = None
+    raw_footage_url: str | None = None
+    cover_image_url: str | None = None
+
+
+class CardCreate(_CardFields):
     column_id: str
     title: str = Field(min_length=1, max_length=280)
     notes: str | None = None
 
 
-class CardUpdate(BaseModel):
+class CardUpdate(_CardFields):
     title: str | None = Field(default=None, min_length=1, max_length=280)
     notes: str | None = None
 
 
 class ReorderIn(BaseModel):
     card_ids: list[str]
+
+
+# --- AI assistance ---------------------------------------------------
+
+AiAction = Literal["hooks", "caption", "hashtags", "refine"]
+
+
+class AiActionIn(BaseModel):
+    action: AiAction
+    # Optional free-text instruction to steer the model (e.g. "shorter", "more punchy").
+    instruction: str | None = None
+
+
+class AiOut(BaseModel):
+    action: AiAction
+    text: str

@@ -141,6 +141,26 @@ export interface BoardCard {
   title: string;
   notes: string | null;
   position: number;
+  emoji: string | null;
+  status: string | null;
+  platforms: string[];
+  publish_date: string | null;
+  hook: string | null;
+  visual_hook: string | null;
+  caption: string | null;
+  hashtags: string[];
+  reference_url: string | null;
+  raw_footage_url: string | null;
+  cover_image_url: string | null;
+}
+
+export type CardPatch = Partial<Omit<BoardCard, "id" | "column_id" | "position">>;
+
+export type AiAction = "hooks" | "caption" | "hashtags" | "refine";
+
+export interface AiOut {
+  action: AiAction;
+  text: string;
 }
 
 export interface BoardColumn {
@@ -159,8 +179,14 @@ export const createCard = (column_id: string, title: string, notes?: string) =>
     body: JSON.stringify({ column_id, title, notes }),
   });
 
-export const updateCard = (id: string, body: { title?: string; notes?: string | null }) =>
+export const updateCard = (id: string, body: CardPatch) =>
   apiFetch<BoardCard>(`/api/board/cards/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+
+export const cardAi = (id: string, action: AiAction, instruction?: string) =>
+  apiFetch<AiOut>(`/api/board/cards/${id}/ai`, {
+    method: "POST",
+    body: JSON.stringify({ action, instruction }),
+  });
 
 export const deleteCard = (id: string) =>
   apiFetch<void>(`/api/board/cards/${id}`, { method: "DELETE" });
