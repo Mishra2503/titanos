@@ -447,18 +447,29 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
 }
 
 function renderBullet(text: string): React.ReactNode {
-  // bold **x** and italic *x*
+  // bold **x** and italic *x* — every pushed element needs a stable key so React doesn't warn.
   const parts: React.ReactNode[] = [];
   const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
   let last = 0;
+  let k = 0;
   text.replace(re, (m, _g, off: number) => {
-    if (off > last) parts.push(text.slice(last, off));
-    if (m.startsWith("**")) parts.push(<strong className="text-ink">{m.slice(2, -2)}</strong>);
-    else parts.push(<em className="text-lime/90">{m.slice(1, -1)}</em>);
+    if (off > last) parts.push(<span key={k++}>{text.slice(last, off)}</span>);
+    if (m.startsWith("**"))
+      parts.push(
+        <strong key={k++} className="text-ink">
+          {m.slice(2, -2)}
+        </strong>,
+      );
+    else
+      parts.push(
+        <em key={k++} className="text-lime/90">
+          {m.slice(1, -1)}
+        </em>,
+      );
     last = off + m.length;
     return m;
   });
-  if (last < text.length) parts.push(text.slice(last));
+  if (last < text.length) parts.push(<span key={k++}>{text.slice(last)}</span>);
   return parts;
 }
 
