@@ -5,6 +5,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.models.enums import CampaignStatus, ScheduledPostStatus
+from app.schemas._types import UtcDatetime
 
 
 class MediaAssetOut(BaseModel):
@@ -24,7 +25,7 @@ class ScheduledPostRowIn(BaseModel):
     ig_account_id: str
     caption: str = Field(min_length=1, max_length=2200)
     hashtags: list[str] = []
-    scheduled_at: datetime
+    scheduled_at: UtcDatetime
 
 
 class CampaignCreate(BaseModel):
@@ -36,7 +37,7 @@ class CampaignCreate(BaseModel):
 class ScheduledPostUpdate(BaseModel):
     caption: str | None = Field(default=None, min_length=1, max_length=2200)
     hashtags: list[str] | None = None
-    scheduled_at: datetime | None = None
+    scheduled_at: UtcDatetime | None = None
 
 
 class ScheduledPostOut(BaseModel):
@@ -45,14 +46,14 @@ class ScheduledPostOut(BaseModel):
     ig_account_id: str
     caption: str
     hashtags: list[str]
-    scheduled_at: datetime
+    scheduled_at: UtcDatetime
     status: ScheduledPostStatus
     container_id: str | None = None
     published_media_id: str | None = None
     permalink: str | None = None
     error: str | None = None
     attempts: int
-    published_at: datetime | None = None
+    published_at: UtcDatetime | None = None
 
     model_config = {"from_attributes": True}
 
@@ -63,7 +64,7 @@ class CampaignOut(BaseModel):
     status: CampaignStatus
     media: MediaAssetOut
     posts: list[ScheduledPostOut]
-    created_at: datetime
+    created_at: UtcDatetime
 
     model_config = {"from_attributes": True}
 
@@ -77,7 +78,7 @@ class ScheduleListItem(BaseModel):
     ig_username: str
     caption: str
     hashtags: list[str]
-    scheduled_at: datetime
+    scheduled_at: UtcDatetime
     status: ScheduledPostStatus
     permalink: str | None = None
     error: str | None = None
