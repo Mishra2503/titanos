@@ -50,6 +50,16 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str = ""
     cloudinary_signed_url_ttl: int = 86_400
 
+    # 'real' actually calls Meta media_publish; 'dry_run' simulates the final publish step.
+    publish_mode: Literal["real", "dry_run"] = "real"
+    # In-process publisher: how often to poll for due posts, and the per-post processing cap.
+    publisher_tick_seconds: int = 60
+    publisher_max_attempts: int = 3
+    # Reels spec guard rails (FR-SCHED-1)
+    reel_min_duration_sec: int = 5
+    reel_max_duration_sec: int = 90
+    reel_aspect_ratio: float = 9 / 16  # width / height
+
     ghl_webhook_outbound_url: str = ""
     ghl_webhook_secret: str = ""
 

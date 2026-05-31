@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from anthropic import APIError as AnthropicAPIError
 from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, DbSession
+from app.core.errors import bad_request
 from app.schemas.board import (
     AiActionIn,
     AiOut,
@@ -86,7 +88,14 @@ async def card_ai_action(
     card_id: str, payload: AiActionIn, user: CurrentUser, db: DbSession
 ) -> AiOut:
     card = await board_service.get_card(db, user.workspace_id, card_id)
-    text = await ai_service.run_card_action(
-        card, action=payload.action, instruction=payload.instruction
-    )
+    try:
+        text = await ai_service.run_card_action(
+            card, action=payload.action, instruction=payload.instruction
+        )
+    except AnthropicAPIError as exc:
+        # Surface the upstream provider message verbatim so the UI shows what's wrong
+        # (e.g. AWS Marketplace payment block, model access not granted, throttling).
+        body = getattr(exc, "body", None) or {}
+        upstream = (body.get("message") if isinstance(body, dict) else None) or str(exc)
+        raise bad_request("ai_upstream_error", f"Claude provider error: {upstream}") from exc
     return AiOut(action=payload.action, text=text)

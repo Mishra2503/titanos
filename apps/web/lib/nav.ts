@@ -11,7 +11,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Connections", href: "/connections", ownerOnly: true },
   { label: "Content Board", href: "/board" },
   { label: "Scriptwriter", href: "/scriptwriter" },
-  { label: "Bulk Scheduler", href: "/scheduler" },
+  { label: "Post & Schedule", href: "/scheduler" },
   { label: "Insights", href: "/insights" },
   { label: "Content Library", href: "/library" },
   { label: "Settings", href: "/settings", ownerOnly: true },

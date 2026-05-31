@@ -2,8 +2,15 @@
 
 from app.models.audit import AuditLog
 from app.models.board import BoardCard, BoardColumn
-from app.models.enums import IgAccountStatus, Role, UserStatus
+from app.models.enums import (
+    CampaignStatus,
+    IgAccountStatus,
+    Role,
+    ScheduledPostStatus,
+    UserStatus,
+)
 from app.models.ig_account import IgAccount
+from app.models.scheduling import Campaign, MediaAsset, ScheduledPost
 from app.models.user import User
 from app.models.workspace import Workspace
 
@@ -11,9 +18,14 @@ __all__ = [
     "AuditLog",
     "BoardCard",
     "BoardColumn",
+    "Campaign",
+    "CampaignStatus",
     "IgAccount",
     "IgAccountStatus",
+    "MediaAsset",
     "Role",
+    "ScheduledPost",
+    "ScheduledPostStatus",
     "User",
     "UserStatus",
     "Workspace",

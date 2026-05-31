@@ -211,3 +211,85 @@ export const updateColumn = (id: string, body: { name?: string; color?: string }
 
 export const deleteColumn = (id: string) =>
   apiFetch<void>(`/api/board/columns/${id}`, { method: "DELETE" });
+
+// === Post & Schedule ==============================================
+
+export interface MediaAsset {
+  id: string;
+  filename: string;
+  public_url: string;
+  width: number | null;
+  height: number | null;
+  duration_s: number | null;
+  format: string | null;
+  size_bytes: number | null;
+}
+
+export type ScheduledPostStatus =
+  | "SCHEDULED"
+  | "PROCESSING"
+  | "PUBLISHED"
+  | "FAILED"
+  | "CANCELED";
+
+export interface ScheduledPostRowIn {
+  ig_account_id: string;
+  caption: string;
+  hashtags: string[];
+  scheduled_at: string; // ISO
+}
+
+export interface ScheduleListItem {
+  id: string;
+  campaign_id: string;
+  ig_account_id: string;
+  ig_username: string;
+  caption: string;
+  hashtags: string[];
+  scheduled_at: string;
+  status: ScheduledPostStatus;
+  permalink: string | null;
+  error: string | null;
+  attempts: number;
+  thumbnail_url: string | null;
+}
+
+export async function uploadMedia(file: File): Promise<MediaAsset> {
+  const token = (await import("./auth")).getAccessToken();
+  const fd = new FormData();
+  fd.append("file", file);
+  const resp = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/media/upload`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: fd,
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    const err = body?.error ?? { code: "unknown", message: "Upload failed" };
+    throw new ApiError(resp.status, err.code, err.message);
+  }
+  return body as MediaAsset;
+}
+
+export const createCampaign = (media_asset_id: string, posts: ScheduledPostRowIn[], title?: string) =>
+  apiFetch<{ id: string }>("/api/campaigns", {
+    method: "POST",
+    body: JSON.stringify({ media_asset_id, posts, title }),
+  });
+
+export const getSchedule = () => apiFetch<ScheduleListItem[]>("/api/schedule");
+
+export const cancelScheduledPost = (id: string) =>
+  apiFetch<void>(`/api/schedule/${id}/cancel`, { method: "POST" });
+
+export const retryScheduledPost = (id: string) =>
+  apiFetch<void>(`/api/schedule/${id}/retry`, { method: "POST" });
+
+export const updateScheduledPost = (
+  id: string,
+  body: { caption?: string; hashtags?: string[]; scheduled_at?: string },
+) =>
+  apiFetch<{ status: string }>(`/api/schedule/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });

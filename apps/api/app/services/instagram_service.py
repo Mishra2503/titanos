@@ -114,6 +114,72 @@ async def fetch_profile(token: str) -> dict[str, Any]:
         )
 
 
+async def create_reel_container(
+    ig_user_id: str, token: str, *, video_url: str, caption: str
+) -> str:
+    """Step 1 of the publish flow (PRD Appendix A). Returns the creation_id."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(
+            f"{GRAPH_BASE}/{settings.instagram_graph_version}/{ig_user_id}/media",
+            data={
+                "media_type": "REELS",
+                "video_url": video_url,
+                "caption": caption,
+                "access_token": token,
+            },
+        )
+        data = resp.json()
+        if resp.status_code >= 400 or "id" not in data:
+            raise InstagramApiError(
+                data.get("error_message")
+                or (data.get("error") or {}).get("message", "Container creation failed"),
+                status=resp.status_code,
+                payload=data,
+            )
+        return str(data["id"])
+
+
+async def fetch_container_status(container_id: str, token: str) -> dict[str, Any]:
+    """Step 2: poll container processing status. Returns {status_code, ...}."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        return await _get_json(
+            client,
+            f"{GRAPH_BASE}/{settings.instagram_graph_version}/{container_id}",
+            {"fields": "status_code,status", "access_token": token},
+        )
+
+
+async def publish_reel(ig_user_id: str, token: str, *, creation_id: str) -> dict[str, Any]:
+    """Step 3: publish a FINISHED container. Returns {id: media_id}."""
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+        resp = await client.post(
+            f"{GRAPH_BASE}/{settings.instagram_graph_version}/{ig_user_id}/media_publish",
+            data={"creation_id": creation_id, "access_token": token},
+        )
+        data = resp.json()
+        if resp.status_code >= 400 or "id" not in data:
+            raise InstagramApiError(
+                data.get("error_message")
+                or (data.get("error") or {}).get("message", "Publish failed"),
+                status=resp.status_code,
+                payload=data,
+            )
+        return data
+
+
+async def fetch_media_permalink(media_id: str, token: str) -> str | None:
+    try:
+        async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+            data = await _get_json(
+                client,
+                f"{GRAPH_BASE}/{settings.instagram_graph_version}/{media_id}",
+                {"fields": "permalink", "access_token": token},
+            )
+            return data.get("permalink")
+    except InstagramApiError:
+        return None
+
+
 async def fetch_publishing_limit(ig_user_id: str, token: str) -> dict[str, Any]:
     """Live 24h publish-capacity from content_publishing_limit (FR-CONN-5 / Rail #5)."""
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

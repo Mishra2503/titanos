@@ -22,3 +22,20 @@ class IgAccountStatus(StrEnum):
     CONNECTED = "CONNECTED"
     NEEDS_REAUTH = "NEEDS_REAUTH"
     WARMING = "WARMING"
+
+
+class CampaignStatus(StrEnum):
+    DRAFT = "DRAFT"
+    APPROVED = "APPROVED"
+    PARTIALLY_PUBLISHED = "PARTIALLY_PUBLISHED"
+    DONE = "DONE"
+
+
+class ScheduledPostStatus(StrEnum):
+    """Lifecycle of an individual scheduled post (FR-SCHED-9..12)."""
+
+    SCHEDULED = "SCHEDULED"
+    PROCESSING = "PROCESSING"
+    PUBLISHED = "PUBLISHED"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
