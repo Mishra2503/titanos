@@ -60,6 +60,15 @@ class Settings(BaseSettings):
     reel_max_duration_sec: int = 90
     reel_aspect_ratio: float = 9 / 16  # width / height
 
+    # --- Account safety defaults (anti-ban guardrails, on top of Meta's 100/24h cap) ---
+    # Conservative defaults from PRD §16 "Cap UI guidance (1-3 reels/day)". Per-account
+    # overrides can be added later; today these apply workspace-wide.
+    safety_enabled: bool = True
+    safety_daily_cap: int = 3              # max posts per account per 24h rolling
+    safety_hourly_cap: int = 1             # max posts per account per 1h rolling
+    safety_min_gap_minutes: int = 90       # min spacing between two posts on same account
+    safety_jitter_seconds: int = 90        # ±N seconds randomized at publish time
+
     ghl_webhook_outbound_url: str = ""
     ghl_webhook_secret: str = ""
 

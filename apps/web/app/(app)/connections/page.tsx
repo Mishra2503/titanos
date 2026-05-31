@@ -4,6 +4,29 @@ import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
 import { ApiError, apiFetch } from "@/lib/api";
 
+type HealthLevel = "GREEN" | "YELLOW" | "RED";
+interface AccountHealth {
+  ig_account_id: string;
+  level: HealthLevel;
+  posts_24h: number;
+  posts_7d: number;
+  reasons: string[];
+}
+interface SafetyOverview {
+  defaults: { daily_cap: number; hourly_cap: number; min_gap_minutes: number; jitter_seconds: number; enabled: boolean };
+  accounts: AccountHealth[];
+}
+const HEALTH_STYLE: Record<HealthLevel, string> = {
+  GREEN: "border-lime/40 bg-lime/10 text-lime",
+  YELLOW: "border-amber-400/40 bg-amber-400/10 text-amber-300",
+  RED: "border-red-400/40 bg-red-400/10 text-red-400",
+};
+const HEALTH_LABEL: Record<HealthLevel, string> = {
+  GREEN: "Safe",
+  YELLOW: "Caution",
+  RED: "Pause",
+};
+
 const MAX_ACCOUNTS = 10;
 
 interface Capacity {
@@ -38,6 +61,7 @@ const STATUS_LABEL: Record<Connection["status"], string> = {
 
 export default function ConnectionsPage() {
   const [accounts, setAccounts] = useState<Connection[] | null>(null);
+  const [safety, setSafety] = useState<SafetyOverview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<{ kind: "ok" | "err"; msg: string } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -45,6 +69,7 @@ export default function ConnectionsPage() {
   const load = useCallback(async () => {
     try {
       setAccounts(await apiFetch<Connection[]>("/api/connections"));
+      setSafety(await apiFetch<SafetyOverview>("/api/safety/health"));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load connections");
     }
@@ -142,9 +167,22 @@ export default function ConnectionsPage() {
         </div>
       )}
 
+      {safety && (
+        <div className="mb-4 rounded-lg border border-charcoal-700 bg-charcoal-800 px-4 py-2 text-xs text-ink-muted">
+          <span className="font-mono uppercase tracking-wider text-lime">Anti-ban guardrails active</span>
+          <span className="ml-2">
+            Max <strong className="text-ink">{safety.defaults.daily_cap}</strong>/day ·{" "}
+            <strong className="text-ink">{safety.defaults.hourly_cap}</strong>/hour ·{" "}
+            <strong className="text-ink">{safety.defaults.min_gap_minutes} min</strong> minimum gap ·{" "}
+            <strong className="text-ink">±{safety.defaults.jitter_seconds}s</strong> publish jitter
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {accounts?.map((a) => {
           const cap = a.capacity;
+          const health = safety?.accounts.find((h) => h.ig_account_id === a.id);
           const pct =
             cap && cap.total && cap.used != null
               ? Math.min(100, Math.round((cap.used / cap.total) * 100))
@@ -189,6 +227,20 @@ export default function ConnectionsPage() {
                   />
                 </div>
               </div>
+
+              {health && (
+                <div className={`mt-3 rounded-lg border px-2.5 py-1.5 text-[11px] ${HEALTH_STYLE[health.level]}`}>
+                  <div className="flex items-center justify-between font-mono uppercase tracking-wider">
+                    <span>Safety: {HEALTH_LABEL[health.level]}</span>
+                    <span className="opacity-80">
+                      {health.posts_24h}/24h · {health.posts_7d}/7d
+                    </span>
+                  </div>
+                  {health.reasons[0] && (
+                    <p className="mt-0.5 text-[10px] opacity-90">{health.reasons[0]}</p>
+                  )}
+                </div>
+              )}
 
               <div className="mt-4 flex gap-2">
                 <button

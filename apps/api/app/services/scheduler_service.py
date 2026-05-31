@@ -13,8 +13,9 @@ from app.core.security import decrypt_secret
 from app.models.enums import CampaignStatus, IgAccountStatus, ScheduledPostStatus
 from app.models.ig_account import IgAccount
 from app.models.scheduling import Campaign, MediaAsset, ScheduledPost
-from app.services import instagram_service
+from app.services import instagram_service, safety_service
 from app.services.instagram_service import InstagramApiError
+from app.services.safety_service import ProposedPost
 
 
 def _as_utc(dt: datetime) -> datetime:
@@ -112,6 +113,16 @@ async def create_campaign(
                 "scheduled_in_past",
                 "Scheduled time must be in the future.",
             )
+
+    # Anti-ban safety guardrails (caps + min gap). Runs BEFORE we commit anything
+    # so a violation rolls back the whole batch.
+    await safety_service.validate_proposed_schedule(
+        db,
+        [
+            ProposedPost(ig_account_id=p["ig_account_id"], scheduled_at=p["scheduled_at"])
+            for p in posts
+        ],
+    )
 
     campaign = Campaign(
         workspace_id=workspace_id,

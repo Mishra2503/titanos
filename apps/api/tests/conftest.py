@@ -10,6 +10,9 @@ os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000")
 # Force-clear IG creds so tests don't pick up a developer's real .env values.
 os.environ["INSTAGRAM_APP_ID"] = ""
 os.environ["INSTAGRAM_APP_SECRET"] = ""
+# Disable account-safety guardrails by default so existing tests can schedule
+# closely-spaced posts. Safety tests turn it back on explicitly.
+os.environ["SAFETY_ENABLED"] = "false"
 
 from cryptography.fernet import Fernet  # noqa: E402
 

@@ -6,6 +6,7 @@ on restart, never bypasses content_publishing_limit.
 from __future__ import annotations
 
 import asyncio
+import random
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, update
@@ -17,7 +18,7 @@ from app.db.session import SessionLocal
 from app.models.enums import ScheduledPostStatus
 from app.models.ig_account import IgAccount
 from app.models.scheduling import Campaign, MediaAsset, ScheduledPost
-from app.services import instagram_service
+from app.services import audit_service, instagram_service
 from app.services.instagram_service import InstagramApiError
 
 _POLL_INTERVAL = 5  # seconds between container status checks
@@ -179,8 +180,26 @@ async def tick() -> dict[str, int]:
             if post is None:
                 skipped += 1
                 continue
+            # Anti-bot jitter: if multiple posts come up due in the same tick, spread
+            # their actual API calls by 0..safety_jitter_seconds (random per post) so
+            # nothing looks machine-precise to Meta's safety systems.
+            if settings.safety_enabled and settings.safety_jitter_seconds > 0:
+                await asyncio.sleep(random.uniform(0, settings.safety_jitter_seconds))
             try:
                 await _publish_single(db, post)
+                await audit_service.record(
+                    db,
+                    workspace_id=post.workspace_id,
+                    user_id=None,
+                    action="post.published",
+                    entity=post.id,
+                    meta={
+                        "ig_account_id": post.ig_account_id,
+                        "media_id": post.published_media_id,
+                        "permalink": post.permalink,
+                        "dry_run": settings.publish_mode == "dry_run",
+                    },
+                )
                 published += 1
             except Exception as exc:  # noqa: BLE001 — store full message for the user
                 post.status = (
@@ -189,6 +208,18 @@ async def tick() -> dict[str, int]:
                     else ScheduledPostStatus.SCHEDULED  # let it retry on a later tick
                 )
                 post.error = str(exc)[:1900]
+                await audit_service.record(
+                    db,
+                    workspace_id=post.workspace_id,
+                    user_id=None,
+                    action="post.failed",
+                    entity=post.id,
+                    meta={
+                        "ig_account_id": post.ig_account_id,
+                        "error": post.error[:300],
+                        "attempts": post.attempts,
+                    },
+                )
                 failed += 1
             await db.commit()
 
