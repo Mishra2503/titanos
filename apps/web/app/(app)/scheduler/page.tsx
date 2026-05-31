@@ -2,14 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
+import { ScheduleCalendar } from "@/components/ScheduleCalendar";
 import {
   ApiError,
   apiFetch,
   cancelScheduledPost,
   createCampaign,
+  getInsightsSummary,
   getSchedule,
   retryScheduledPost,
   uploadMedia,
+  type InsightsSummary,
   type MediaAsset,
   type ScheduleListItem,
   type ScheduledPostRowIn,
@@ -50,9 +53,10 @@ function extractHashtags(text: string): string[] {
 }
 
 export default function SchedulerPage() {
-  const [tab, setTab] = useState<"compose" | "queue">("compose");
+  const [tab, setTab] = useState<"compose" | "queue" | "calendar">("compose");
   const [accounts, setAccounts] = useState<ConnAccount[]>([]);
   const [schedule, setSchedule] = useState<ScheduleListItem[]>([]);
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
 
   // Compose state
@@ -92,6 +96,11 @@ export default function SchedulerPage() {
   useEffect(() => {
     void loadAccounts();
     void loadSchedule();
+    // Insights are best-effort: the calendar still works without them, just without
+    // the reach/engagement overlay on posted entries.
+    getInsightsSummary()
+      .then(setInsights)
+      .catch(() => setInsights(null));
   }, [loadAccounts, loadSchedule]);
 
   // --- file handling --------------------------------------------------------
@@ -243,18 +252,22 @@ export default function SchedulerPage() {
       />
 
       <div className="mb-6 flex gap-1 rounded-full border border-charcoal-600 bg-charcoal-700/40 p-0.5 w-fit">
-        {(["compose", "queue"] as const).map((t) => (
+        {(["compose", "queue", "calendar"] as const).map((t) => (
           <button
             key={t}
             onClick={() => {
               setTab(t);
-              if (t === "queue") void loadSchedule();
+              if (t === "queue" || t === "calendar") void loadSchedule();
             }}
             className={`press rounded-full px-4 py-1.5 text-sm transition-studio duration-studio ease-studio-out ${
               tab === t ? "bg-lime text-charcoal font-semibold" : "text-ink-muted hover:text-ink"
             }`}
           >
-            {t === "compose" ? "Compose" : `Queue (${schedule.length})`}
+            {t === "compose"
+              ? "Compose"
+              : t === "queue"
+                ? `Queue (${schedule.length})`
+                : "Calendar"}
           </button>
         ))}
       </div>
@@ -435,6 +448,10 @@ export default function SchedulerPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {tab === "calendar" && (
+        <ScheduleCalendar schedule={schedule} insights={insights} />
       )}
 
       {tab === "queue" && (
