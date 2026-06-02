@@ -28,6 +28,15 @@ _CONTAINER_RETRY_LIMIT = 2  # PRD: max 2 container regenerations
 _STALE_PROCESSING = timedelta(minutes=15)
 
 
+def _naive_utc(dt: datetime | None = None) -> datetime:
+    """Return a tz-naive UTC datetime. asyncpg refuses to encode tz-aware values
+    when our datetime columns happen to be TIMESTAMP WITHOUT TIME ZONE. Stripping
+    tzinfo makes the same code work regardless of which column type the DB ended
+    up with."""
+    value = dt if dt is not None else datetime.now(UTC)
+    return value.astimezone(UTC).replace(tzinfo=None) if value.tzinfo else value
+
+
 def _compose_caption(post: ScheduledPost) -> str:
     """Caption + hashtags joined; matches what the Composer previewed."""
     tag_line = " ".join(post.hashtags) if post.hashtags else ""
@@ -118,13 +127,13 @@ async def _publish_single(db: AsyncSession, post: ScheduledPost) -> None:
         post.permalink = await instagram_service.fetch_media_permalink(media_id, token)
 
     post.status = ScheduledPostStatus.PUBLISHED
-    post.published_at = datetime.now(UTC)
+    post.published_at = _naive_utc()
     post.error = None
 
 
 async def _claim_due_post(db: AsyncSession, post_id: str) -> ScheduledPost | None:
     """Atomically transition SCHEDULED -> PROCESSING. Returns None if another worker won it."""
-    now = datetime.now(UTC)
+    now = _naive_utc()
     stmt = (
         update(ScheduledPost)
         .where(
@@ -146,7 +155,7 @@ async def _claim_due_post(db: AsyncSession, post_id: str) -> ScheduledPost | Non
 
 async def _reset_stale_processing(db: AsyncSession) -> None:
     """Recover posts stuck in PROCESSING from a crashed worker."""
-    cutoff = datetime.now(UTC) - _STALE_PROCESSING
+    cutoff = _naive_utc() - _STALE_PROCESSING
     stmt = (
         update(ScheduledPost)
         .where(

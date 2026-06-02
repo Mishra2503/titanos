@@ -31,12 +31,18 @@ async def _active_count(db: AsyncSession, workspace_id: str, *, exclude_ig_user_
     return (await db.scalar(stmt)) or 0
 
 
+def _naive_utc() -> datetime:
+    """asyncpg can't encode tz-aware datetimes into columns that ended up as
+    TIMESTAMP WITHOUT TIME ZONE. Pass naive UTC everywhere to avoid the trap."""
+    return datetime.now(UTC).replace(tzinfo=None)
+
+
 async def complete_oauth(db: AsyncSession, *, workspace_id: str, code: str) -> IgAccount:
     """Run the full connect flow: code -> long-lived token -> validate -> store encrypted."""
     short = await instagram_service.exchange_code_for_token(code)
     long_lived = await instagram_service.exchange_for_long_lived(short["access_token"])
     token = long_lived["access_token"]
-    expires_at = datetime.now(UTC) + timedelta(seconds=int(long_lived.get("expires_in", 0)))
+    expires_at = _naive_utc() + timedelta(seconds=int(long_lived.get("expires_in", 0)))
 
     profile = await instagram_service.fetch_profile(token)
     account_type = (profile.get("account_type") or "").upper()
@@ -73,7 +79,7 @@ async def complete_oauth(db: AsyncSession, *, workspace_id: str, code: str) -> I
     existing.token_expires_at = expires_at
     existing.status = IgAccountStatus.CONNECTED
     existing.followers_count = profile.get("followers_count")
-    existing.last_synced_at = datetime.now(UTC)
+    existing.last_synced_at = _naive_utc()
     db.add(existing)
     await db.flush()
     return existing
@@ -101,7 +107,7 @@ async def refresh_account(db: AsyncSession, *, workspace_id: str, account_id: st
         raise bad_request("refresh_failed", "Token refresh failed; account needs re-auth.")
 
     account.access_token_enc = encrypt_secret(refreshed["access_token"])
-    account.token_expires_at = datetime.now(UTC) + timedelta(
+    account.token_expires_at = _naive_utc() + timedelta(
         seconds=int(refreshed.get("expires_in", 0))
     )
     account.status = IgAccountStatus.CONNECTED
