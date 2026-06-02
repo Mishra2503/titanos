@@ -82,6 +82,66 @@ export interface Me {
 
 export const getMe = () => apiFetch<Me>("/api/auth/me");
 
+// === Settings: team, workspace, security =========================
+
+export interface WorkspaceUser {
+  id: string;
+  email: string;
+  role: "OWNER" | "EDITOR";
+  status: "ACTIVE" | "INVITED" | "REVOKED";
+  workspace_id: string;
+}
+
+export const listUsers = () => apiFetch<WorkspaceUser[]>("/api/auth/users");
+
+export interface InviteResult {
+  user: WorkspaceUser;
+  invite_token: string;
+}
+
+export const inviteUser = (email: string, role: "OWNER" | "EDITOR" = "EDITOR") =>
+  apiFetch<InviteResult>("/api/auth/invite", {
+    method: "POST",
+    body: JSON.stringify({ email, role }),
+  });
+
+export const revokeUser = (id: string) =>
+  apiFetch<WorkspaceUser>(`/api/auth/users/${id}/revoke`, { method: "POST" });
+
+export const changePassword = (current_password: string, new_password: string) =>
+  apiFetch<void>("/api/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ current_password, new_password }),
+  });
+
+export interface Workspace {
+  id: string;
+  name: string;
+  plan: string;
+  member_count: number;
+  connection_count: number;
+  connection_limit: number;
+}
+
+export const getWorkspace = () => apiFetch<Workspace>("/api/workspace");
+
+export const updateWorkspace = (name: string) =>
+  apiFetch<Workspace>("/api/workspace", {
+    method: "PATCH",
+    body: JSON.stringify({ name }),
+  });
+
+export interface SafetyDefaults {
+  enabled: boolean;
+  daily_cap: number;
+  hourly_cap: number;
+  min_gap_minutes: number;
+  jitter_seconds: number;
+}
+
+export const getSafetyDefaults = () =>
+  apiFetch<{ defaults: SafetyDefaults }>("/api/safety/health").then((r) => r.defaults);
+
 export interface Kpi {
   key: string;
   label: string;

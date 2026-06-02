@@ -73,6 +73,29 @@ async def accept_invite(db: AsyncSession, *, invite_token: str, password: str) -
     return user
 
 
+async def list_workspace_users(db: AsyncSession, *, workspace_id: str) -> list[User]:
+    """All members of a workspace, oldest first (owners + editors + pending invites)."""
+    return list(
+        await db.scalars(
+            select(User)
+            .where(User.workspace_id == workspace_id)
+            .order_by(User.created_at.asc())
+        )
+    )
+
+
+async def change_password(
+    db: AsyncSession, *, user: User, current_password: str, new_password: str
+) -> User:
+    if not user.password_hash or not verify_password(current_password, user.password_hash):
+        raise bad_request("invalid_password", "Current password is incorrect")
+    if verify_password(new_password, user.password_hash):
+        raise bad_request("same_password", "New password must differ from the current one")
+    user.password_hash = hash_password(new_password)
+    await db.flush()
+    return user
+
+
 async def revoke_user(db: AsyncSession, *, workspace_id: str, user_id: str) -> User:
     user = await db.scalar(
         select(User).where(User.id == user_id, User.workspace_id == workspace_id)

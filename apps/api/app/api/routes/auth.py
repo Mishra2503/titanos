@@ -11,6 +11,7 @@ from app.models.enums import Role, UserStatus
 from app.models.user import User
 from app.schemas.auth import (
     AcceptInviteRequest,
+    ChangePasswordRequest,
     InviteOut,
     InviteRequest,
     LoginRequest,
@@ -71,6 +72,28 @@ async def logout(user: CurrentUser, db: DbSession) -> None:
 @router.get("/me", response_model=UserOut)
 async def me(user: CurrentUser) -> User:
     return user
+
+
+@router.get("/users", response_model=list[UserOut])
+async def list_users(user: CurrentUser, db: DbSession) -> list[User]:
+    # Any authenticated member may view the roster; mutations stay OWNER-only below.
+    return await auth_service.list_workspace_users(db, workspace_id=user.workspace_id)
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+async def change_password(
+    payload: ChangePasswordRequest, user: CurrentUser, db: DbSession
+) -> None:
+    await auth_service.change_password(
+        db,
+        user=user,
+        current_password=payload.current_password,
+        new_password=payload.new_password,
+    )
+    await audit_service.record(
+        db, workspace_id=user.workspace_id, user_id=user.id, action="auth.password_change"
+    )
+    await db.commit()
 
 
 @router.post("/invite", response_model=InviteOut)
