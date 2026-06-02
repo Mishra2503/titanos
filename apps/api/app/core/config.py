@@ -90,6 +90,18 @@ class Settings(BaseSettings):
             raise ValueError("CORS_ORIGINS must list exact origins, never '*'")
         return v
 
+    @field_validator("database_url")
+    @classmethod
+    def use_asyncpg_driver(cls, v: str) -> str:
+        # Render / Supabase / Heroku-style URLs come as `postgres://` or `postgresql://`
+        # without a driver. SQLAlchemy async needs `postgresql+asyncpg://`. Auto-upgrade
+        # so we can paste the URL straight from the hosting provider.
+        if v.startswith("postgres://"):
+            return "postgresql+asyncpg://" + v[len("postgres://"):]
+        if v.startswith("postgresql://") and "+asyncpg" not in v:
+            return "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
+
 
 @lru_cache
 def get_settings() -> Settings:
