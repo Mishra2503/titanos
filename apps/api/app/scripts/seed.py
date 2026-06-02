@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 
 from sqlalchemy import select
 
@@ -50,11 +51,23 @@ async def seed(email: str, password: str, workspace_name: str) -> None:
 
 
 def main() -> None:
+    """Run from CLI or as part of a build step.
+
+    Reads --email/--password from args, falling back to BOOTSTRAP_OWNER_EMAIL /
+    BOOTSTRAP_OWNER_PASSWORD env vars. If neither is provided we exit silently —
+    so this script is safe to keep in build commands on Render/Railway after the
+    initial bootstrap (it becomes a no-op).
+    """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--email", required=True)
-    parser.add_argument("--password", required=True)
-    parser.add_argument("--workspace", default="Titan OS")
+    parser.add_argument("--email", default=os.getenv("BOOTSTRAP_OWNER_EMAIL"))
+    parser.add_argument("--password", default=os.getenv("BOOTSTRAP_OWNER_PASSWORD"))
+    parser.add_argument(
+        "--workspace", default=os.getenv("BOOTSTRAP_WORKSPACE_NAME", "Titan OS")
+    )
     args = parser.parse_args()
+    if not args.email or not args.password:
+        print("Seed skipped: BOOTSTRAP_OWNER_EMAIL / BOOTSTRAP_OWNER_PASSWORD not set.")
+        return
     asyncio.run(seed(args.email, args.password, args.workspace))
 
 
