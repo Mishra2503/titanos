@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy import DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -32,7 +33,9 @@ class IgAccount(UUIDMixin, TimestampMixin, Base):
 
     # Fernet-encrypted long-lived token. Never serialized to any API response.
     access_token_enc: Mapped[str] = mapped_column(nullable=False)
-    token_expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    token_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     status: Mapped[IgAccountStatus] = mapped_column(
         SAEnum(IgAccountStatus, native_enum=False, length=16),
@@ -40,4 +43,6 @@ class IgAccount(UUIDMixin, TimestampMixin, Base):
         nullable=False,
     )
     followers_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    last_synced_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    last_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

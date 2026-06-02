@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, Enum as SAEnum
+from sqlalchemy import JSON, DateTime, Enum as SAEnum
 from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -81,7 +81,9 @@ class ScheduledPost(UUIDMixin, TimestampMixin, Base):
     )
     caption: Mapped[str] = mapped_column(nullable=False)
     hashtags: Mapped[list[Any]] = mapped_column(JSON, default=list, nullable=False)
-    scheduled_at: Mapped[datetime] = mapped_column(index=True, nullable=False)
+    scheduled_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=False
+    )
 
     status: Mapped[ScheduledPostStatus] = mapped_column(
         SAEnum(ScheduledPostStatus, native_enum=False, length=16),
@@ -99,5 +101,9 @@ class ScheduledPost(UUIDMixin, TimestampMixin, Base):
     error: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     idempotency_key: Mapped[str] = mapped_column(nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    processing_started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    published_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    processing_started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )

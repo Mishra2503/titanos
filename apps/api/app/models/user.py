@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from sqlalchemy import DateTime
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy import ForeignKey, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -33,4 +34,6 @@ class User(UUIDMixin, TimestampMixin, Base):
 
     # Single-use invite token (hashed) + expiry for VA invites (FR-AUTH-3).
     invite_token_hash: Mapped[str | None] = mapped_column(nullable=True)
-    invite_expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    invite_expires_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
