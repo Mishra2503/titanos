@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from urllib.parse import urlencode
 
 import jwt
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import RedirectResponse
+
+log = logging.getLogger("titan.oauth")
 
 from app.api.deps import DbSession, require_role
 from app.core.config import settings
@@ -78,12 +81,16 @@ async def oauth_callback(
             db, workspace_id=workspace_id, code=code
         )
     except InstagramApiError as exc:
+        log.exception("OAuth callback: Instagram API error")
         await db.rollback()
-        return _redirect({"error": f"Instagram error: {exc}"})
+        return _redirect({"error": f"Instagram: {str(exc)[:200]}"})
     except Exception as exc:  # noqa: BLE001 — surface a clean message, log server-side
+        log.exception("OAuth callback: unexpected error")
         await db.rollback()
-        detail = getattr(exc, "detail", None) or "Connection failed"
-        return _redirect({"error": str(detail)})
+        detail = getattr(exc, "detail", None)
+        # Surface the real exception type/message so we can diagnose from the URL bar.
+        msg = str(detail) if detail else f"{type(exc).__name__}: {str(exc)[:200]}"
+        return _redirect({"error": msg[:400]})
 
     await audit_service.record(
         db,
