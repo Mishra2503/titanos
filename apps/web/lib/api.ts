@@ -331,6 +331,35 @@ export async function uploadMedia(file: File): Promise<MediaAsset> {
   return body as MediaAsset;
 }
 
+// === Content Library =============================================
+
+export interface MediaUsage {
+  campaigns: number;
+  scheduled_posts: number;
+  published_posts: number;
+}
+
+export interface LibraryAsset {
+  id: string;
+  filename: string;
+  public_url: string;
+  thumbnail_url: string | null;
+  width: number | null;
+  height: number | null;
+  duration_s: number | null;
+  format: string | null;
+  size_bytes: number | null;
+  created_at: string;
+  uploaded_by_email: string | null;
+  in_use: boolean;
+  usage: MediaUsage;
+}
+
+export const listMedia = () => apiFetch<LibraryAsset[]>("/api/media");
+
+export const deleteMedia = (id: string) =>
+  apiFetch<void>(`/api/media/${id}`, { method: "DELETE" });
+
 export const createCampaign = (media_asset_id: string, posts: ScheduledPostRowIn[], title?: string) =>
   apiFetch<{ id: string }>("/api/campaigns", {
     method: "POST",

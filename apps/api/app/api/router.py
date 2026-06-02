@@ -8,6 +8,7 @@ from app.api.routes import (
     connections,
     health,
     insights,
+    media,
     safety,
     scheduling,
     workspace,
@@ -22,3 +23,4 @@ api_router.include_router(board.router)
 api_router.include_router(scheduling.router)
 api_router.include_router(safety.router)
 api_router.include_router(workspace.router)
+api_router.include_router(media.router)
