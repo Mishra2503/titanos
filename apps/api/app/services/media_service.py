@@ -1,4 +1,10 @@
-"""Cloudinary upload + Reel spec validation (PRD §5, FR-SCHED-1/2)."""
+"""Cloudinary upload for master videos (PRD §5).
+
+The Content Library accepts any video — vertical Reels, Shorts, horizontal/long-form,
+large 4K masters. We deliberately do NOT gate uploads on duration / aspect ratio / size /
+format here. Instagram's own Reel requirements are enforced at publish time (where Meta
+returns the authoritative error), not at library upload time.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -10,10 +16,6 @@ import cloudinary.uploader
 
 from app.core.config import settings
 from app.core.errors import bad_request
-
-# Accepted container formats. Cloudinary normalizes most camera output to these on upload.
-ALLOWED_FORMATS = {"mp4", "mov", "m4v"}
-ASPECT_TOLERANCE = 0.05  # allow small rounding (9:16 ≈ 0.5625)
 
 
 def _configured() -> bool:
@@ -39,33 +41,6 @@ def _ensure_configured() -> None:
     )
 
 
-def _validate_specs(meta: dict[str, Any]) -> None:
-    """Reel spec gate (FR-SCHED-1). Raises a user-friendly error on any violation."""
-    fmt = (meta.get("format") or "").lower()
-    if fmt and fmt not in ALLOWED_FORMATS:
-        raise bad_request(
-            "reel_format_invalid",
-            f"Video format must be MP4 or MOV. Got: {fmt}.",
-        )
-    duration = meta.get("duration")
-    if duration is None:
-        raise bad_request("reel_no_duration", "Could not read video duration.")
-    if duration < settings.reel_min_duration_sec or duration > settings.reel_max_duration_sec:
-        raise bad_request(
-            "reel_duration_invalid",
-            f"Reel duration must be {settings.reel_min_duration_sec}–{settings.reel_max_duration_sec}s. "
-            f"Got: {duration:.1f}s.",
-        )
-    width, height = meta.get("width"), meta.get("height")
-    if width and height:
-        aspect = width / height
-        if abs(aspect - settings.reel_aspect_ratio) > ASPECT_TOLERANCE:
-            raise bad_request(
-                "reel_aspect_invalid",
-                f"Reel aspect ratio must be 9:16 (vertical). Got: {width}×{height}.",
-            )
-
-
 def _upload_sync(data: bytes, filename: str) -> dict[str, Any]:
     return cloudinary.uploader.upload(
         data,
@@ -77,23 +52,13 @@ def _upload_sync(data: bytes, filename: str) -> dict[str, Any]:
 
 
 async def upload_master(filename: str, data: bytes) -> dict[str, Any]:
-    """Upload a master video to Cloudinary. Returns the asset metadata + validation result."""
+    """Upload a master video to Cloudinary and return its metadata.
+
+    No spec gate: any video is accepted. Cloudinary still enforces its own per-plan
+    limits (file size / duration), and Meta enforces Reel requirements at publish time.
+    """
     _ensure_configured()
-    meta = await asyncio.to_thread(_upload_sync, data, filename)
-    try:
-        _validate_specs(meta)
-    except Exception:
-        # Don't leave invalid assets sitting in the account.
-        public_id = meta.get("public_id")
-        if public_id:
-            try:
-                await asyncio.to_thread(
-                    cloudinary.uploader.destroy, public_id, resource_type="video"
-                )
-            except Exception:
-                pass
-        raise
-    return meta
+    return await asyncio.to_thread(_upload_sync, data, filename)
 
 
 async def destroy(cloudinary_public_id: str) -> None:

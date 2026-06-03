@@ -177,7 +177,7 @@ export default function LibraryPage() {
         <input
           ref={fileInput}
           type="file"
-          accept="video/mp4,video/quicktime,.mp4,.mov,.m4v"
+          accept="video/*"
           multiple
           hidden
           onChange={(e) => {
@@ -271,9 +271,9 @@ export default function LibraryPage() {
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-charcoal-700 text-2xl">
             🎬
           </div>
-          <p className="mt-4 text-sm text-ink">Drop a master Reel here, or click to upload</p>
+          <p className="mt-4 text-sm text-ink">Drop a video here, or click to upload</p>
           <p className="mt-1 font-mono text-xs text-ink-faint">
-            MP4 / MOV · vertical 9:16 · 5–90 seconds · up to 150 MB
+            Any video — Reels, Shorts, horizontal or long-form · any size or aspect ratio
           </p>
         </div>
       )}

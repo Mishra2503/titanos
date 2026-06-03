@@ -18,9 +18,6 @@ from app.services import media_service, scheduler_service
 
 router = APIRouter(prefix="/api", tags=["scheduling"])
 
-# Max upload size: enough for a 90s reel at ~10Mbps (~115 MB).
-_MAX_UPLOAD_BYTES = 150 * 1024 * 1024
-
 
 @router.post("/media/upload", response_model=MediaAssetOut)
 async def upload_media(
@@ -29,14 +26,11 @@ async def upload_media(
     file: UploadFile = File(...),
     filename: str | None = Form(default=None),
 ) -> MediaAssetOut:
+    # No app-level size/duration/aspect cap — the Content Library accepts any video.
+    # Cloudinary (per-plan) and Meta (at publish) enforce their own real limits.
     data = await file.read()
     if len(data) == 0:
         raise bad_request("empty_file", "Uploaded file is empty.")
-    if len(data) > _MAX_UPLOAD_BYTES:
-        raise bad_request(
-            "file_too_large",
-            f"File exceeds {_MAX_UPLOAD_BYTES // (1024*1024)} MB limit.",
-        )
     name = filename or file.filename or "master.mp4"
     meta = await media_service.upload_master(name, data)
 
