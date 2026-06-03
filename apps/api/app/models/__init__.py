@@ -2,6 +2,12 @@
 
 from app.models.audit import AuditLog
 from app.models.board import BoardCard, BoardColumn
+from app.models.competitor import (
+    Competitor,
+    CompetitorPost,
+    CompetitorReport,
+    CompetitorSnapshot,
+)
 from app.models.enums import (
     CampaignStatus,
     IgAccountStatus,
@@ -20,6 +26,10 @@ __all__ = [
     "BoardColumn",
     "Campaign",
     "CampaignStatus",
+    "Competitor",
+    "CompetitorPost",
+    "CompetitorReport",
+    "CompetitorSnapshot",
     "IgAccount",
     "IgAccountStatus",
     "MediaAsset",

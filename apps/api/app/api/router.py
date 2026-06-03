@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.routes import (
     auth,
     board,
+    competitors,
     connections,
     health,
     insights,
@@ -24,3 +25,4 @@ api_router.include_router(scheduling.router)
 api_router.include_router(safety.router)
 api_router.include_router(workspace.router)
 api_router.include_router(media.router)
+api_router.include_router(competitors.router)

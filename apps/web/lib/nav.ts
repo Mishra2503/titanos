@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Scriptwriter", href: "/scriptwriter" },
   { label: "Post & Schedule", href: "/scheduler" },
   { label: "Insights", href: "/insights" },
+  { label: "Competitors", href: "/competitors" },
   { label: "Content Library", href: "/library" },
   { label: "Settings", href: "/settings", ownerOnly: true },
 ];

@@ -357,6 +357,168 @@ export interface LibraryAsset {
 
 export const listMedia = () => apiFetch<LibraryAsset[]>("/api/media");
 
+// === Competitors =================================================
+
+export interface CompetitorListItem {
+  id: string;
+  username: string;
+  display_name: string | null;
+  category: string | null;
+  profile_url: string | null;
+  avatar_url: string | null;
+  latest_followers: number | null;
+  avg_engagement_rate: number | null;
+  follower_delta: number | null;
+  follower_delta_pct: number | null;
+  snapshot_count: number;
+  post_count: number;
+  report_count: number;
+}
+
+export interface CompetitorSnapshot {
+  id: string;
+  captured_on: string;
+  followers_count: number | null;
+  following_count: number | null;
+  posts_count: number | null;
+  avg_likes: number | null;
+  avg_comments: number | null;
+  engagement_rate: number | null;
+  note: string | null;
+}
+
+export interface CompetitorPost {
+  id: string;
+  permalink: string | null;
+  post_type: string | null;
+  caption: string | null;
+  hashtags: string[];
+  likes: number | null;
+  comments: number | null;
+  views: number | null;
+  posted_on: string | null;
+  thumbnail_url: string | null;
+  what_works: string | null;
+  engagement: number | null;
+}
+
+export interface HashtagStat {
+  tag: string;
+  count: number;
+  avg_engagement: number | null;
+}
+
+export interface CompetitorAnalytics {
+  latest_followers: number | null;
+  follower_delta: number | null;
+  follower_delta_pct: number | null;
+  growth_since: string | null;
+  avg_engagement_rate: number | null;
+  posts_per_week: number | null;
+  content_mix: Record<string, number>;
+  top_hashtags: HashtagStat[];
+  top_posts: CompetitorPost[];
+}
+
+export interface CompetitorReport {
+  id: string;
+  competitor_id: string | null;
+  title: string;
+  content: string;
+  model: string | null;
+  generated_at: string;
+}
+
+export interface CompetitorDetail {
+  id: string;
+  username: string;
+  display_name: string | null;
+  category: string | null;
+  profile_url: string | null;
+  avatar_url: string | null;
+  notes: string | null;
+  snapshots: CompetitorSnapshot[];
+  posts: CompetitorPost[];
+  analytics: CompetitorAnalytics;
+  reports: CompetitorReport[];
+}
+
+export interface CompetitorInput {
+  username: string;
+  display_name?: string | null;
+  category?: string | null;
+  profile_url?: string | null;
+  notes?: string | null;
+}
+
+export interface SnapshotInput {
+  captured_on?: string | null;
+  followers_count?: number | null;
+  following_count?: number | null;
+  posts_count?: number | null;
+  avg_likes?: number | null;
+  avg_comments?: number | null;
+  engagement_rate?: number | null;
+  note?: string | null;
+}
+
+export interface PostInput {
+  permalink?: string | null;
+  post_type?: string | null;
+  caption?: string | null;
+  hashtags?: string[] | null;
+  likes?: number | null;
+  comments?: number | null;
+  views?: number | null;
+  posted_on?: string | null;
+  thumbnail_url?: string | null;
+  what_works?: string | null;
+}
+
+export const listCompetitors = () => apiFetch<CompetitorListItem[]>("/api/competitors");
+
+export const createCompetitor = (body: CompetitorInput) =>
+  apiFetch<CompetitorListItem>("/api/competitors", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const getCompetitor = (id: string) =>
+  apiFetch<CompetitorDetail>(`/api/competitors/${id}`);
+
+export const updateCompetitor = (id: string, body: Partial<CompetitorInput> & { avatar_url?: string | null }) =>
+  apiFetch<CompetitorDetail>(`/api/competitors/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+
+export const deleteCompetitor = (id: string) =>
+  apiFetch<void>(`/api/competitors/${id}`, { method: "DELETE" });
+
+export const addSnapshot = (id: string, body: SnapshotInput) =>
+  apiFetch<CompetitorSnapshot>(`/api/competitors/${id}/snapshots`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const deleteSnapshot = (id: string, snapshotId: string) =>
+  apiFetch<void>(`/api/competitors/${id}/snapshots/${snapshotId}`, { method: "DELETE" });
+
+export const addCompetitorPost = (id: string, body: PostInput) =>
+  apiFetch<CompetitorPost>(`/api/competitors/${id}/posts`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+export const deleteCompetitorPost = (id: string, postId: string) =>
+  apiFetch<void>(`/api/competitors/${id}/posts/${postId}`, { method: "DELETE" });
+
+export const generateCompetitorReport = (id: string) =>
+  apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" });
+
+export const generateOverviewReport = () =>
+  apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" });
+
 export const deleteMedia = (id: string) =>
   apiFetch<void>(`/api/media/${id}`, { method: "DELETE" });
 
