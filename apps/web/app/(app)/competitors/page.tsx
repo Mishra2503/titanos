@@ -728,10 +728,12 @@ function AddCompetitorModal({
 }) {
   const [f, setF] = useState({ username: "", display_name: "", category: "", profile_url: "", notes: "", followers: "" });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function submit() {
     if (!f.username.trim()) return;
     setSaving(true);
+    setFormError(null);
     try {
       const c = await createCompetitor({
         username: f.username,
@@ -746,7 +748,14 @@ function AddCompetitorModal({
       }
       onCreated(c.id);
     } catch (err) {
-      setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Could not add competitor" });
+      const msg =
+        err instanceof ApiError
+          ? err.code === "conflict" || err.status === 409
+            ? "You're already tracking that competitor."
+            : err.message
+          : "Could not add competitor. Check your connection and try again.";
+      setFormError(msg);
+      setBanner({ kind: "err", msg });
       setSaving(false);
     }
   }
@@ -765,6 +774,11 @@ function AddCompetitorModal({
           <input placeholder="Profile URL (optional)" className={inputCls} value={f.profile_url} onChange={(e) => setF({ ...f, profile_url: e.target.value })} />
           <textarea placeholder="Notes on their positioning / content pillars" rows={2} className={inputCls} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} />
         </div>
+        {formError && (
+          <p className="mt-3 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs text-red-400">
+            {formError}
+          </p>
+        )}
         <div className="mt-4 flex justify-end gap-2">
           <button onClick={onClose} className="press rounded-lg border border-charcoal-600 px-4 py-2 text-sm text-ink-muted hover:text-ink">
             Cancel

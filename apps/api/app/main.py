@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -9,7 +11,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.router import api_router
 from app.core.config import settings
 from app.core.errors import AppError, app_error_handler, http_error_handler
+from app.db.migrate import run_upgrade_head
 from app.worker import publisher
+
+log = logging.getLogger("titan.startup")
 
 
 @asynccontextmanager
@@ -17,6 +22,12 @@ async def lifespan(app: FastAPI):
     # The reloader spawns a parent process whose only job is to watch files; don't start
     # the scheduler there or we'd double-tick.
     if os.environ.get("RUN_MAIN") != "false":
+        # Self-healing schema: apply migrations on boot. Never let a migration error
+        # take down the whole API — log it and keep serving the rest of the app.
+        try:
+            await asyncio.to_thread(run_upgrade_head)
+        except Exception:
+            log.exception("Startup migration failed; continuing without it.")
         publisher.start()
     try:
         yield
