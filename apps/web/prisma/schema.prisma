@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  plan      String   @default("mvp")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  users          User[]
+  igAccounts     IgAccount[]
+  boardColumns   BoardColumn[]
+  boardCards     BoardCard[]
+  mediaAssets    MediaAsset[]
+  campaigns      Campaign[]
+  scheduledPosts ScheduledPost[]
+  competitors    Competitor[]
+  snapshots      CompetitorSnapshot[]
+  posts          CompetitorPost[]
+  reports        CompetitorReport[]
+
+  @@map("workspace")
+}
+
+model User {
+  id               String    @id @default(uuid())
+  workspaceId      String    @map("workspace_id")
+  email            String
+  passwordHash     String?   @map("password_hash")
+  role             String    @default("EDITOR")
+  status           String    @default("ACTIVE")
+  inviteTokenHash  String?   @map("invite_token_hash")
+  inviteExpiresAt  DateTime? @map("invite_expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, email], name: "uq_user_workspace_email")
+  @@map("user")
+}
+
+model IgAccount {
+  id              String    @id @default(uuid())
+  workspaceId     String    @map("workspace_id")
+  igUserId        String    @map("ig_user_id")
+  username        String
+  accountType     String?   @map("account_type")
+  fbPageId        String?   @map("fb_page_id")
+  accessTokenEnc  String    @map("access_token_enc")
+  tokenExpiresAt  DateTime? @map("token_expires_at")
+  status          String    @default("CONNECTED")
+  followersCount  Int?      @map("followers_count")
+  lastSyncedAt    DateTime? @map("last_synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  scheduledPosts ScheduledPost[]
+
+  @@unique([workspaceId, igUserId], name: "uq_ig_account_workspace_iguser")
+  @@map("ig_account")
+}
+
+model BoardColumn {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  name        String
+  color       String   @default("slate")
+  position    Int      @default(0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  cards     BoardCard[]
+
+  @@map("board_column")
+}
+
+model BoardCard {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  columnId       String   @map("column_id")
+  title          String
+  notes          String?
+  position       Float    @default(0)
+  emoji          String?
+  status         String?
+  platforms      Json     @default("[]")
+  publishDate    String?  @map("publish_date")
+  hook           String?
+  visualHook     String?  @map("visual_hook")
+  caption        String?
+  hashtags       Json     @default("[]")
+  referenceUrl   String?  @map("reference_url")
+  rawFootageUrl  String?  @map("raw_footage_url")
+  coverImageUrl  String?  @map("cover_image_url")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  column    BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  @@map("board_card")
+}
+
+model MediaAsset {
+  id                 String   @id @default(uuid())
+  workspaceId        String   @map("workspace_id")
+  filename           String
+  cloudinaryPublicId String?  @map("cloudinary_public_id")
+  publicUrl          String   @map("public_url")
+  width              Int?
+  height             Int?
+  durationS          Float?   @map("duration_s")
+  format             String?
+  sizeBytes          Int?     @map("size_bytes")
+  uploadedBy         String?  @map("uploaded_by")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaigns Campaign[]
+
+  @@map("media_asset")
+}
+
+model Campaign {
+  id            String   @id @default(uuid())
+  workspaceId   String   @map("workspace_id")
+  mediaAssetId  String   @map("media_asset_id")
+  title         String?
+  status        String   @default("APPROVED")
+  createdBy     String?  @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  mediaAsset     MediaAsset      @relation(fields: [mediaAssetId], references: [id])
+  scheduledPosts ScheduledPost[]
+
+  @@map("campaign")
+}
+
+model ScheduledPost {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @map("workspace_id")
+  campaignId          String    @map("campaign_id")
+  igAccountId         String    @map("ig_account_id")
+  caption             String
+  hashtags            Json      @default("[]")
+  scheduledAt         DateTime  @map("scheduled_at")
+  status              String    @default("SCHEDULED")
+  containerId         String?   @map("container_id")
+  publishedMediaId    String?   @map("published_media_id")
+  permalink           String?
+  error               String?
+  idempotencyKey      String    @unique @map("idempotency_key")
+  attempts            Int       @default(0)
+  processingStartedAt DateTime? @map("processing_started_at")
+  publishedAt         DateTime? @map("published_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  campaign   Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  igAccount  IgAccount  @relation(fields: [igAccountId], references: [id], onDelete: Cascade)
+
+  @@map("scheduled_post")
+}
+
+model Competitor {
+  id          String   @id @default(uuid())
+  workspaceId String   @map("workspace_id")
+  username    String
+  displayName String?  @map("display_name")
+  category    String?
+  profileUrl  String?  @map("profile_url")
+  avatarUrl   String?  @map("avatar_url")
+  notes       String?
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  snapshots CompetitorSnapshot[]
+  posts     CompetitorPost[]
+  reports   CompetitorReport[]
+
+  @@unique([workspaceId, username], name: "uq_competitor_workspace_username")
+  @@map("competitor")
+}
+
+model CompetitorSnapshot {
+  id             String   @id @default(uuid())
+  workspaceId    String   @map("workspace_id")
+  competitorId   String   @map("competitor_id")
+  capturedOn     DateTime @map("captured_on")
+  followersCount Int?     @map("followers_count")
+  followingCount Int?     @map("following_count")
+  postsCount     Int?     @map("posts_count")
+  avgLikes       Int?     @map("avg_likes")
+  avgComments    Int?     @map("avg_comments")
+  engagementRate Float?   @map("engagement_rate")
+  note           String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@map("competitor_snapshot")
+}
+
+model CompetitorPost {
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  competitorId String   @map("competitor_id")
+  permalink    String?
+  postType     String?  @map("post_type")
+  caption      String?
+  hashtags     Json     @default("[]")
+  likes        Int?
+  comments     Int?
+  views        Int?
+  postedOn     DateTime? @map("posted_on")
+  thumbnailUrl String?  @map("thumbnail_url")
+  whatWorks    String?  @map("what_works")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@map("competitor_post")
+}
+
+model CompetitorReport {
+  id           String   @id @default(uuid())
+  workspaceId  String   @map("workspace_id")
+  competitorId String?  @map("competitor_id")
+  title        String
+  content      String
+  model        String?
+  generatedAt  DateTime @map("generated_at")
+  createdBy    String?  @map("created_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  workspace  Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitor Competitor? @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+
+  @@map("competitor_report")
+}
