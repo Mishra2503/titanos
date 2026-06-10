@@ -86,9 +86,13 @@ export default function LibraryPage() {
           await uploadMedia(file);
           ok++;
         } catch (err) {
+          const msg = err instanceof ApiError ? err.message : "Upload failed";
+          const isCloudinary = msg.toLowerCase().includes("cloudinary");
           setBanner({
             kind: "err",
-            msg: err instanceof ApiError ? `${file.name}: ${err.message}` : "Upload failed",
+            msg: isCloudinary
+              ? `Upload disabled — add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.`
+              : `${file.name}: ${msg}`,
           });
         }
       }

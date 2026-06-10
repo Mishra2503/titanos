@@ -8,7 +8,15 @@ const GRAPH = `https://graph.facebook.com/${GRAPH_VERSION}`;
 const MAX_MEDIA = 50;
 const CAPTION_PREVIEW = 280;
 const HASHTAG_RE = /#\w+/gu;
-const MEDIA_METRICS = ["reach","likes","comments","shares","saved","total_interactions","views","ig_reels_avg_watch_time","ig_reels_video_view_total_time"];
+// Reel-specific metrics (only valid for media_product_type=REELS)
+const REEL_METRICS = ["reach","likes","comments","shares","saved","total_interactions","views","ig_reels_avg_watch_time","ig_reels_video_view_total_time"];
+// Basic metrics supported by all media types (photos, carousels, reels)
+const BASIC_METRICS = ["reach","likes","comments","shares","saved","total_interactions"];
+
+function metricsForType(mediaProductType: string | undefined | null): string[] {
+  const t = (mediaProductType ?? "").toUpperCase();
+  return t === "REELS" ? REEL_METRICS : BASIC_METRICS;
+}
 
 // Simple in-memory cache (TTL 10 min) — replaced by Redis in production
 const cache = new Map<string, { ts: number; data: unknown }>();
@@ -39,11 +47,16 @@ async function buildAccountInsights(account: { id: string; igUserId: string; use
   const media: { id: string; caption?: string; permalink?: string; thumbnail_url?: string; media_url?: string; timestamp?: string; media_product_type?: string }[] = mediaList.status === "fulfilled" ? (mediaList.value?.data ?? []) : [];
 
   const postInsights = await Promise.allSettled(
-    media.map((m) => graphGet(`/${m.id}/insights?metric=${MEDIA_METRICS.join(",")}&breakdown=`, token).then((d) => {
-      const vals: Record<string, number> = {};
-      for (const item of d?.data ?? []) vals[item.name] = item.values?.[0]?.value ?? item.total_value?.value ?? 0;
-      return { media: m, vals };
-    }))
+    media.map((m) => {
+      const metrics = metricsForType(m.media_product_type);
+      return graphGet(`/${m.id}/insights?metric=${metrics.join(",")}`, token).then((d) => {
+        const vals: Record<string, number> = {};
+        for (const item of d?.data ?? []) {
+          vals[item.name] = item.values?.[0]?.value ?? item.total_value?.value ?? 0;
+        }
+        return { media: m, vals };
+      });
+    })
   );
 
   let saves = 0, shares = 0, likes = 0, comments = 0, reachSum = 0, interSum = 0;

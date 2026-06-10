@@ -80,8 +80,12 @@ export default function CompetitorsPage() {
   }, []);
 
   const refreshDetail = useCallback(async () => {
-    if (selectedId) setDetail(await getCompetitor(selectedId));
-    await loadList();
+    try {
+      if (selectedId) setDetail(await getCompetitor(selectedId));
+      await loadList();
+    } catch (err) {
+      setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Refresh failed" });
+    }
   }, [selectedId, loadList]);
 
   async function genReport(id: string) {
@@ -473,7 +477,7 @@ function CompetitorDetailView({
                               </span>
                             )}
                             <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-                              {p.post_type || "REEL"}{p.posted_on ? ` · ${p.posted_on}` : ""}
+                              {p.post_type || "REEL"}{p.posted_on ? ` · ${String(p.posted_on).slice(0, 10)}` : ""}
                             </span>
                           </div>
                           <div className="flex shrink-0 gap-3 font-mono text-[10px]">
@@ -518,7 +522,7 @@ function CompetitorDetailView({
                 {a.top_posts.map((p) => (
                   <div key={p.id} className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
                     <div className="flex items-center justify-between font-mono text-[10px] text-ink-faint">
-                      <span>{p.post_type || "POST"}{p.posted_on ? ` · ${p.posted_on}` : ""}</span>
+                      <span>{p.post_type || "POST"}{p.posted_on ? ` · ${String(p.posted_on).slice(0, 10)}` : ""}</span>
                       <span className="text-lime">{fmt(p.engagement)} interactions</span>
                     </div>
                     {p.caption && (
@@ -573,7 +577,7 @@ function CompetitorDetailView({
                 <tbody className="text-ink-muted">
                   {[...detail.snapshots].reverse().map((s) => (
                     <tr key={s.id} className="border-b border-charcoal-700 last:border-0">
-                      <td className="px-3 py-2 font-mono">{s.captured_on}</td>
+                      <td className="px-3 py-2 font-mono">{s.captured_on ? String(s.captured_on).slice(0, 10) : "—"}</td>
                       <td className="px-3 py-2">{fmt(s.followers_count)}</td>
                       <td className="px-3 py-2">{fmt(s.posts_count)}</td>
                       <td className="px-3 py-2">{fmt(s.avg_likes)}</td>
@@ -636,7 +640,7 @@ function CompetitorDetailView({
                     <div key={p.id} className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="font-mono text-[10px] text-ink-faint">
-                          {p.post_type || "POST"}{p.posted_on ? ` · ${p.posted_on}` : ""}
+                          {p.post_type || "POST"}{p.posted_on ? ` · ${String(p.posted_on).slice(0, 10)}` : ""}
                         </div>
                         <div className="flex shrink-0 items-center gap-3 font-mono text-[10px]">
                           {p.views != null && <span className="text-sky-400">{fmt(p.views)} views</span>}

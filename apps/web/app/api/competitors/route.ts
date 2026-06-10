@@ -16,7 +16,13 @@ export async function GET(req: NextRequest) {
         delta = latest.followersCount - prev.followersCount;
         if (prev.followersCount) deltaPct = Math.round(delta / prev.followersCount * 1000) / 10;
       }
-      return { id: c.id, username: c.username, display_name: c.displayName, category: c.category, profile_url: c.profileUrl, avatar_url: c.avatarUrl, latest_followers: latest?.followersCount ?? null, avg_engagement_rate: null, follower_delta: delta, follower_delta_pct: deltaPct, snapshot_count: snaps.length, post_count: c._count.posts, report_count: c._count.reports };
+      // Avg engagement rate: mean of all snapshot engagement rates
+      const engRates = snaps.map((s) => s.engagementRate).filter((v): v is number => v != null);
+      const avg_engagement_rate =
+        engRates.length > 0
+          ? Math.round((engRates.reduce((a, b) => a + b, 0) / engRates.length) * 10) / 10
+          : null;
+      return { id: c.id, username: c.username, display_name: c.displayName, category: c.category, profile_url: c.profileUrl, avatar_url: c.avatarUrl, latest_followers: latest?.followersCount ?? null, avg_engagement_rate, follower_delta: delta, follower_delta_pct: deltaPct, snapshot_count: snaps.length, post_count: c._count.posts, report_count: c._count.reports };
     }));
   } catch (e) {
     console.error("[competitors GET]", e);

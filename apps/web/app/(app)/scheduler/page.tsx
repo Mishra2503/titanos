@@ -318,7 +318,17 @@ export default function SchedulerPage() {
               </button>
             )}
             {uploadError && (
-              <p className="font-mono text-xs text-red-400">{uploadError}</p>
+              <div className="rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2">
+                <p className="font-mono text-xs text-red-400">{uploadError}</p>
+                {uploadError.toLowerCase().includes("cloudinary") && (
+                  <p className="mt-1 font-mono text-[10px] text-ink-faint">
+                    Add <span className="text-ink">CLOUDINARY_CLOUD_NAME</span>,{" "}
+                    <span className="text-ink">CLOUDINARY_API_KEY</span>, and{" "}
+                    <span className="text-ink">CLOUDINARY_API_SECRET</span> to your environment
+                    variables to enable video uploads.
+                  </p>
+                )}
+              </div>
             )}
             {media && (
               <div className="rounded-lg border border-lime/30 bg-lime/[0.04] p-3 font-mono text-xs text-lime">
