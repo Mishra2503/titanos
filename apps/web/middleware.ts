@@ -6,7 +6,7 @@ import {
   createAccessToken,
 } from "@/lib/server/jwt";
 
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/healthz"];
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/healthz", "/api/schedule/tick"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

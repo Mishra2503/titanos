@@ -14,6 +14,7 @@ import {
   generateOverviewReport,
   getCompetitor,
   listCompetitors,
+  syncCompetitor,
   updateCompetitor,
   type CompetitorDetail,
   type CompetitorListItem,
@@ -97,6 +98,22 @@ export default function CompetitorsPage() {
       setBanner({ kind: "ok", msg: "Report generated" });
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Report failed" });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function doSync(id: string) {
+    setBusy("sync");
+    try {
+      const r = await syncCompetitor(id);
+      await refreshDetail();
+      setBanner({
+        kind: "ok",
+        msg: `Synced @${r.username} — ${r.followers_count?.toLocaleString() ?? "?"} followers, ${r.posts_imported} new post${r.posts_imported === 1 ? "" : "s"} imported`,
+      });
+    } catch (err) {
+      setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Sync failed" });
     } finally {
       setBusy(null);
     }
@@ -244,6 +261,7 @@ export default function CompetitorsPage() {
               <CompetitorDetailView
                 detail={detail}
                 busy={busy}
+                onSync={() => doSync(detail.id)}
                 onGenReport={() => genReport(detail.id)}
                 onRemove={() => removeCompetitor(detail.id, detail.username)}
                 onChanged={refreshDetail}
@@ -270,7 +288,10 @@ export default function CompetitorsPage() {
             setShowAdd(false);
             await loadList();
             await select(id);
-            setBanner({ kind: "ok", msg: "Competitor added" });
+            setBanner({ kind: "ok", msg: "Competitor added — pulling live data from Instagram…" });
+            // Best-effort auto-sync right after adding, so stats appear without
+            // any manual data entry.
+            await doSync(id);
           }}
           setBanner={setBanner}
         />
@@ -298,6 +319,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
 function CompetitorDetailView({
   detail,
   busy,
+  onSync,
   onGenReport,
   onRemove,
   onChanged,
@@ -306,6 +328,7 @@ function CompetitorDetailView({
 }: {
   detail: CompetitorDetail;
   busy: string | null;
+  onSync: () => void;
   onGenReport: () => void;
   onRemove: () => void;
   onChanged: () => Promise<void>;
@@ -346,6 +369,14 @@ function CompetitorDetailView({
           </div>
         </div>
         <div className="flex shrink-0 gap-2">
+          <button
+            onClick={onSync}
+            disabled={busy === "sync"}
+            className="press rounded-lg border border-lime/40 bg-lime/10 px-3 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
+            title="Pull followers, engagement and recent posts via the official Business Discovery API"
+          >
+            {busy === "sync" ? "Syncing…" : "Sync live data"}
+          </button>
           <button
             onClick={onGenReport}
             disabled={busy === "report"}

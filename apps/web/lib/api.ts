@@ -113,7 +113,8 @@ export interface RecentPost {
 export interface AccountInsights {
   account_id: string; username: string; followers: number | null; reach: number | null;
   profile_views: number | null; saves: number | null; shares: number | null; likes: number | null;
-  comments: number | null; engagement_rate: number | null; posts_analyzed: number; recent_posts: RecentPost[];
+  comments: number | null; views?: number | null; engagement_rate: number | null; posts_analyzed: number;
+  recent_posts: RecentPost[]; error?: string | null;
 }
 export interface InsightsSummary {
   generated_at: string; range_days: number; kpis: Kpi[]; accounts: AccountInsights[];
@@ -161,17 +162,61 @@ export interface ScheduleListItem {
   error: string | null; attempts: number; thumbnail_url: string | null;
 }
 
-export async function uploadMedia(file: File): Promise<MediaAsset> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 120_000); // 2 min for uploads
-  try {
+interface UploadSignature {
+  cloud_name: string; api_key: string; timestamp: number; folder: string; public_id: string; signature: string;
+}
+
+interface CloudinaryUploadResult {
+  public_id: string; secure_url: string; width?: number; height?: number;
+  duration?: number; format?: string; bytes?: number;
+}
+
+// Uploads the video straight from the browser to Cloudinary (signed), then
+// registers the asset with our API. Avoids pushing the whole file through the
+// Next server, which failed for large reels.
+export async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+  const sig = await apiFetch<UploadSignature>("/api/media/sign", {
+    method: "POST",
+    body: JSON.stringify({ filename: file.name }),
+  });
+
+  const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
     const fd = new FormData();
     fd.append("file", file);
-    const resp = await fetch("/api/media/upload", { method: "POST", body: fd, credentials: "same-origin", signal: controller.signal });
-    const body = await resp.json().catch(() => ({}));
-    if (!resp.ok) throw new ApiError(resp.status, body?.error?.code ?? "unknown", body?.error?.message ?? "Upload failed");
-    return body as MediaAsset;
-  } finally { clearTimeout(timer); }
+    fd.append("api_key", sig.api_key);
+    fd.append("timestamp", String(sig.timestamp));
+    fd.append("signature", sig.signature);
+    fd.append("folder", sig.folder);
+    fd.append("public_id", sig.public_id);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      let body: { error?: { message?: string } } & CloudinaryUploadResult;
+      try { body = JSON.parse(xhr.responseText); } catch { body = {} as never; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new ApiError(xhr.status, "cloudinary_upload_failed", body?.error?.message ?? `Cloudinary rejected the upload (HTTP ${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "network_error", "Network error while uploading to Cloudinary"));
+    xhr.send(fd);
+  });
+
+  return apiFetch<MediaAsset>("/api/media/register", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      width: result.width,
+      height: result.height,
+      duration: result.duration,
+      format: result.format,
+      bytes: result.bytes,
+    }),
+  });
 }
 
 export interface MediaUsage { campaigns: number; scheduled_posts: number; published_posts: number; }
@@ -217,3 +262,23 @@ export const addCompetitorPost = (id: string, body: PostInput) => apiFetch<Compe
 export const deleteCompetitorPost = (id: string, postId: string) => apiFetch<void>(`/api/competitors/${id}/posts/${postId}`, { method: "DELETE" });
 export const generateCompetitorReport = (id: string) => apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" });
 export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" });
+
+export interface CompetitorSyncResult {
+  synced: true; username: string; followers_count: number | null; posts_imported: number;
+}
+export const syncCompetitor = (id: string) =>
+  apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" });
+
+// === AI content strategy =========================================
+
+export interface StrategyPostIn {
+  caption: string | null; reach: number | null; views: number | null; likes: number | null;
+  comments: number | null; shares: number | null; saved: number | null;
+  engagement_rate: number | null; avg_watch_time_sec: number | null;
+  media_product_type: string | null; timestamp: string | null; hashtags: string[];
+}
+export const generateStrategy = (posts: StrategyPostIn[]) =>
+  apiFetch<{ text: string; generated_at: string }>("/api/ai/strategy", {
+    method: "POST",
+    body: JSON.stringify({ posts }),
+  });

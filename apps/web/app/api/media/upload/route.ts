@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     const publicId = `${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}`;
 
     const result = await new Promise<{ secure_url: string; public_id: string; width?: number; height?: number; duration?: number; format?: string; bytes?: number }>((resolve, reject) => {
-      cloudinary.uploader.upload_stream({ resource_type: "video", folder: "titan-os/masters", public_id: publicId, overwrite: false }, (err, r) => err ? reject(err) : resolve(r!)).end(buffer);
+      cloudinary.uploader.upload_chunked_stream({ resource_type: "video", folder: "titan-os/masters", public_id: publicId, overwrite: false, chunk_size: 20_000_000 }, (err, r) => err ? reject(err) : resolve(r!)).end(buffer);
     });
 
     const asset = await db.mediaAsset.create({
@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: asset.id, filename: asset.filename, public_url: asset.publicUrl, width: asset.width, height: asset.height, duration_s: asset.durationS, format: asset.format, size_bytes: asset.sizeBytes }, { status: 201 });
   } catch (e) {
     console.error("[media upload]", e);
-    return serverError();
+    // Surface the real Cloudinary error so the UI shows something actionable
+    // instead of a bare "Internal server error".
+    const msg = (e as { message?: string })?.message ?? "Upload failed";
+    return serverError(`Upload failed: ${msg}`);
   }
 }

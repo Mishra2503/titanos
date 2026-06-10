@@ -65,6 +65,7 @@ export default function SchedulerPage() {
   const [localSpecs, setLocalSpecs] = useState<{ ok: boolean; reason?: string; duration?: number; width?: number; height?: number } | null>(null);
   const [media, setMedia] = useState<MediaAsset | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, RowDraft>>({});
@@ -131,12 +132,13 @@ export default function SchedulerPage() {
   async function startUpload() {
     if (!file) return;
     setUploading(true);
+    setUploadPct(0);
     setUploadError(null);
     try {
-      const asset = await uploadMedia(file);
+      const asset = await uploadMedia(file, setUploadPct);
       setMedia(asset);
     } catch (err) {
-      setUploadError(err instanceof ApiError ? err.message : "Upload failed");
+      setUploadError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -314,8 +316,13 @@ export default function SchedulerPage() {
                 disabled={uploading}
                 className="press w-full rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-charcoal disabled:opacity-60"
               >
-                {uploading ? "Uploading to Cloudinary…" : "Upload to Cloudinary"}
+                {uploading ? `Uploading… ${uploadPct}%` : "Upload to Cloudinary"}
               </button>
+            )}
+            {uploading && (
+              <div className="h-1.5 overflow-hidden rounded-full bg-charcoal-700">
+                <div className="h-full rounded-full bg-lime transition-all" style={{ width: `${uploadPct}%` }} />
+              </div>
             )}
             {uploadError && (
               <div className="rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2">

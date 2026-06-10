@@ -12,6 +12,7 @@ import {
   HookPatterns,
   KpiTiles,
 } from "@/components/DashboardAnalytics";
+import { StrategyPanel } from "@/components/StrategyPanel";
 import {
   ApiError,
   getInsightsSummary,
@@ -127,9 +128,22 @@ export default function DashboardPage() {
 
       {hasAccounts && (
         <div className="space-y-6">
+          {data?.accounts.filter((a) => a.error).map((a) => (
+            <div key={a.account_id} className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-3">
+              <p className="font-mono text-xs text-amber-300">
+                @{a.username}: {a.error}
+              </p>
+              <p className="mt-1 font-mono text-[10px] text-ink-faint">
+                Metrics for this account are unavailable — try reconnecting it on the Connect Instagram page.
+              </p>
+            </div>
+          ))}
+
           <KpiTiles posts={filteredPosts} dmLeads={dmLeads} callsBooked={callsBooked} />
 
           <ContentBrief posts={filteredPosts} />
+
+          <StrategyPanel posts={filteredPosts} />
 
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <div className="space-y-3">
