@@ -3,11 +3,10 @@ import { db } from "@/lib/server/db";
 import { encryptSecret } from "@/lib/server/crypto";
 import { serverError } from "@/lib/server/errors";
 
-const GRAPH = `https://graph.facebook.com/${process.env.INSTAGRAM_GRAPH_VERSION ?? "v21.0"}`;
+const IG = "https://graph.instagram.com";
 
 async function exchangeCode(code: string): Promise<{ access_token: string; user_id: string }> {
-  const url = new URL("https://api.instagram.com/oauth/access_token");
-  const res = await fetch(url, {
+  const res = await fetch("https://api.instagram.com/oauth/access_token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -18,21 +17,30 @@ async function exchangeCode(code: string): Promise<{ access_token: string; user_
       code,
     }),
   });
-  if (!res.ok) throw new Error(`code exchange failed: ${res.status}`);
-  return res.json();
+  const body = await res.json();
+  if (!res.ok) throw new Error(`code_exchange_failed:${res.status}:${JSON.stringify(body)}`);
+  return body;
 }
 
-async function getLongLived(shortToken: string) {
-  const res = await fetch(`${GRAPH}/oauth/access_token?grant_type=ig_exchange_token&client_secret=${process.env.INSTAGRAM_APP_SECRET}&access_token=${shortToken}`);
-  if (!res.ok) throw new Error(`long-lived exchange failed: ${res.status}`);
-  return res.json() as Promise<{ access_token: string; expires_in: number }>;
+async function getLongLived(shortToken: string): Promise<{ access_token: string; expires_in: number }> {
+  const url = new URL(`${IG}/access_token`);
+  url.searchParams.set("grant_type", "ig_exchange_token");
+  url.searchParams.set("client_secret", process.env.INSTAGRAM_APP_SECRET ?? "");
+  url.searchParams.set("access_token", shortToken);
+  const res = await fetch(url.toString());
+  const body = await res.json();
+  if (!res.ok) throw new Error(`long_lived_failed:${res.status}:${JSON.stringify(body)}`);
+  return body;
 }
 
-async function fetchProfile(token: string) {
-  const fields = "id,username,account_type,followers_count";
-  const res = await fetch(`${GRAPH}/me?fields=${fields}&access_token=${token}`);
-  if (!res.ok) throw new Error(`profile fetch failed: ${res.status}`);
-  return res.json() as Promise<{ id: string; username: string; account_type: string; followers_count?: number }>;
+async function fetchProfile(token: string): Promise<{ id: string; username: string; account_type: string; followers_count?: number }> {
+  const url = new URL(`${IG}/me`);
+  url.searchParams.set("fields", "id,username,account_type,followers_count");
+  url.searchParams.set("access_token", token);
+  const res = await fetch(url.toString());
+  const body = await res.json();
+  if (!res.ok) throw new Error(`profile_failed:${res.status}:${JSON.stringify(body)}`);
+  return body;
 }
 
 export async function GET(req: NextRequest) {
@@ -46,7 +54,6 @@ export async function GET(req: NextRequest) {
     if (error) return NextResponse.redirect(`${webUrl}/connections?error=${encodeURIComponent(error)}`);
     if (!code || !state) return NextResponse.redirect(`${webUrl}/connections?error=missing_params`);
 
-    // state encodes workspace_id (set when initiating OAuth)
     const wsId = state;
     const ws = await db.workspace.findUnique({ where: { id: wsId } });
     if (!ws) return NextResponse.redirect(`${webUrl}/connections?error=invalid_state`);
@@ -56,8 +63,8 @@ export async function GET(req: NextRequest) {
     const profile = await fetchProfile(longLived.access_token);
 
     const accountType = (profile.account_type ?? "").toUpperCase();
-    if (!["BUSINESS", "CREATOR"].includes(accountType)) {
-      return NextResponse.redirect(`${webUrl}/connections?error=ineligible_account`);
+    if (!["BUSINESS", "CREATOR", "MEDIA_CREATOR"].includes(accountType)) {
+      return NextResponse.redirect(`${webUrl}/connections?error=ineligible_account&type=${encodeURIComponent(accountType)}`);
     }
 
     const expiresAt = new Date(Date.now() + longLived.expires_in * 1000);
@@ -66,20 +73,39 @@ export async function GET(req: NextRequest) {
     if (existing) {
       await db.igAccount.update({
         where: { id: existing.id },
-        data: { username: profile.username, accountType, accessTokenEnc: encryptSecret(longLived.access_token), tokenExpiresAt: expiresAt, status: "CONNECTED", followersCount: profile.followers_count ?? null, lastSyncedAt: new Date() },
+        data: {
+          username: profile.username,
+          accountType,
+          accessTokenEnc: encryptSecret(longLived.access_token),
+          tokenExpiresAt: expiresAt,
+          status: "CONNECTED",
+          followersCount: profile.followers_count ?? null,
+          lastSyncedAt: new Date(),
+        },
       });
     } else {
       const limit = Number(process.env.MAX_CONNECTIONS_PER_WORKSPACE ?? 10);
       const count = await db.igAccount.count({ where: { workspaceId: wsId } });
       if (count >= limit) return NextResponse.redirect(`${webUrl}/connections?error=connection_limit`);
       await db.igAccount.create({
-        data: { workspaceId: wsId, igUserId: profile.id, username: profile.username, accountType, accessTokenEnc: encryptSecret(longLived.access_token), tokenExpiresAt: expiresAt, status: "CONNECTED", followersCount: profile.followers_count ?? null, lastSyncedAt: new Date() },
+        data: {
+          workspaceId: wsId,
+          igUserId: profile.id,
+          username: profile.username,
+          accountType,
+          accessTokenEnc: encryptSecret(longLived.access_token),
+          tokenExpiresAt: expiresAt,
+          status: "CONNECTED",
+          followersCount: profile.followers_count ?? null,
+          lastSyncedAt: new Date(),
+        },
       });
     }
 
     return NextResponse.redirect(`${webUrl}/connections?connected=${encodeURIComponent(profile.username)}`);
   } catch (e) {
     console.error("[oauth callback]", e);
-    return NextResponse.redirect(`${webUrl}/connections?error=server_error`);
+    const msg = e instanceof Error ? e.message.split(":")[0] : "server_error";
+    return NextResponse.redirect(`${webUrl}/connections?error=${encodeURIComponent(msg)}`);
   }
 }
