@@ -1,6 +1,5 @@
-# Render Blueprint — Titan OS (Next.js web app)
-# How to use: Render Dashboard → New → Blueprint → connect this repo.
-# Render reads this file and creates the service automatically.
+# Render Blueprint — Titan OS (Next.js)
+# Render Dashboard → New → Blueprint → connect this repo → Apply.
 
 services:
   - type: web
@@ -8,8 +7,8 @@ services:
     runtime: node
     plan: starter        # $7/mo — always-on, zero cold starts
     region: oregon       # change to singapore if your audience is in Asia
-    buildCommand: cd apps/web && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
-    startCommand: cd apps/web && npm start
+    buildCommand: cd apps/web && npm ci && npx prisma generate && npm run build
+    startCommand: cd apps/web && npx prisma migrate deploy && npm start
     healthCheckPath: /api/healthz
 
     envVars:
@@ -19,9 +18,9 @@ services:
       - key: NEXT_TELEMETRY_DISABLED
         value: "1"
 
-      # ── Database (Supabase PostgreSQL) ──────────────────────────────
-      # DATABASE_URL  → pooler URL  (port 6543, ?pgbouncer=true)  — runtime queries
-      # DIRECT_URL    → direct URL  (port 5432, no pgbouncer)     — prisma migrate during build
+      # ── Database (Supabase) ─────────────────────────────────────────
+      # DATABASE_URL  → pooler connection (port 6543, ?pgbouncer=true) — runtime queries
+      # DIRECT_URL    → direct connection (port 5432, no pgbouncer) — prisma migrate
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -33,23 +32,19 @@ services:
       - key: FERNET_KEY
         sync: false
 
-      # ── App URL ────────────────────────────────────────────────────
-      # Set this AFTER your first deploy once Render gives you the *.onrender.com URL
-      # or your custom domain. Used by OAuth callbacks and internal redirects.
+      # ── App URL (set to your *.onrender.com or custom domain) ──────
       - key: NEXT_PUBLIC_APP_URL
-        sync: false   # e.g. https://titan-os-web.onrender.com  OR  https://os.primeservefs.com
+        sync: false
 
       # ── Instagram OAuth ────────────────────────────────────────────
       - key: INSTAGRAM_APP_ID
         sync: false
       - key: INSTAGRAM_APP_SECRET
         sync: false
-      # Must match the Valid OAuth Redirect URI registered in Meta Developer Console:
-      # https://<your-domain>/api/connections/oauth/callback
       - key: INSTAGRAM_REDIRECT_URI
         sync: false
 
-      # ── Cloudinary (media uploads) ─────────────────────────────────
+      # ── Cloudinary ─────────────────────────────────────────────────
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY
@@ -57,6 +52,6 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
 
-      # ── Anthropic (AI features — scriptwriter, competitor reports) ──
+      # ── Anthropic ──────────────────────────────────────────────────
       - key: ANTHROPIC_API_KEY
         sync: false
