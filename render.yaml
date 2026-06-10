@@ -7,7 +7,7 @@ services:
     runtime: node
     plan: starter        # $7/mo — always-on, zero cold starts
     region: oregon       # change to singapore if your audience is in Asia
-    buildCommand: cd apps/web && npm ci && npx prisma generate && npm run build
+    buildCommand: cd apps/web && npm ci --include=dev && npx prisma generate && npm run build
     startCommand: cd apps/web && npx prisma migrate deploy && npm start
     healthCheckPath: /api/healthz
 
