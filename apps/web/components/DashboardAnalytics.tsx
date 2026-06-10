@@ -1,4 +1,4 @@
-﻿import type { RecentPost } from "@/lib/api";
+import type { RecentPost } from "@/lib/api";
 
 // ===== shared helpers =================================================
 

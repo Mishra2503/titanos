@@ -1,4 +1,4 @@
-﻿import type { RecentPost } from "@/lib/api";
+import type { RecentPost } from "@/lib/api";
 
 function fmt(n: number | null): string {
   return n === null || n === undefined ? "—" : n.toLocaleString();
