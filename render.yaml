@@ -1,0 +1,62 @@
+# Render Blueprint — Titan OS (Next.js web app)
+# How to use: Render Dashboard → New → Blueprint → connect this repo.
+# Render reads this file and creates the service automatically.
+
+services:
+  - type: web
+    name: titan-os-web
+    runtime: node
+    plan: starter        # $7/mo — always-on, zero cold starts
+    region: oregon       # change to singapore if your audience is in Asia
+    buildCommand: cd apps/web && npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: cd apps/web && npm start
+    healthCheckPath: /api/healthz
+
+    envVars:
+      # ── Runtime ────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
+
+      # ── Database (Supabase PostgreSQL) ──────────────────────────────
+      # DATABASE_URL  → pooler URL  (port 6543, ?pgbouncer=true)  — runtime queries
+      # DIRECT_URL    → direct URL  (port 5432, no pgbouncer)     — prisma migrate during build
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+
+      # ── Auth ───────────────────────────────────────────────────────
+      - key: JWT_SECRET
+        sync: false
+      - key: FERNET_KEY
+        sync: false
+
+      # ── App URL ────────────────────────────────────────────────────
+      # Set this AFTER your first deploy once Render gives you the *.onrender.com URL
+      # or your custom domain. Used by OAuth callbacks and internal redirects.
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false   # e.g. https://titan-os-web.onrender.com  OR  https://os.primeservefs.com
+
+      # ── Instagram OAuth ────────────────────────────────────────────
+      - key: INSTAGRAM_APP_ID
+        sync: false
+      - key: INSTAGRAM_APP_SECRET
+        sync: false
+      # Must match the Valid OAuth Redirect URI registered in Meta Developer Console:
+      # https://<your-domain>/api/connections/oauth/callback
+      - key: INSTAGRAM_REDIRECT_URI
+        sync: false
+
+      # ── Cloudinary (media uploads) ─────────────────────────────────
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # ── Anthropic (AI features — scriptwriter, competitor reports) ──
+      - key: ANTHROPIC_API_KEY
+        sync: false

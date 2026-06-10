@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const prompt = `You are analysing the competitive landscape for an Instagram creator brand. Here are the tracked competitors:\n\n${list}\n\nProvide a cross-competitor strategic overview: market positioning, who is winning and why, key content patterns, and the top 3 opportunities for differentiation. Be direct and actionable.`;
 
     const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({ model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-7", max_tokens: 1800, messages: [{ role: "user", content: prompt }] });
+    const msg = await client.messages.create({ model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8", max_tokens: 1800, messages: [{ role: "user", content: prompt }] });
     const content = msg.content.map((b) => ("text" in b ? b.text : "")).join("").trim();
 
     const report = await db.competitorReport.create({ data: { workspaceId: wsId, competitorId: null, title: "Competitor Landscape Overview", content, model: msg.model, generatedAt: new Date(), createdBy: userId ?? null } });

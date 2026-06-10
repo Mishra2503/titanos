@@ -42,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!apiKey) return badRequest("ai_not_configured", "Add ANTHROPIC_API_KEY to enable AI features");
 
     const client = new Anthropic({ apiKey });
-    const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-7";
+    const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
     const msg = await client.messages.create({
       model, max_tokens: 1024, system: SYSTEM,
       messages: [{ role: "user", content: buildPrompt(action, card, instruction) }],

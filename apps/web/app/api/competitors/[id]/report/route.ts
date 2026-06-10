@@ -18,7 +18,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const prompt = `Analyse this Instagram competitor account for a creator brand operator:\n\nUsername: @${c.username}\nCategory: ${c.category ?? "unknown"}\nNotes: ${c.notes ?? "none"}\nSnapshots: ${c.snapshots.length}\nPosts tracked: ${c.posts.length}\n\nProvide a strategic analysis: what's working for them, growth trends, content strategy, and 3 actionable ideas for how to compete. Be specific and concise.`;
 
     const client = new Anthropic({ apiKey });
-    const msg = await client.messages.create({ model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-7", max_tokens: 1500, messages: [{ role: "user", content: prompt }] });
+    const msg = await client.messages.create({ model: process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8", max_tokens: 1500, messages: [{ role: "user", content: prompt }] });
     const content = msg.content.map((b) => ("text" in b ? b.text : "")).join("").trim();
 
     const report = await db.competitorReport.create({ data: { workspaceId: wsId, competitorId: id, title: `Analysis: @${c.username}`, content, model: msg.model, generatedAt: new Date(), createdBy: userId ?? null } });
