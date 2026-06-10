@@ -1,4 +1,4 @@
-import type { RecentPost } from "@/lib/api";
+﻿import type { RecentPost } from "@/lib/api";
 
 function fmt(n: number | null): string {
   return n === null || n === undefined ? "—" : n.toLocaleString();
@@ -125,7 +125,7 @@ export function WhatsWorking({ posts }: { posts: RecentPost[] }) {
 
   return (
     <div className="animate-reveal rounded-xl border border-lime/20 bg-lime/[0.03] p-5">
-      <p className="font-mono text-xs uppercase tracking-wider text-lime">What’s working</p>
+      <p className="font-mono text-xs uppercase tracking-wider text-lime">What's working</p>
       <ul className="mt-3 text-sm">
         {line("Best reach", topReach, `${topReach.reach?.toLocaleString()} reach`)}
         {line(

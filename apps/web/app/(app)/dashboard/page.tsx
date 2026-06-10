@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
@@ -98,7 +98,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Cross-account performance and per-video analytics — built to inform tomorrow’s content."
+        subtitle="Cross-account performance and per-video analytics — built to inform tomorrow's content."
       />
 
       {error && <p className="mb-4 font-mono text-sm text-red-400">{error}</p>}

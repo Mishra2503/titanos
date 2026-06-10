@@ -1,4 +1,4 @@
-export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
+﻿export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <header className="mb-8 animate-reveal">
       <h1 className="text-2xl font-semibold tracking-tight text-ink">{title}</h1>
@@ -14,7 +14,7 @@ export function ModulePlaceholder({ title, phase }: { title: string; phase: stri
       <div className="animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-12 text-center">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-lime-dim">{phase}</p>
         <p className="mt-2 text-sm text-ink-muted">
-          This module is part of the build roadmap and isn’t wired up yet.
+          This module is part of the build roadmap and isn't wired up yet.
         </p>
       </div>
     </div>

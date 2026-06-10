@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
@@ -692,7 +692,7 @@ function CompetitorDetailView({
         <div className="mt-4 space-y-2">
           {detail.reports.length === 0 ? (
             <p className="font-mono text-sm text-ink-faint">
-              No reports yet. Click “AI report” to generate a strategy breakdown from the tracked data.
+              No reports yet. Click "AI report" to generate a strategy breakdown from the tracked data.
             </p>
           ) : (
             detail.reports.map((r) => (

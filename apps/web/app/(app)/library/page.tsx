@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
@@ -102,7 +102,7 @@ export default function LibraryPage() {
   );
 
   async function remove(a: LibraryAsset) {
-    if (!confirm(`Delete “${a.filename}”? This removes it from Cloudinary permanently.`)) return;
+    if (!confirm(`Delete "${a.filename}"? This removes it from Cloudinary permanently.`)) return;
     setBusyId(a.id);
     try {
       await deleteMedia(a.id);

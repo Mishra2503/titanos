@@ -1,4 +1,4 @@
-import type { RecentPost } from "@/lib/api";
+﻿import type { RecentPost } from "@/lib/api";
 
 // ===== shared helpers =================================================
 
@@ -480,7 +480,7 @@ export function ContentBrief({ posts }: { posts: RecentPost[] }) {
     <div className="animate-reveal rounded-xl border border-lime/30 bg-gradient-to-br from-lime/[0.06] to-transparent p-6">
       <div className="flex items-baseline justify-between">
         <p className="font-mono text-xs uppercase tracking-[0.2em] text-lime">
-          Tomorrow’s content brief
+          Tomorrow's content brief
         </p>
         <span className="font-mono text-[10px] text-ink-faint">
           derived from your last {posts.length} posts

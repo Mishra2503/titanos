@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
@@ -159,22 +159,22 @@ export default function ConnectionsPage() {
       {error && <p className="font-mono text-sm text-red-400">{error}</p>}
 
       {accounts && accounts.length === 0 && (
-        <div className=”space-y-4”>
-          <div className=”animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-10 text-center”>
-            <p className=”text-sm text-ink-muted”>
-              No accounts connected yet. Click <strong className=”text-ink”>”Connect account”</strong> to link your first Instagram
+        <div className="space-y-4">
+          <div className="animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-10 text-center">
+            <p className="text-sm text-ink-muted">
+              No accounts connected yet. Click <strong className="text-ink">"Connect account"</strong> to link your first Instagram
               Business/Creator profile.
             </p>
           </div>
-          <div className=”rounded-lg border border-charcoal-700 bg-charcoal-800 px-4 py-3 text-xs text-ink-muted space-y-2”>
-            <p className=”font-mono uppercase tracking-wider text-lime text-[10px]”>OAuth setup checklist</p>
-            <ol className=”list-decimal list-inside space-y-1 text-[11px]”>
-              <li>In Meta Developer Console, add <span className=”font-mono text-ink bg-charcoal-700 px-1 rounded”>/api/connections/oauth/callback</span> as a Valid OAuth Redirect URI.</li>
-              <li>Set <span className=”font-mono text-ink bg-charcoal-700 px-1 rounded”>INSTAGRAM_APP_ID</span> and <span className=”font-mono text-ink bg-charcoal-700 px-1 rounded”>INSTAGRAM_APP_SECRET</span> in your API <span className=”font-mono”>.env</span>.</li>
-              <li>Set <span className=”font-mono text-ink bg-charcoal-700 px-1 rounded”>WEB_BASE_URL</span> to your frontend origin (e.g. <span className=”font-mono text-ink”>http://localhost:3000</span>).</li>
-              <li>Your Instagram account must be a <strong className=”text-ink”>Business</strong> or <strong className=”text-ink”>Creator</strong> account linked to a Facebook Page.</li>
+          <div className="rounded-lg border border-charcoal-700 bg-charcoal-800 px-4 py-3 text-xs text-ink-muted space-y-2">
+            <p className="font-mono uppercase tracking-wider text-lime text-[10px]">OAuth setup checklist</p>
+            <ol className="list-decimal list-inside space-y-1 text-[11px]">
+              <li>In Meta Developer Console, add <span className="font-mono text-ink bg-charcoal-700 px-1 rounded">/api/connections/oauth/callback</span> as a Valid OAuth Redirect URI.</li>
+              <li>Set <span className="font-mono text-ink bg-charcoal-700 px-1 rounded">INSTAGRAM_APP_ID</span> and <span className="font-mono text-ink bg-charcoal-700 px-1 rounded">INSTAGRAM_APP_SECRET</span> in your API <span className="font-mono">.env</span>.</li>
+              <li>Set <span className="font-mono text-ink bg-charcoal-700 px-1 rounded">WEB_BASE_URL</span> to your frontend origin (e.g. <span className="font-mono text-ink">http://localhost:3000</span>).</li>
+              <li>Your Instagram account must be a <strong className="text-ink">Business</strong> or <strong className="text-ink">Creator</strong> account linked to a Facebook Page.</li>
             </ol>
-            <p className=”text-[10px] text-ink-faint mt-1”>If you see an &ldquo;Invalid or expired state&rdquo; error, your <span className=”font-mono”>SECRET_KEY</span> env var may be missing or mismatched.</p>
+            <p className="text-[10px] text-ink-faint mt-1">If you see an &ldquo;Invalid or expired state&rdquo; error, your <span className="font-mono">SECRET_KEY</span> env var may be missing or mismatched.</p>
           </div>
         </div>
       )}
