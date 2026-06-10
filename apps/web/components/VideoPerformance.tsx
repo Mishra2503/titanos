@@ -36,7 +36,7 @@ export function VideoCard({ post, rank }: { post: RecentPost; rank: number }) {
             />
           ) : null}
           {rank <= 3 && (
-            <span className="absolute left-1 top-1 rounded bg-lime px-1.5 py-0.5 font-mono text-[9px] font-bold text-charcoal">
+            <span className="absolute left-1 top-1 rounded bg-lime px-1.5 py-0.5 font-mono text-[9px] font-bold text-white">
               #{rank}
             </span>
           )}

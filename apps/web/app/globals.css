@@ -4,27 +4,73 @@
 
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --shadow-card: 0 1px 2px rgba(23, 20, 31, 0.04), 0 8px 24px -12px rgba(23, 20, 31, 0.1);
 }
 
 html,
 body {
-  background-color: #0d0d0f;
-  color: #ededf0;
+  background-color: #f8f7fc;
+  color: #17141f;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* scale(0.97) on press for interactive controls (PRD §13). */
+@layer base {
+  /* Headings break evenly instead of leaving orphans. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  /* Brand selection + visible keyboard focus (WCAG AA). */
+  ::selection {
+    background-color: rgba(124, 58, 237, 0.18);
+  }
+  :focus-visible {
+    outline: 2px solid #7c3aed;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* White rounded surfaces read as cards: give them one soft ambient
+     shadow so the light theme has depth without per-page edits. */
+  .bg-charcoal-800.rounded-xl,
+  .bg-charcoal-800.rounded-2xl {
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Quiet light-theme scrollbars. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #dfdcec transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: #dfdcec;
+    border-radius: 8px;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* scale(0.97) on press for interactive controls. */
 @layer components {
   .press {
     transition: transform 150ms var(--ease-out), background-color 200ms var(--ease-out),
-      border-color 200ms var(--ease-out);
+      border-color 200ms var(--ease-out), color 200ms var(--ease-out),
+      box-shadow 200ms var(--ease-out);
   }
   .press:active {
     transform: scale(0.97);
   }
 }
 
-/* Honor reduced-motion: disable transforms/animations (PRD §12, §13). */
+/* Honor reduced-motion: disable transforms/animations. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

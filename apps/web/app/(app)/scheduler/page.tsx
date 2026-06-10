@@ -257,7 +257,7 @@ export default function SchedulerPage() {
               if (t === "queue" || t === "calendar") void loadSchedule();
             }}
             className={`press rounded-full px-4 py-1.5 text-sm transition-studio duration-studio ease-studio-out ${
-              tab === t ? "bg-lime text-charcoal font-semibold" : "text-ink-muted hover:text-ink"
+              tab === t ? "bg-lime text-white font-semibold" : "text-ink-muted hover:text-ink"
             }`}
           >
             {t === "compose"
@@ -314,7 +314,7 @@ export default function SchedulerPage() {
               <button
                 onClick={startUpload}
                 disabled={uploading}
-                className="press w-full rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-charcoal disabled:opacity-60"
+                className="press w-full rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {uploading ? `Uploading… ${uploadPct}%` : "Upload to Cloudinary"}
               </button>
@@ -474,7 +474,7 @@ export default function SchedulerPage() {
               <button
                 onClick={submitSchedule}
                 disabled={!composeReady || scheduling}
-                className="press rounded-lg bg-lime px-5 py-2 text-sm font-semibold text-charcoal disabled:opacity-50"
+                className="press rounded-lg bg-lime px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
               >
                 {scheduling ? "Scheduling…" : `Schedule ${selected.length || ""}`.trim()}
               </button>

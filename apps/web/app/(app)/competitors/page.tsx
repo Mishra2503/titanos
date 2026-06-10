@@ -163,7 +163,7 @@ export default function CompetitorsPage() {
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-charcoal"
+            className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white"
           >
             Add competitor
           </button>
@@ -380,7 +380,7 @@ function CompetitorDetailView({
           <button
             onClick={onGenReport}
             disabled={busy === "report"}
-            className="press rounded-lg bg-lime px-3 py-1.5 text-xs font-semibold text-charcoal disabled:opacity-50"
+            className="press rounded-lg bg-lime px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           >
             {busy === "report" ? "Analyzing…" : "AI report"}
           </button>
@@ -503,7 +503,7 @@ function CompetitorDetailView({
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex items-center gap-2">
                             {idx < 3 && (
-                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-lime font-mono text-[9px] font-bold text-charcoal">
+                              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-lime font-mono text-[9px] font-bold text-white">
                                 #{idx + 1}
                               </span>
                             )}
@@ -898,8 +898,8 @@ function AddCompetitorModal({
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-4 animate-reveal">
-      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-charcoal-700 bg-charcoal-800 p-5">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal">
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-charcoal-700 bg-charcoal-800 p-5 shadow-pop">
         <h3 className="text-base font-semibold text-ink">Add competitor</h3>
         <div className="mt-4 space-y-2">
           <input autoFocus placeholder="username (without @)" className={inputCls} value={f.username} onChange={(e) => setF({ ...f, username: e.target.value })} />
@@ -920,7 +920,7 @@ function AddCompetitorModal({
           <button onClick={onClose} className="press rounded-lg border border-charcoal-600 px-4 py-2 text-sm text-ink-muted hover:text-ink">
             Cancel
           </button>
-          <button onClick={submit} disabled={saving || !f.username.trim()} className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-charcoal disabled:opacity-50">
+          <button onClick={submit} disabled={saving || !f.username.trim()} className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Adding…" : "Add"}
           </button>
         </div>
@@ -934,8 +934,8 @@ function ReportModal({ report, onClose }: { report: CompetitorReport; onClose: (
     void navigator.clipboard.writeText(report.content);
   }
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-4 animate-reveal">
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col rounded-2xl border border-charcoal-700 bg-charcoal-800">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal">
+      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col rounded-2xl border border-charcoal-700 bg-charcoal-800 shadow-pop">
         <div className="flex items-center justify-between border-b border-charcoal-700 px-5 py-3">
           <p className="truncate text-sm font-semibold text-ink">{report.title}</p>
           <div className="flex shrink-0 gap-2">

@@ -95,7 +95,7 @@ export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
           <button
             onClick={generate}
             disabled={loading || posts.length === 0}
-            className="press rounded-lg bg-lime px-4 py-1.5 text-xs font-semibold text-charcoal disabled:opacity-50"
+            className="press rounded-lg bg-lime px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
           >
             {loading ? "Analyzing your data…" : text ? "Regenerate" : "Generate weekly strategy"}
           </button>

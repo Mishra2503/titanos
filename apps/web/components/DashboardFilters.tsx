@@ -78,7 +78,7 @@ export function DashboardFilters({
               key={r}
               onClick={() => onRangeChange(r)}
               className={`press rounded-full px-3 py-1 text-xs font-medium transition-studio duration-studio ease-studio-out ${
-                range === r ? "bg-lime text-charcoal" : "text-ink-muted hover:text-ink"
+                range === r ? "bg-lime text-white" : "text-ink-muted hover:text-ink"
               }`}
             >
               {RANGE_LABEL[r]}

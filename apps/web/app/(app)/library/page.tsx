@@ -174,7 +174,7 @@ export default function LibraryPage() {
         <button
           onClick={() => fileInput.current?.click()}
           disabled={uploading}
-          className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-charcoal disabled:opacity-50"
+          className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
         >
           {uploading ? "Uploading…" : "Upload video"}
         </button>
@@ -312,7 +312,7 @@ export default function LibraryPage() {
                     </div>
                   )}
                   <span className="absolute inset-0 flex items-center justify-center bg-charcoal/0 opacity-0 transition-studio duration-studio ease-studio-out group-hover:bg-charcoal/30 group-hover:opacity-100">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-lime/90 text-charcoal">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-lime/90 text-white">
                       ▶
                     </span>
                   </span>
@@ -399,11 +399,11 @@ export default function LibraryPage() {
       {preview && (
         <div
           onClick={() => setPreview(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/80 p-4 animate-reveal"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-charcoal-700 bg-charcoal-800"
+            className="flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-charcoal-700 bg-charcoal-800 shadow-pop"
           >
             <div className="flex items-center justify-between border-b border-charcoal-700 px-4 py-3">
               <p className="truncate text-sm text-ink" title={preview.filename}>

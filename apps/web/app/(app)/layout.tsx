@@ -21,11 +21,16 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-60 flex-col border-r border-charcoal-700 bg-charcoal-800 px-4 py-6">
-        <div className="px-2">
-          <p className="font-mono text-xs uppercase tracking-[0.3em] text-lime">Titan OS</p>
+      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-charcoal-700 bg-charcoal-800 px-4 py-6">
+        <div className="flex items-center gap-2 px-2">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-lime font-serif text-sm italic text-white">
+            T
+          </span>
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-ink">
+            Titan&nbsp;OS
+          </p>
         </div>
-        <nav className="mt-8 flex flex-1 flex-col gap-1">
+        <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto">
           {items.map((item) => {
             const active = pathname === item.href;
             return (
@@ -34,8 +39,8 @@ function Shell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 className={`press rounded-lg px-3 py-2 text-sm transition-studio duration-studio ease-studio-out ${
                   active
-                    ? "bg-charcoal-600 text-ink"
-                    : "text-ink-muted hover:bg-charcoal-700 hover:text-ink"
+                    ? "bg-lime/10 font-medium text-lime"
+                    : "text-ink-muted hover:bg-charcoal hover:text-ink"
                 }`}
               >
                 {item.label}
@@ -50,13 +55,13 @@ function Shell({ children }: { children: React.ReactNode }) {
           </p>
           <button
             onClick={logout}
-            className="press mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-charcoal-700 hover:text-ink"
+            className="press mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-charcoal hover:text-ink"
           >
             Sign out
           </button>
         </div>
       </aside>
-      <main className="flex-1 px-10 py-8">{children}</main>
+      <main className="min-w-0 flex-1 px-10 py-8">{children}</main>
     </div>
   );
 }

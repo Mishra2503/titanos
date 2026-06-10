@@ -257,7 +257,7 @@ export default function BoardPage() {
                     <div className="mt-1 flex gap-2">
                       <button
                         onClick={() => addCard(col.id)}
-                        className="press rounded bg-lime px-2.5 py-1 text-xs font-semibold text-charcoal"
+                        className="press rounded bg-lime px-2.5 py-1 text-xs font-semibold text-white"
                       >
                         Add
                       </button>
@@ -303,7 +303,7 @@ export default function BoardPage() {
               <div className="mt-2 flex gap-2">
                 <button
                   onClick={addColumn}
-                  className="press rounded bg-lime px-2.5 py-1 text-xs font-semibold text-charcoal"
+                  className="press rounded bg-lime px-2.5 py-1 text-xs font-semibold text-white"
                 >
                   Add column
                 </button>
