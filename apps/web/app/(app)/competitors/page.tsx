@@ -22,6 +22,7 @@ import {
   type PostInput,
   type SnapshotInput,
 } from "@/lib/api";
+import { TrendChart } from "@/components/Charts";
 
 type Banner = { kind: "ok" | "err"; msg: string } | null;
 
@@ -217,7 +218,7 @@ export default function CompetitorsPage() {
                 <button
                   key={c.id}
                   onClick={() => select(c.id)}
-                  className={`press block w-full rounded-xl border p-4 text-left transition-studio duration-studio ease-studio-out ${
+                  className={`press lift block w-full rounded-xl border p-4 text-left transition-studio duration-studio ease-studio-out ${
                     selectedId === c.id
                       ? "border-lime/50 bg-charcoal-700"
                       : "border-charcoal-700 bg-charcoal-800 hover:border-charcoal-600"
@@ -433,6 +434,28 @@ function CompetitorDetailView({
               sub={a.posts_per_week == null ? "add dated posts" : undefined}
             />
           </div>
+
+          {/* Follower growth graph (needs 2+ dated snapshots) */}
+          {detail.snapshots.filter((s) => s.captured_on && s.followers_count != null).length >= 2 && (
+            <div className="rounded-lg border border-charcoal-700 bg-charcoal/60 p-4">
+              <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-ink-faint">
+                Follower growth
+              </p>
+              <TrendChart
+                height={150}
+                valueLabel="followers"
+                series={[
+                  {
+                    name: "Followers",
+                    color: "#7c3aed",
+                    points: detail.snapshots
+                      .filter((s) => s.captured_on && s.followers_count != null)
+                      .map((s) => ({ t: new Date(s.captured_on).getTime(), v: s.followers_count! })),
+                  },
+                ]}
+              />
+            </div>
+          )}
 
           {/* Content mix */}
           {totalMix > 0 && (

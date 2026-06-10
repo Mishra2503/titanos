@@ -13,6 +13,7 @@ import {
   KpiTiles,
 } from "@/components/DashboardAnalytics";
 import { StrategyPanel } from "@/components/StrategyPanel";
+import { TrendChart, type TrendSeries } from "@/components/Charts";
 import {
   ApiError,
   getInsightsSummary,
@@ -83,6 +84,26 @@ export default function DashboardPage() {
       .sort((a, b) => sortValue(b, sortBy) - sortValue(a, sortBy));
   }, [data, range, selectedAccountIds, sortBy]);
 
+  const trendSeries: TrendSeries[] = useMemo(() => {
+    const dated = filteredPosts.filter((p) => p.timestamp);
+    return [
+      {
+        name: "Reach",
+        color: "#7c3aed",
+        points: dated
+          .filter((p) => p.reach != null)
+          .map((p) => ({ t: new Date(p.timestamp!).getTime(), v: p.reach! })),
+      },
+      {
+        name: "Views",
+        color: "#c4b5fd",
+        points: dated
+          .filter((p) => p.views != null)
+          .map((p) => ({ t: new Date(p.timestamp!).getTime(), v: p.views! })),
+      },
+    ];
+  }, [filteredPosts]);
+
   // DM leads + calls-booked stay sourced from the API summary (GHL pending).
   const dmLeads = useMemo(() => {
     const k = data?.kpis.find((x) => x.key === "dm_leads");
@@ -140,6 +161,18 @@ export default function DashboardPage() {
           ))}
 
           <KpiTiles posts={filteredPosts} dmLeads={dmLeads} callsBooked={callsBooked} />
+
+          {trendSeries.some((s) => s.points.length >= 2) && (
+            <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
+              <div className="mb-4">
+                <h3 className="text-base font-semibold text-ink">Performance trend</h3>
+                <p className="mt-0.5 text-xs text-ink-faint">
+                  Reach and views per post across the selected range
+                </p>
+              </div>
+              <TrendChart series={trendSeries} height={200} />
+            </div>
+          )}
 
           <ContentBrief posts={filteredPosts} />
 

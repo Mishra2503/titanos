@@ -16,11 +16,14 @@ body {
 }
 
 @layer base {
-  /* Headings break evenly instead of leaving orphans. */
+  /* Headings break evenly instead of leaving orphans, and carry the bold
+     display voice (Space Grotesk) across the app. */
   h1,
   h2,
   h3 {
     text-wrap: balance;
+    font-family: var(--font-heading), var(--font-display), system-ui, sans-serif;
+    letter-spacing: -0.02em;
   }
 
   /* Brand selection + visible keyboard focus (WCAG AA). */
@@ -68,6 +71,39 @@ body {
   .press:active {
     transform: scale(0.97);
   }
+
+  /* All solid violet buttons darken slightly on hover — one rule, app-wide. */
+  @media (hover: hover) and (pointer: fine) {
+    .press.bg-lime:hover {
+      background-color: #6d28d9;
+    }
+  }
+
+  /* Cards that reward attention rise on hover (pointer devices only). */
+  .lift {
+    transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out),
+      border-color 200ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .lift:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(23, 20, 31, 0.06), 0 24px 64px -24px rgba(23, 20, 31, 0.16);
+    }
+  }
+}
+
+/* Chart lines draw in on mount (pathLength=1 on the path). */
+@keyframes chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.chart-line {
+  stroke-dasharray: 1;
+  animation: chart-draw 900ms var(--ease-out) 150ms both;
 }
 
 /* Honor reduced-motion: disable transforms/animations. */

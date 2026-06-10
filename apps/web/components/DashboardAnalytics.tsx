@@ -152,7 +152,7 @@ export function KpiTiles({
       {tiles.map((t, i) => (
         <div
           key={t.key}
-          className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-4"
+          className="lift animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-4"
           style={{ animationDelay: `${i * 30}ms` }}
         >
           <div className="flex items-baseline justify-between">
@@ -169,7 +169,7 @@ export function KpiTiles({
               </span>
             )}
           </div>
-          <p className="mt-2 font-mono text-2xl text-ink">{t.value}</p>
+          <p className="mt-2 font-heading text-3xl font-bold tracking-tight text-ink">{t.value}</p>
           <p className="mt-1 text-[11px] text-ink-faint">{t.note}</p>
         </div>
       ))}

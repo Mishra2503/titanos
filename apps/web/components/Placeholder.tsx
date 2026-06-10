@@ -10,7 +10,7 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
   const { head, tail } = splitTitle(title);
   return (
     <header className="mb-8 animate-reveal">
-      <h1 className="text-3xl font-semibold tracking-tight text-ink">
+      <h1 className="font-heading text-4xl font-bold tracking-tight text-ink">
         {head}
         <span className="font-serif italic font-normal text-lime">{tail}</span>
       </h1>

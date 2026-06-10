@@ -23,7 +23,7 @@ function Metric({ label, value }: { label: string; value: string }) {
 
 export function VideoCard({ post, rank }: { post: RecentPost; rank: number }) {
   return (
-    <div className="animate-reveal overflow-hidden rounded-xl border border-charcoal-700 bg-charcoal-800">
+    <div className="lift animate-reveal overflow-hidden rounded-xl border border-charcoal-700 bg-charcoal-800">
       <div className="flex gap-4 p-4">
         <div className="relative h-28 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-charcoal-600">
           {post.thumbnail_url ? (

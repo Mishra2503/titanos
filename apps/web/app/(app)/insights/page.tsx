@@ -9,6 +9,7 @@ import {
   type InsightsSummary,
   type RecentPost,
 } from "@/lib/api";
+import { TrendChart } from "@/components/Charts";
 
 function Stat({ label, value }: { label: string; value: string | number | null }) {
   return (
@@ -113,6 +114,23 @@ function AccountCard({ a }: { a: AccountInsights }) {
         <Stat label="Likes" value={a.likes} />
         <Stat label="Comments" value={a.comments} />
       </div>
+
+      {a.recent_posts.filter((p) => p.timestamp && p.reach != null).length >= 2 && (
+        <div className="mt-6 rounded-lg border border-charcoal-700 bg-charcoal/60 p-4">
+          <TrendChart
+            height={140}
+            series={[
+              {
+                name: "Reach per post",
+                color: "#7c3aed",
+                points: a.recent_posts
+                  .filter((p) => p.timestamp && p.reach != null)
+                  .map((p) => ({ t: new Date(p.timestamp!).getTime(), v: p.reach! })),
+              },
+            ]}
+          />
+        </div>
+      )}
 
       {topPost && (topPost.reach ?? 0) > 0 && (
         <div className="mt-5 rounded-lg border border-lime/30 bg-lime/[0.04] p-3">
