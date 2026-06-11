@@ -51,6 +51,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ action, text });
   } catch (e) {
     console.error("[ai]", e);
+    if (e instanceof Anthropic.APIError) {
+      return NextResponse.json({ error: { code: "ai_failed", message: `AI request failed: ${e.message}` } }, { status: 502 });
+    }
     return serverError();
   }
 }

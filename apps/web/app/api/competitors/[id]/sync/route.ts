@@ -59,7 +59,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const msg: string = body?.error?.message ?? `Instagram API error ${r.status}`;
       const friendly = /cannot be found|does not exist|invalid user/i.test(msg)
         ? `@${username} was not found, or is not a Business/Creator account (Business Discovery only works for professional accounts).`
-        : msg;
+        : /permission|not authorized|#10\b|#200\b|oauth/i.test(msg)
+          ? `Instagram blocked the request: ${msg} — your Meta app likely needs Advanced Access for instagram_business_basic (App Review) before Business Discovery works on other accounts.`
+          : msg;
       return badRequest("business_discovery_failed", friendly);
     }
 

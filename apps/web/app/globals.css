@@ -16,14 +16,14 @@ body {
 }
 
 @layer base {
-  /* Headings break evenly instead of leaving orphans, and carry the bold
-     display voice (Space Grotesk) across the app. */
+  /* Headings break evenly instead of leaving orphans; one family (Archivo)
+     carries the whole app — weight and tracking do the hierarchy. */
   h1,
   h2,
   h3 {
     text-wrap: balance;
-    font-family: var(--font-heading), var(--font-display), system-ui, sans-serif;
     letter-spacing: -0.02em;
+    font-weight: 700;
   }
 
   /* Brand selection + visible keyboard focus (WCAG AA). */
@@ -104,6 +104,20 @@ body {
 .chart-line {
   stroke-dasharray: 1;
   animation: chart-draw 900ms var(--ease-out) 150ms both;
+}
+
+/* Bars grow up from the baseline on mount. */
+@keyframes bar-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.chart-bar {
+  transform-origin: bottom;
+  animation: bar-grow 500ms var(--ease-out) both;
 }
 
 /* Honor reduced-motion: disable transforms/animations. */

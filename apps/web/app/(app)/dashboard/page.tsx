@@ -14,6 +14,7 @@ import {
 } from "@/components/DashboardAnalytics";
 import { StrategyPanel } from "@/components/StrategyPanel";
 import { TrendChart, type TrendSeries } from "@/components/Charts";
+import { AccountPerformance } from "@/components/AccountPerformance";
 import {
   ApiError,
   getInsightsSummary,
@@ -162,6 +163,13 @@ export default function DashboardPage() {
 
           <KpiTiles posts={filteredPosts} dmLeads={dmLeads} callsBooked={callsBooked} />
 
+          {data && (
+            <AccountPerformance
+              accounts={data.accounts}
+              sinceMs={RANGE_DAYS[range] === null ? 0 : Date.now() - RANGE_DAYS[range]! * 86_400_000}
+            />
+          )}
+
           {trendSeries.some((s) => s.points.length >= 2) && (
             <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
               <div className="mb-4">
@@ -244,11 +252,11 @@ export default function DashboardPage() {
                         {postsWithComments.map((post) => (
                           <div key={post.id} className="flex items-center justify-between gap-4 rounded-lg border border-charcoal-700 bg-charcoal px-3 py-2">
                             <div className="min-w-0 flex-1">
-                              <p className="truncate text-xs text-ink-muted">
+                              <p className="truncate text-sm font-medium text-ink">
                                 {post.caption?.replace(/#\w+/g, "").trim() || "(no caption)"}
                               </p>
-                              <div className="mt-1 flex gap-3 font-mono text-[10px] text-ink-faint">
-                                <span className="text-lime">{(post.comments ?? 0).toLocaleString()} comments</span>
+                              <div className="mt-1 flex gap-3 text-xs font-medium text-ink-muted">
+                                <span className="font-semibold text-lime">{(post.comments ?? 0).toLocaleString()} comments</span>
                                 {post.likes != null && <span>{post.likes.toLocaleString()} likes</span>}
                                 {post.timestamp && (
                                   <span>{new Date(post.timestamp).toLocaleDateString()}</span>

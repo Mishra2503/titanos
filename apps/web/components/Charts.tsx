@@ -118,3 +118,41 @@ export function TrendChart({
     </div>
   );
 }
+
+// ===== Bar chart ======================================================
+
+export interface Bar {
+  label: string;
+  value: number;
+  color?: string;
+}
+
+export function BarChart({ bars, height = 180 }: { bars: Bar[]; height?: number }) {
+  if (bars.length === 0) return null;
+  const max = Math.max(...bars.map((b) => b.value), 1);
+  return (
+    <div className="flex items-end gap-3" style={{ height: height + 44 }}>
+      {bars.map((b, i) => {
+        const ratio = b.value / max;
+        return (
+          <div key={b.label} className="flex min-w-0 flex-1 flex-col items-center justify-end">
+            <p className="mb-1.5 text-sm font-bold tracking-tight text-ink">{compact(b.value)}</p>
+            <div className="flex w-full items-end justify-center" style={{ height }}>
+              <div
+                className="chart-bar w-full max-w-[64px] rounded-t-lg"
+                style={{
+                  height: `${Math.max(2, ratio * 100)}%`,
+                  backgroundColor: b.color ?? "#7c3aed",
+                  animationDelay: `${i * 60}ms`,
+                }}
+              />
+            </div>
+            <p className="mt-2 w-full truncate text-center font-mono text-[10px] uppercase tracking-wider text-ink-faint" title={b.label}>
+              {b.label}
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ApiError, generateStrategy, type RecentPost, type StrategyPostIn } from "@/lib/api";
+import { Markdown } from "@/components/Markdown";
 
 function toStrategyPost(p: RecentPost): StrategyPostIn {
   return {
@@ -18,39 +19,6 @@ function toStrategyPost(p: RecentPost): StrategyPostIn {
     timestamp: p.timestamp,
     hashtags: p.hashtags,
   };
-}
-
-// Minimal markdown rendering: headings, bold, bullets — enough for the
-// strategy output without pulling in a markdown library.
-function renderMarkdown(text: string): React.ReactNode {
-  return text.split("\n").map((line, i) => {
-    const renderInline = (s: string) => {
-      const parts: React.ReactNode[] = [];
-      const re = /\*\*([^*]+)\*\*/g;
-      let last = 0; let m: RegExpExecArray | null; let k = 0;
-      while ((m = re.exec(s))) {
-        if (m.index > last) parts.push(<span key={k++}>{s.slice(last, m.index)}</span>);
-        parts.push(<strong key={k++} className="text-ink">{m[1]}</strong>);
-        last = m.index + m[0].length;
-      }
-      if (last < s.length) parts.push(<span key={k++}>{s.slice(last)}</span>);
-      return parts;
-    };
-    const trimmed = line.trim();
-    if (/^#{1,4}\s/.test(trimmed)) {
-      return <p key={i} className="mt-4 text-sm font-semibold text-lime">{trimmed.replace(/^#{1,4}\s/, "")}</p>;
-    }
-    if (/^[-*•]\s/.test(trimmed)) {
-      return (
-        <p key={i} className="ml-3 flex gap-2 text-sm text-ink-muted">
-          <span className="text-lime">→</span>
-          <span>{renderInline(trimmed.replace(/^[-*•]\s/, ""))}</span>
-        </p>
-      );
-    }
-    if (trimmed === "") return <div key={i} className="h-2" />;
-    return <p key={i} className="text-sm text-ink-muted">{renderInline(trimmed)}</p>;
-  });
 }
 
 export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
@@ -118,7 +86,7 @@ export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
 
       {text && (
         <div className="relative mt-5 space-y-1 rounded-xl bg-white p-5">
-          {renderMarkdown(text)}
+          <Markdown text={text} />
           {generatedAt && (
             <p className="pt-3 font-mono text-[10px] text-ink-faint">
               Generated {new Date(generatedAt).toLocaleString()} from {Math.min(posts.length, 40)} posts

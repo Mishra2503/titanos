@@ -23,8 +23,8 @@ const config: Config = {
         },
         ink: {
           DEFAULT: "#17141f",
-          muted: "#5d5869",
-          faint: "#757085",
+          muted: "#4f4a5b",
+          faint: "#6b6577",
         },
         // Status text steps are re-tuned for readability on light tinted
         // chips (the /10 tint + /40 border steps keep their stock values).
@@ -36,7 +36,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
-        heading: ["var(--font-heading)", "var(--font-display)", "system-ui", "sans-serif"],
+        heading: ["var(--font-display)", "system-ui", "sans-serif"],
         serif: ["var(--font-serif)", "Georgia", "serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
       },

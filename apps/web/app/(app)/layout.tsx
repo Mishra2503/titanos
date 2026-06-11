@@ -1,13 +1,53 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
+import {
+  Binoculars,
+  CalendarPlus,
+  ChartLineUp,
+  ClipboardText,
+  FilmStrip,
+  GearSix,
+  InstagramLogo,
+  Kanban,
+  PencilLine,
+  SidebarSimple,
+  SignOut,
+  SquaresFour,
+} from "@phosphor-icons/react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { NAV_ITEMS } from "@/lib/nav";
+
+const ICONS: Record<string, React.ComponentType<{ size?: number; weight?: "regular" | "bold" | "fill" | "duotone" }>> = {
+  dashboard: SquaresFour,
+  instagram: InstagramLogo,
+  board: Kanban,
+  script: PencilLine,
+  calendar: CalendarPlus,
+  chart: ChartLineUp,
+  report: ClipboardText,
+  binoculars: Binoculars,
+  library: FilmStrip,
+  settings: GearSix,
+};
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { me, loading, logout } = useAuth();
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Persist the collapsed preference across visits.
+  useEffect(() => {
+    setCollapsed(localStorage.getItem("titan.sidebar") === "collapsed");
+  }, []);
+  function toggleSidebar() {
+    setCollapsed((c) => {
+      localStorage.setItem("titan.sidebar", c ? "expanded" : "collapsed");
+      return !c;
+    });
+  }
 
   if (loading || !me) {
     return (
@@ -21,43 +61,77 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-60 flex-col border-r border-charcoal-700 bg-charcoal-800 px-4 py-6">
-        <div className="flex items-center gap-2 px-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-lime font-serif text-sm italic text-white">
-            T
-          </span>
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-ink">
-            Titan&nbsp;OS
-          </p>
+      <aside
+        className={`sticky top-0 flex h-screen flex-col border-r border-charcoal-700 bg-charcoal-800 py-6 transition-[width] duration-200 ease-studio-out ${
+          collapsed ? "w-[72px] px-3" : "w-60 px-4"
+        }`}
+      >
+        <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-2"}`}>
+          <div className="flex items-center gap-2">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lime font-serif text-base italic text-white">
+              T
+            </span>
+            {!collapsed && (
+              <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-ink">
+                Titan&nbsp;OS
+              </p>
+            )}
+          </div>
         </div>
-        <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto">
+
+        <button
+          onClick={toggleSidebar}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`press mt-4 flex items-center gap-2 rounded-lg px-2.5 py-2 text-ink-faint hover:bg-charcoal hover:text-ink ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          <SidebarSimple size={18} />
+          {!collapsed && <span className="text-xs font-medium">Collapse</span>}
+        </button>
+
+        <nav className="mt-3 flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
           {items.map((item) => {
             const active = pathname === item.href;
+            const Icon = ICONS[item.icon] ?? SquaresFour;
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`press rounded-lg px-3 py-2 text-sm transition-studio duration-studio ease-studio-out ${
+                title={collapsed ? item.label : undefined}
+                className={`press flex items-center gap-2.5 rounded-lg py-2 text-sm transition-studio duration-studio ease-studio-out ${
+                  collapsed ? "justify-center px-2" : "px-3"
+                } ${
                   active
-                    ? "bg-lime/10 font-medium text-lime"
-                    : "text-ink-muted hover:bg-charcoal hover:text-ink"
+                    ? "bg-lime/10 font-semibold text-lime"
+                    : "font-medium text-ink-muted hover:bg-charcoal hover:text-ink"
                 }`}
               >
-                {item.label}
+                <Icon size={18} weight={active ? "fill" : "regular"} />
+                {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
-        <div className="border-t border-charcoal-700 pt-4">
-          <p className="truncate px-3 text-xs text-ink-muted">{me.email}</p>
-          <p className="px-3 font-mono text-[10px] uppercase tracking-wider text-lime-dim">
-            {me.role}
-          </p>
+
+        <div className={`border-t border-charcoal-700 pt-4 ${collapsed ? "text-center" : ""}`}>
+          {!collapsed && (
+            <>
+              <p className="truncate px-3 text-xs font-medium text-ink-muted">{me.email}</p>
+              <p className="px-3 font-mono text-[10px] uppercase tracking-wider text-lime-dim">
+                {me.role}
+              </p>
+            </>
+          )}
           <button
             onClick={logout}
-            className="press mt-2 w-full rounded-lg px-3 py-2 text-left text-sm text-ink-muted hover:bg-charcoal hover:text-ink"
+            title="Sign out"
+            className={`press mt-2 flex w-full items-center gap-2.5 rounded-lg py-2 text-left text-sm font-medium text-ink-muted hover:bg-charcoal hover:text-ink ${
+              collapsed ? "justify-center px-2" : "px-3"
+            }`}
           >
-            Sign out
+            <SignOut size={18} />
+            {!collapsed && "Sign out"}
           </button>
         </div>
       </aside>

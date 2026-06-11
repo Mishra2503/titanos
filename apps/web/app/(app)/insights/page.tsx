@@ -15,7 +15,7 @@ function Stat({ label, value }: { label: string; value: string | number | null }
   return (
     <div>
       <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className="mt-1 font-mono text-lg text-ink">
+      <p className="mt-1 text-xl font-bold tracking-tight text-ink">
         {value === null || value === undefined ? "—" : value.toLocaleString()}
       </p>
     </div>

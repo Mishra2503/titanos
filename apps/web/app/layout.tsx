@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, Instrument_Serif, Geist_Mono } from "next/font/google";
+import { Archivo, Instrument_Serif, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const display = Inter({
+// One clean neo-grotesque family everywhere (per the approved type reference):
+// Archivo carries body, UI, headings, and numerals — weight does the hierarchy.
+const display = Archivo({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
   variable: "--font-display",
-  display: "swap",
-});
-
-const heading = Space_Grotesk({
-  subsets: ["latin"],
-  weight: ["500", "600", "700"],
-  variable: "--font-heading",
   display: "swap",
 });
 
@@ -36,7 +32,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${heading.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${serif.variable} ${mono.variable}`}>
       <body className="font-display antialiased">{children}</body>
     </html>
   );

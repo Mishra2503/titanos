@@ -16,9 +16,9 @@ export class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function apiFetch<T>(path: string, init: RequestInit = {}, timeoutMs: number = TIMEOUT_MS): Promise<T> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   const isBodyRequest = init.method && !["GET", "HEAD"].includes(init.method.toUpperCase());
   const headers = new Headers(init.headers);
@@ -260,14 +260,14 @@ export const addSnapshot = (id: string, body: SnapshotInput) => apiFetch<Competi
 export const deleteSnapshot = (id: string, snapshotId: string) => apiFetch<void>(`/api/competitors/${id}/snapshots/${snapshotId}`, { method: "DELETE" });
 export const addCompetitorPost = (id: string, body: PostInput) => apiFetch<CompetitorPost>(`/api/competitors/${id}/posts`, { method: "POST", body: JSON.stringify(body) });
 export const deleteCompetitorPost = (id: string, postId: string) => apiFetch<void>(`/api/competitors/${id}/posts/${postId}`, { method: "DELETE" });
-export const generateCompetitorReport = (id: string) => apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" });
-export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" });
+export const generateCompetitorReport = (id: string) => apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" }, 180_000);
+export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" }, 120_000);
 
 export interface CompetitorSyncResult {
   synced: true; username: string; followers_count: number | null; posts_imported: number;
 }
 export const syncCompetitor = (id: string) =>
-  apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" });
+  apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 60_000);
 
 // === AI content strategy =========================================
 
@@ -281,4 +281,24 @@ export const generateStrategy = (posts: StrategyPostIn[]) =>
   apiFetch<{ text: string; generated_at: string }>("/api/ai/strategy", {
     method: "POST",
     body: JSON.stringify({ posts }),
-  });
+  }, 120_000);
+
+// === Weekly report =================================================
+
+export interface WeeklyReportPost {
+  caption: string | null; timestamp: string | null; permalink: string | null;
+  reach: number | null; views: number | null; likes: number | null; comments: number | null;
+  shares: number | null; saved: number | null; engagement_rate: number | null;
+  avg_watch_time_sec: number | null;
+}
+export interface WeeklyReportAccount {
+  account_id: string; username: string; followers: number | null; error: string | null;
+  posts_published: number; reach: number; views: number; likes: number; comments: number;
+  shares: number; saves: number; prev_reach: number; prev_posts: number;
+  top_post: WeeklyReportPost | null; posts: WeeklyReportPost[];
+}
+export interface WeeklyReport {
+  generated_at: string; range_days: number; accounts: WeeklyReportAccount[]; summary: string;
+}
+export const getWeeklyReport = () =>
+  apiFetch<WeeklyReport>("/api/reports/weekly", { method: "POST" }, 180_000);
