@@ -921,7 +921,7 @@ function AddCompetitorModal({
   }
 
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px] animate-reveal">
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-charcoal-700 bg-charcoal-800 p-5 shadow-pop">
         <h3 className="text-base font-semibold text-ink">Add competitor</h3>
         <div className="mt-4 space-y-2">
@@ -957,7 +957,7 @@ function ReportModal({ report, onClose }: { report: CompetitorReport; onClose: (
     void navigator.clipboard.writeText(report.content);
   }
   return (
-    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal">
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px] animate-reveal">
       <div onClick={(e) => e.stopPropagation()} className="flex max-h-[88vh] w-full max-w-2xl flex-col rounded-2xl border border-charcoal-700 bg-charcoal-800 shadow-pop">
         <div className="flex items-center justify-between border-b border-charcoal-700 px-5 py-3">
           <p className="truncate text-sm font-semibold text-ink">{report.title}</p>

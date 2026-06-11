@@ -11,28 +11,28 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // Premium dark scheme: purple, black, white — nothing else.
         charcoal: {
-          DEFAULT: "#f8f7fc", // page field, input fills, image scrims
-          800: "#ffffff",     // cards, panels, sidebar
-          700: "#edebf5",     // hairline borders, soft fills
-          600: "#dfdcec",     // strong borders, dashed outlines
+          DEFAULT: "#0b0712", // page field, input fills, image scrims
+          800: "#130d1f",     // cards, panels, sidebar
+          700: "#241c38",     // hairline borders, soft fills
+          600: "#332853",     // strong borders, dashed outlines
         },
         lime: {
-          DEFAULT: "#7c3aed", // single violet accent (violet-600)
-          dim: "#5b21b6",     // higher-contrast accent for micro labels
+          DEFAULT: "#a78bfa", // accent text/borders on dark (violet-400)
+          dim: "#c4b5fd",     // micro labels needing extra pop on dark
         },
         ink: {
-          DEFAULT: "#17141f",
-          muted: "#403b4d",
-          faint: "#5d5769",
+          DEFAULT: "#f7f5fc", // near-white text
+          muted: "#beb4d6",
+          faint: "#8f85aa",
         },
-        // Status text steps are re-tuned for readability on light tinted
-        // chips (the /10 tint + /40 border steps keep their stock values).
-        amber: { 300: "#b45309" },
-        sky: { 300: "#0369a1" },
-        red: { 400: "#dc2626" },
-        rose: { 300: "#be123c" },
-        emerald: { 300: "#047857" },
+        // Status text steps tuned for dark tinted chips.
+        amber: { 300: "#fcd34d" },
+        sky: { 300: "#7dd3fc" },
+        red: { 400: "#f87171" },
+        rose: { 300: "#fda4af" },
+        emerald: { 300: "#6ee7b9" },
       },
       fontFamily: {
         display: ["var(--font-display)", "system-ui", "sans-serif"],
@@ -44,8 +44,8 @@ const config: Config = {
         mono: ["var(--font-display)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "0 1px 2px rgba(23, 20, 31, 0.04), 0 8px 24px -12px rgba(23, 20, 31, 0.10)",
-        pop: "0 4px 12px rgba(23, 20, 31, 0.06), 0 24px 64px -24px rgba(23, 20, 31, 0.18)",
+        card: "inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.6)",
+        pop: "0 0 0 1px rgba(139, 92, 246, 0.18), 0 24px 64px -16px rgba(0, 0, 0, 0.8)",
       },
       transitionTimingFunction: {
         "studio-out": "cubic-bezier(0.23, 1, 0.32, 1)",

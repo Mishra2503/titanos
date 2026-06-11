@@ -30,7 +30,7 @@ export default function LoginPage() {
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[-10%] h-[55vh] bg-[radial-gradient(55%_55%_at_50%_40%,rgba(124,58,237,0.14),transparent_70%)] blur-2xl"
+        className="pointer-events-none absolute inset-x-0 top-[-10%] h-[55vh] bg-[radial-gradient(55%_55%_at_50%_40%,rgba(124,58,237,0.30),transparent_70%)] blur-2xl"
       />
       <div className="relative w-full max-w-sm animate-reveal">
         <div className="mb-6 flex items-center gap-2.5">

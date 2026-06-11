@@ -46,7 +46,7 @@ export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
   }
 
   return (
-    <div className="animate-reveal relative overflow-hidden rounded-2xl bg-ink p-6 text-white">
+    <div className="animate-reveal relative overflow-hidden rounded-2xl border border-lime/25 bg-[#100921] p-6 text-white shadow-pop">
       {/* Soft violet glow in the corner — the one dark "premium" moment on the page. */}
       <div
         aria-hidden
@@ -85,7 +85,7 @@ export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
       {error && <p className="relative mt-3 font-mono text-xs text-red-300">{error}</p>}
 
       {text && (
-        <div className="relative mt-5 space-y-1 rounded-xl bg-white p-5">
+        <div className="relative mt-5 space-y-1 rounded-xl border border-white/10 bg-white/[0.04] p-5">
           <Markdown text={text} />
           {generatedAt && (
             <p className="pt-3 font-mono text-[10px] text-ink-faint">

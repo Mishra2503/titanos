@@ -172,13 +172,13 @@ export default function ReportsPage() {
 
       {report && (
         <div className="space-y-6">
-          <div className="animate-reveal relative overflow-hidden rounded-2xl bg-ink p-6 text-white">
+          <div className="animate-reveal relative overflow-hidden rounded-2xl border border-lime/25 bg-[#100921] p-6 text-white shadow-pop">
             <div
               aria-hidden
               className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(124,58,237,0.35),transparent_70%)] blur-2xl"
             />
             <p className="relative font-mono text-xs uppercase tracking-[0.2em] text-violet-300">Executive summary</p>
-            <div className="relative mt-4 rounded-xl bg-white p-5">
+            <div className="relative mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-5">
               <Markdown text={report.summary} />
               <p className="pt-3 font-mono text-[10px] text-ink-faint">
                 Generated {new Date(report.generated_at).toLocaleString()} · last {report.range_days} days

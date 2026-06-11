@@ -4,17 +4,33 @@
 
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --shadow-card: 0 1px 2px rgba(23, 20, 31, 0.04), 0 8px 24px -12px rgba(23, 20, 31, 0.1);
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
 }
 
 html,
 body {
-  background-color: #f8f7fc;
-  color: #17141f;
+  background-color: #0b0712;
+  color: #f7f5fc;
   /* Base weight is Medium — the user found regular-weight text too dim. */
   font-weight: 500;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Signature ambient halo: one soft violet glow bleeding from the top of the
+   viewport (fixed, non-interactive) — the depth cue of the whole dark theme. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -20% -10% auto -10%;
+  height: 60vh;
+  background: radial-gradient(55% 60% at 50% 0%, rgba(124, 58, 237, 0.18), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+body > * {
+  position: relative;
+  z-index: 1;
 }
 
 @layer base {
@@ -30,32 +46,32 @@ body {
 
   /* Brand selection + visible keyboard focus (WCAG AA). */
   ::selection {
-    background-color: rgba(124, 58, 237, 0.18);
+    background-color: rgba(139, 92, 246, 0.35);
   }
   :focus-visible {
-    outline: 2px solid #7c3aed;
+    outline: 2px solid #a78bfa;
     outline-offset: 2px;
     border-radius: 4px;
   }
 
-  /* White rounded surfaces read as cards: give them one soft ambient
-     shadow so the light theme has depth without per-page edits. */
+  /* Dark cards get an inset top highlight + deep drop shadow so surfaces
+     separate from the void without extra borders. */
   .bg-charcoal-800.rounded-xl,
   .bg-charcoal-800.rounded-2xl {
     box-shadow: var(--shadow-card);
   }
 
-  /* Quiet light-theme scrollbars. */
+  /* Quiet dark scrollbars. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #dfdcec transparent;
+    scrollbar-color: #332853 transparent;
   }
   *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   *::-webkit-scrollbar-thumb {
-    background: #dfdcec;
+    background: #332853;
     border-radius: 8px;
   }
   *::-webkit-scrollbar-track {
@@ -95,7 +111,8 @@ body {
   @media (hover: hover) and (pointer: fine) {
     .lift:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(23, 20, 31, 0.06), 0 24px 64px -24px rgba(23, 20, 31, 0.16);
+      /* Violet edge-glow on hover — the dark theme's reward for attention. */
+      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.28), 0 16px 48px -16px rgba(124, 58, 237, 0.35);
     }
   }
 }

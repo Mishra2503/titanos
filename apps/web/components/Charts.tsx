@@ -83,7 +83,7 @@ export function TrendChart({
             x2={W}
             y1={H * f}
             y2={H * f}
-            stroke="#edebf5"
+            stroke="#241c38"
             strokeWidth={1}
             vectorEffect="non-scaling-stroke"
           />

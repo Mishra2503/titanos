@@ -399,7 +399,7 @@ export default function LibraryPage() {
       {preview && (
         <div
           onClick={() => setPreview(null)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 p-4 backdrop-blur-[2px] animate-reveal"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px] animate-reveal"
         >
           <div
             onClick={(e) => e.stopPropagation()}
