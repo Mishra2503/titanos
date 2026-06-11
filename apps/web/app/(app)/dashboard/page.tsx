@@ -59,12 +59,15 @@ export default function DashboardPage() {
   const [range, setRange] = useState<RangeKey>("28");
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<SortKey>("reach");
+  const [showAllVideos, setShowAllVideos] = useState(false);
+  const [commentsAccountId, setCommentsAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     getInsightsSummary()
       .then((d) => {
         setData(d);
         setSelectedAccountIds(d.accounts.map((a) => a.account_id));
+        setCommentsAccountId(d.accounts[0]?.account_id ?? null);
       })
       .catch((err) =>
         setError(err instanceof ApiError ? err.message : "Failed to load insights"),
@@ -84,6 +87,11 @@ export default function DashboardPage() {
       .filter((p) => !p.timestamp || new Date(p.timestamp).getTime() >= since)
       .sort((a, b) => sortValue(b, sortBy) - sortValue(a, sortBy));
   }, [data, range, selectedAccountIds, sortBy]);
+
+  // Long ranges (90d / All) collapse to the top 10 until "Show all" is clicked.
+  const isLongRange = range === "90" || range === "all";
+  const collapsed = isLongRange && !showAllVideos && filteredPosts.length > 10;
+  const displayedPosts = collapsed ? filteredPosts.slice(0, 10) : filteredPosts;
 
   const trendSeries: TrendSeries[] = useMemo(() => {
     const dated = filteredPosts.filter((p) => p.timestamp);
@@ -132,7 +140,10 @@ export default function DashboardPage() {
           selectedAccountIds={selectedAccountIds}
           onAccountsChange={setSelectedAccountIds}
           range={range}
-          onRangeChange={setRange}
+          onRangeChange={(r) => {
+            setRange(r);
+            setShowAllVideos(false);
+          }}
         />
       )}
 
@@ -225,11 +236,23 @@ export default function DashboardPage() {
                   No posts in this range. Try widening the time window.
                 </p>
               ) : (
-                <div className="grid gap-4 xl:grid-cols-2">
-                  {filteredPosts.map((p, i) => (
-                    <VideoCard key={p.id} post={p} rank={i + 1} />
-                  ))}
-                </div>
+                <>
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    {displayedPosts.map((p, i) => (
+                      <VideoCard key={p.id} post={p} rank={i + 1} />
+                    ))}
+                  </div>
+                  {isLongRange && filteredPosts.length > 10 && (
+                    <button
+                      onClick={() => setShowAllVideos(!showAllVideos)}
+                      className="press lift mt-2 w-full rounded-xl border border-charcoal-600 bg-charcoal-800 py-3 text-sm font-semibold text-lime hover:border-lime/40"
+                    >
+                      {collapsed
+                        ? `Show all ${filteredPosts.length} videos`
+                        : "Show top 10 only"}
+                    </button>
+                  )}
+                </>
               )}
             </div>
 
@@ -241,61 +264,103 @@ export default function DashboardPage() {
 
           <BestPostingTimes posts={filteredPosts} />
 
-          {/* Comments Hub */}
-          {data && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg text-ink">Comments Hub</h2>
-                <p className="font-mono text-[10px] text-ink-faint">Click &ldquo;Reply on Instagram&rdquo; to open the post and respond</p>
-              </div>
-              {data.accounts
-                .filter((a) => selectedAccountIds.includes(a.account_id))
-                .map((account) => {
-                  const postsWithComments = account.recent_posts
-                    .filter((p) => (p.comments ?? 0) > 0)
-                    .sort((a, b) => (b.comments ?? 0) - (a.comments ?? 0))
-                    .slice(0, 6);
-                  if (postsWithComments.length === 0) return null;
-                  return (
-                    <div key={account.account_id} className="rounded-xl border border-charcoal-700 bg-charcoal-800 p-4">
-                      <p className="mb-3 font-mono text-xs font-semibold text-lime">@{account.username}</p>
-                      <div className="space-y-2">
-                        {postsWithComments.map((post) => (
-                          <div key={post.id} className="flex items-center justify-between gap-4 rounded-lg border border-charcoal-700 bg-charcoal px-3 py-2">
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm font-medium text-ink">
-                                {post.caption?.replace(/#\w+/g, "").trim() || "(no caption)"}
-                              </p>
-                              <div className="mt-1 flex gap-3 text-xs font-medium text-ink-muted">
-                                <span className="font-semibold text-lime">{(post.comments ?? 0).toLocaleString()} comments</span>
-                                {post.likes != null && <span>{post.likes.toLocaleString()} likes</span>}
-                                {post.timestamp && (
-                                  <span>{new Date(post.timestamp).toLocaleDateString()}</span>
-                                )}
-                              </div>
-                            </div>
-                            {post.permalink && (
-                              <a
-                                href={post.permalink}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="press shrink-0 rounded-md border border-lime/40 bg-lime/5 px-2.5 py-1 font-mono text-[10px] text-lime hover:bg-lime/10"
-                              >
-                                Reply on Instagram ↗
-                              </a>
+          {/* Comments Hub — one account at a time, with reel thumbnails */}
+          {data && data.accounts.length > 0 && (() => {
+            const account =
+              data.accounts.find((a) => a.account_id === commentsAccountId) ?? data.accounts[0];
+            const postsWithComments = account.recent_posts
+              .filter((p) => (p.comments ?? 0) > 0)
+              .sort((a, b) => (b.comments ?? 0) - (a.comments ?? 0))
+              .slice(0, 8);
+            return (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <h2 className="text-lg text-ink">Comments Hub</h2>
+                  <p className="font-mono text-[10px] text-ink-faint">Click &ldquo;Reply on Instagram&rdquo; to open the post and respond</p>
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {data.accounts.map((a) => {
+                    const on = a.account_id === account.account_id;
+                    return (
+                      <button
+                        key={a.account_id}
+                        onClick={() => setCommentsAccountId(a.account_id)}
+                        className={`press flex items-center gap-2 rounded-full border py-1 pl-1 pr-3.5 text-xs font-semibold transition-studio duration-studio ease-studio-out ${
+                          on
+                            ? "border-lime bg-lime text-white"
+                            : "border-charcoal-600 bg-charcoal-800 text-ink-muted hover:border-lime/50 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-bold uppercase ${
+                            on ? "bg-white/20 text-white" : "bg-lime/10 text-lime"
+                          }`}
+                        >
+                          {a.username.slice(0, 2)}
+                        </span>
+                        @{a.username}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="rounded-xl border border-charcoal-700 bg-charcoal-800 p-4">
+                  {postsWithComments.length === 0 ? (
+                    <p className="py-6 text-center text-sm text-ink-muted">
+                      No comments yet on @{account.username}&apos;s recent posts.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {postsWithComments.map((post) => (
+                        <div key={post.id} className="flex items-center gap-3 rounded-lg border border-charcoal-700 bg-charcoal px-3 py-2.5 transition-colors duration-150 hover:border-lime/30">
+                          <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md bg-charcoal-700">
+                            {post.thumbnail_url && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={post.thumbnail_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                referrerPolicy="no-referrer"
+                                loading="lazy"
+                              />
                             )}
                           </div>
-                        ))}
-                      </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="line-clamp-2 text-sm font-medium text-ink">
+                              {post.caption?.replace(/#\w+/g, "").trim() || "(no caption)"}
+                            </p>
+                            <div className="mt-1 flex gap-3 text-xs font-medium text-ink-muted">
+                              <span className="font-semibold text-lime">{(post.comments ?? 0).toLocaleString()} comments</span>
+                              {post.likes != null && <span>{post.likes.toLocaleString()} likes</span>}
+                              {post.timestamp && (
+                                <span>{new Date(post.timestamp).toLocaleDateString()}</span>
+                              )}
+                            </div>
+                          </div>
+                          {post.permalink && (
+                            <a
+                              href={post.permalink}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="press shrink-0 rounded-md border border-lime/40 bg-lime/5 px-2.5 py-1 font-mono text-[10px] text-lime hover:bg-lime/10"
+                            >
+                              Reply on Instagram ↗
+                            </a>
+                          )}
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              <p className="font-mono text-[10px] text-ink-faint">
-                Showing posts with comments — use the account filter above to focus on a specific account.
-                Instagram requires replying natively in the app or via the Meta Business Suite.
-              </p>
-            </div>
-          )}
+                  )}
+                </div>
+
+                <p className="font-mono text-[10px] text-ink-faint">
+                  Pick an account above to see its posts with comments. Instagram requires replying
+                  natively in the app or via the Meta Business Suite.
+                </p>
+              </div>
+            );
+          })()}
 
           <div className="grid gap-6 lg:grid-cols-2">
             <HookPatterns posts={filteredPosts} />
