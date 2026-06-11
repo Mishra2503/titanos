@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo, Instrument_Serif, Geist_Mono } from "next/font/google";
+import { Archivo, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 // One clean neo-grotesque family everywhere (per the approved type reference):
@@ -19,12 +19,6 @@ const serif = Instrument_Serif({
   display: "swap",
 });
 
-const mono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "Titan OS",
   description: "Instagram creator-brand operations portal.",
@@ -32,7 +26,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${serif.variable} ${mono.variable}`}>
+    <html lang="en" className={`${display.variable} ${serif.variable}`}>
       <body className="font-display antialiased">{children}</body>
     </html>
   );

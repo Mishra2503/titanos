@@ -10,6 +10,7 @@ import {
   type RecentPost,
 } from "@/lib/api";
 import { TrendChart } from "@/components/Charts";
+import { AccountChips } from "@/components/AccountChips";
 
 function Stat({ label, value }: { label: string; value: string | number | null }) {
   return (
@@ -47,7 +48,7 @@ function PostTable({ posts }: { posts: RecentPost[] }) {
         </thead>
         <tbody>
           {posts.map((p) => (
-            <tr key={p.id} className="border-t border-charcoal-700">
+            <tr key={p.id} className="border-t border-charcoal-700 transition-colors duration-150 hover:bg-charcoal">
               <td className="max-w-[260px] px-3 py-2">
                 <a
                   href={p.permalink ?? "#"}
@@ -87,7 +88,7 @@ function AccountCard({ a }: { a: AccountInsights }) {
   const topPost = a.recent_posts[0] ?? null;
 
   return (
-    <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
+    <div className="lift animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg text-ink">@{a.username}</h2>
         <span className="font-mono text-xs text-ink-faint">
@@ -179,13 +180,19 @@ export default function InsightsPage() {
   const [data, setData] = useState<InsightsSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     getInsightsSummary()
-      .then(setData)
+      .then((d) => {
+        setData(d);
+        setSelectedIds(d.accounts.map((a) => a.account_id));
+      })
       .catch((err) => setError(err instanceof ApiError ? err.message : "Failed to load insights"))
       .finally(() => setLoading(false));
   }, []);
+
+  const visible = data?.accounts.filter((a) => selectedIds.includes(a.account_id)) ?? [];
 
   return (
     <div>
@@ -200,8 +207,18 @@ export default function InsightsPage() {
         </div>
       )}
 
+      {data && data.accounts.length > 0 && (
+        <div className="mb-6 animate-reveal">
+          <AccountChips
+            accounts={data.accounts.map((a) => ({ account_id: a.account_id, username: a.username, followers: a.followers }))}
+            selectedIds={selectedIds}
+            onChange={setSelectedIds}
+          />
+        </div>
+      )}
+
       <div className="space-y-6">
-        {data?.accounts.map((a) => (
+        {visible.map((a) => (
           <AccountCard key={a.account_id} a={a} />
         ))}
       </div>

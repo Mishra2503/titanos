@@ -57,7 +57,7 @@ export function StrategyPanel({ posts }: { posts: RecentPost[] }) {
         <div>
           <p className="font-mono text-xs uppercase tracking-[0.2em] text-violet-300">AI content strategist</p>
           <h3 className="mt-1.5 text-xl font-bold tracking-tight text-white">
-            Get this week&apos;s plan <span className="font-serif italic font-normal text-violet-300">from your data</span>
+            Get this week&apos;s plan <span className="text-violet-300">from your data</span>
           </h3>
           <p className="mt-1 max-w-md text-xs text-white/60">
             Real post metrics + tracked competitors, turned into reel ideas, hooks, a posting plan and a distribution checklist.

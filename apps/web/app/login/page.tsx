@@ -42,8 +42,8 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-8 shadow-pop">
-          <h1 className="text-3xl font-semibold tracking-tight text-ink">
-            Grow smarter <span className="font-serif italic font-normal text-lime">with data</span>
+          <h1 className="text-3xl font-bold tracking-tight text-ink">
+            Grow smarter <span className="text-lime">with data</span>
           </h1>
           <p className="mt-1.5 text-sm text-ink-muted">Operate every account from one screen.</p>
 

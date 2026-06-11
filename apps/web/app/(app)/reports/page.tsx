@@ -30,7 +30,7 @@ function AccountReport({ a }: { a: WeeklyReportAccount }) {
     { label: "Saves", value: a.saves },
   ];
   return (
-    <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
+    <div className="lift animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <h3 className="text-lg font-semibold text-ink">@{a.username}</h3>
@@ -99,7 +99,7 @@ function AccountReport({ a }: { a: WeeklyReportAccount }) {
                 </thead>
                 <tbody>
                   {a.posts.map((p, i) => (
-                    <tr key={i} className="border-t border-charcoal-700">
+                    <tr key={i} className="border-t border-charcoal-700 transition-colors duration-150 hover:bg-charcoal">
                       <td className="max-w-[260px] px-3 py-2">
                         <a href={p.permalink ?? "#"} target="_blank" rel="noreferrer" className="block truncate text-ink-muted hover:text-lime">
                           {(p.caption ?? "(no caption)").replace(/#\w+/g, "").trim().slice(0, 80)}
