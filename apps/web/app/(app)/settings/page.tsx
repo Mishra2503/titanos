@@ -451,7 +451,7 @@ export default function SettingsPage() {
         )}
 
         {/* Session */}
-        <Section title="Session" description="Sign out of Titan OS on this device.">
+        <Section title="Session" description="Sign out of Aifluencee Content Hub on this device.">
           <button
             onClick={signOut}
             className="press rounded-lg border border-red-400/30 px-4 py-2 text-sm text-red-400 hover:bg-red-400/10"

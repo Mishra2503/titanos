@@ -11,6 +11,8 @@ html,
 body {
   background-color: #f8f7fc;
   color: #17141f;
+  /* Base weight is Medium — the user found regular-weight text too dim. */
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

@@ -1,4 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#7c3aed"/>
-  <text x="32" y="45" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="38" fill="#ffffff" text-anchor="middle">T</text>
+  <rect width="64" height="64" rx="14" fill="#17141f"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <path d="M14 46 L26 18 L38 46" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="48" y1="18" x2="48" y2="46" stroke="url(#g)" stroke-width="6" stroke-linecap="round"/>
 </svg>

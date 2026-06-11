@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, login } from "@/lib/api";
+import { BrandMark, BrandWordmark } from "@/components/BrandMark";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,13 +33,9 @@ export default function LoginPage() {
         className="pointer-events-none absolute inset-x-0 top-[-10%] h-[55vh] bg-[radial-gradient(55%_55%_at_50%_40%,rgba(124,58,237,0.14),transparent_70%)] blur-2xl"
       />
       <div className="relative w-full max-w-sm animate-reveal">
-        <div className="mb-6 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-lime font-serif text-base italic text-white">
-            T
-          </span>
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-ink">
-            Titan&nbsp;OS
-          </p>
+        <div className="mb-6 flex items-center gap-2.5">
+          <BrandMark size={36} />
+          <BrandWordmark />
         </div>
 
         <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-8 shadow-pop">

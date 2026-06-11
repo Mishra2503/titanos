@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     if (existing) return badRequest("already_setup", "This instance is already set up. Use the invite flow to add users.");
 
     const workspace = await db.workspace.create({
-      data: { name: workspace_name?.trim() || "Titan OS" },
+      data: { name: workspace_name?.trim() || "Aifluencee Content Hub" },
     });
 
     const user = await db.user.create({

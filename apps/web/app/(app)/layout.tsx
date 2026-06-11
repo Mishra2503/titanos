@@ -19,6 +19,7 @@ import {
 } from "@phosphor-icons/react";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { NAV_ITEMS } from "@/lib/nav";
+import { BrandMark, BrandWordmark } from "@/components/BrandMark";
 
 const ICONS: Record<string, React.ComponentType<{ size?: number; weight?: "regular" | "bold" | "fill" | "duotone" }>> = {
   dashboard: SquaresFour,
@@ -67,15 +68,9 @@ function Shell({ children }: { children: React.ReactNode }) {
         }`}
       >
         <div className={`flex items-center ${collapsed ? "justify-center" : "justify-between px-2"}`}>
-          <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lime font-serif text-base italic text-white">
-              T
-            </span>
-            {!collapsed && (
-              <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-ink">
-                Titan&nbsp;OS
-              </p>
-            )}
+          <div className="flex items-center gap-2.5">
+            <BrandMark size={34} />
+            {!collapsed && <BrandWordmark stacked />}
           </div>
         </div>
 

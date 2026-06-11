@@ -20,7 +20,7 @@ const serif = Instrument_Serif({
 });
 
 export const metadata: Metadata = {
-  title: "Titan OS",
+  title: "Aifluencee Content Hub",
   description: "Instagram creator-brand operations portal.",
 };
 

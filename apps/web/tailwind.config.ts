@@ -23,8 +23,8 @@ const config: Config = {
         },
         ink: {
           DEFAULT: "#17141f",
-          muted: "#4f4a5b",
-          faint: "#6b6577",
+          muted: "#403b4d",
+          faint: "#5d5769",
         },
         // Status text steps are re-tuned for readability on light tinted
         // chips (the /10 tint + /40 border steps keep their stock values).
