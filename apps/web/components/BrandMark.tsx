@@ -7,7 +7,7 @@ export function BrandMark({ size = 32 }: { size?: number }) {
       <defs>
         <linearGradient id="brand-g" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#a78bfa" />
-          <stop offset="1" stopColor="#7c3aed" />
+          <stop offset="1" stopColor="#5b21b6" />
         </linearGradient>
       </defs>
       <path

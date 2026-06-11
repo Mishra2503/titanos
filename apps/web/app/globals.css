@@ -74,10 +74,16 @@ body {
     transform: scale(0.97);
   }
 
-  /* All solid violet buttons darken slightly on hover — one rule, app-wide. */
+  /* Every solid violet fill carries the brand gradient (violet → near-black).
+     One rule upgrades all primary buttons, active chips, pills, and badges;
+     the /10-style tints stay flat. */
+  .bg-lime {
+    background-color: #6d28d9; /* fallback */
+    background-image: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 45%, #321a5e 100%);
+  }
   @media (hover: hover) and (pointer: fine) {
     .press.bg-lime:hover {
-      background-color: #6d28d9;
+      background-image: linear-gradient(135deg, #7c3aed 0%, #5b21b6 45%, #241046 100%);
     }
   }
 
@@ -120,6 +126,8 @@ body {
 .chart-bar {
   transform-origin: bottom;
   animation: bar-grow 500ms var(--ease-out) both;
+  /* Shade bars toward black at the base for depth (sits over any bar color). */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(23, 20, 31, 0) 30%, rgba(23, 20, 31, 0.38) 100%);
 }
 
 /* Honor reduced-motion: disable transforms/animations. */
