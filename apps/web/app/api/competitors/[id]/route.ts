@@ -85,10 +85,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // Top posts by engagement (likes + comments)
+    // Top posts: rank by views when the scraper provided them, otherwise by
+    // engagement (likes + comments).
     const top_posts = [...c.posts]
-      .map((p) => ({ p, eng: (p.likes ?? 0) + (p.comments ?? 0) }))
-      .sort((a, b) => b.eng - a.eng)
+      .map((p) => ({ p, eng: (p.likes ?? 0) + (p.comments ?? 0), score: (p.views ?? 0) > 0 ? p.views! : (p.likes ?? 0) + (p.comments ?? 0) }))
+      .sort((a, b) => b.score - a.score)
       .slice(0, 5)
       .map(({ p, eng }) => ({
         id: p.id,

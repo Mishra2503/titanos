@@ -265,9 +265,10 @@ export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/com
 
 export interface CompetitorSyncResult {
   synced: true; username: string; followers_count: number | null; posts_imported: number;
+  views_enriched?: number; source?: "official+scraper" | "official" | "scraper"; warnings?: string[];
 }
 export const syncCompetitor = (id: string) =>
-  apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 60_000);
+  apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 180_000);
 
 // === AI content strategy =========================================
 

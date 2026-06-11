@@ -3,14 +3,19 @@ import { db } from "@/lib/server/db";
 import { decryptSecret } from "@/lib/server/crypto";
 import { unauthorized, notFound, badRequest, serverError } from "@/lib/server/errors";
 
-// Pulls a competitor's public stats via the official Business Discovery API.
-// Works for any Business/Creator account, using one of the workspace's own
-// connected-account tokens. No scraping involved.
+// Competitor sync, two sources merged:
+//  1. Official Business Discovery API (followers, captions, likes/comments,
+//     timestamps) — needs the Meta app to have Advanced Access.
+//  2. Apify Instagram scrapers (adds REEL VIEW COUNTS, and acts as a full
+//     fallback when Business Discovery is blocked). Token: APIFY_TOKEN.
 
 const GRAPH_VERSION = process.env.INSTAGRAM_GRAPH_VERSION ?? "v23.0";
 const GRAPH = `https://graph.instagram.com/${GRAPH_VERSION}`;
 const HASHTAG_RE = /#\w+/gu;
 const MEDIA_LIMIT = 25;
+const REEL_LIMIT = 20;
+
+// ── Source types ────────────────────────────────────────────────────────────
 
 interface BdMedia {
   id: string; caption?: string; like_count?: number; comments_count?: number;
@@ -24,6 +29,79 @@ interface BdProfile {
   media_count?: number; media?: { data?: BdMedia[] };
 }
 
+interface ApifyReel {
+  shortCode?: string; url?: string; caption?: string;
+  commentsCount?: number; likesCount?: number;
+  videoViewCount?: number; videoPlayCount?: number;
+  timestamp?: string; displayUrl?: string; type?: string;
+}
+
+interface ApifyProfile {
+  username?: string; fullName?: string; followersCount?: number;
+  followsCount?: number; postsCount?: number; profilePicUrl?: string;
+}
+
+interface MergedPost {
+  shortcode: string;
+  permalink: string;
+  caption: string | null;
+  likes: number | null;
+  comments: number | null;
+  views: number | null;
+  postedOn: Date | null;
+  thumbnailUrl: string | null;
+  postType: string;
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function shortcodeOf(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+async function runApify<T>(actor: string, input: unknown, token: string): Promise<T[]> {
+  const r = await fetch(
+    `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${token}&timeout=110`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+      signal: AbortSignal.timeout(125_000),
+    },
+  );
+  const body = await r.json().catch(() => null);
+  if (!r.ok) {
+    const msg = (body as { error?: { message?: string } } | null)?.error?.message ?? `HTTP ${r.status}`;
+    throw new Error(`Apify: ${msg}`);
+  }
+  return Array.isArray(body) ? (body as T[]) : [];
+}
+
+async function fetchBusinessDiscovery(wsId: string, username: string): Promise<BdProfile> {
+  const account = await db.igAccount.findFirst({
+    where: { workspaceId: wsId, status: "CONNECTED" },
+    orderBy: { createdAt: "asc" },
+  });
+  if (!account) throw new Error("No connected Instagram account to query through.");
+  const token = decryptSecret(account.accessTokenEnc);
+  const fields =
+    `business_discovery.username(${username})` +
+    `{username,name,biography,website,profile_picture_url,followers_count,follows_count,media_count,` +
+    `media.limit(${MEDIA_LIMIT}){id,caption,like_count,comments_count,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp}}`;
+  const r = await fetch(
+    `${GRAPH}/${account.igUserId}?fields=${encodeURIComponent(fields)}&access_token=${token}`,
+    { signal: AbortSignal.timeout(20000) },
+  );
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body?.error?.message ?? `Instagram API error ${r.status}`);
+  if (!body?.business_discovery) throw new Error("Instagram returned no data (account must be a public professional account).");
+  return body.business_discovery as BdProfile;
+}
+
+// ── Route ───────────────────────────────────────────────────────────────────
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const wsId = req.headers.get("x-workspace-id");
@@ -33,97 +111,136 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const competitor = await db.competitor.findFirst({ where: { id, workspaceId: wsId } });
     if (!competitor) return notFound("Competitor not found");
 
-    const account = await db.igAccount.findFirst({
-      where: { workspaceId: wsId, status: "CONNECTED" },
-      orderBy: { createdAt: "asc" },
-    });
-    if (!account) return badRequest("no_connected_account", "Connect at least one Instagram account first — competitor data is fetched through the official API using your own connection.");
-
-    let token: string;
-    try { token = decryptSecret(account.accessTokenEnc); } catch {
-      return badRequest("token_unreadable", "Stored Instagram token could not be read. Reconnect your account.");
-    }
-
     const username = competitor.username.replace(/^@/, "").trim();
-    const fields =
-      `business_discovery.username(${username})` +
-      `{username,name,biography,website,profile_picture_url,followers_count,follows_count,media_count,` +
-      `media.limit(${MEDIA_LIMIT}){id,caption,like_count,comments_count,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp}}`;
+    const apifyToken =
+      process.env.APIFY_TOKEN ?? process.env.APIFY_API_TOKEN ?? process.env.APIFY_KEY ?? null;
 
-    const r = await fetch(
-      `${GRAPH}/${account.igUserId}?fields=${encodeURIComponent(fields)}&access_token=${token}`,
-      { signal: AbortSignal.timeout(20000) },
-    );
-    const body = await r.json().catch(() => ({}));
-    if (!r.ok) {
-      const msg: string = body?.error?.message ?? `Instagram API error ${r.status}`;
-      const friendly = /cannot be found|does not exist|invalid user/i.test(msg)
-        ? `@${username} was not found, or is not a Business/Creator account (Business Discovery only works for professional accounts).`
-        : /permission|not authorized|#10\b|#200\b|oauth/i.test(msg)
-          ? `Instagram blocked the request: ${msg} — your Meta app likely needs Advanced Access for instagram_business_basic (App Review) before Business Discovery works on other accounts.`
-          : msg;
-      return badRequest("business_discovery_failed", friendly);
+    // Fire both sources in parallel; merge whatever succeeds.
+    const [bdRes, reelsRes] = await Promise.allSettled([
+      fetchBusinessDiscovery(wsId, username),
+      apifyToken
+        ? runApify<ApifyReel>("apify~instagram-reel-scraper", { username: [username], resultsLimit: REEL_LIMIT }, apifyToken)
+        : Promise.reject(new Error("APIFY_TOKEN is not set in the server environment.")),
+    ]);
+
+    const bd = bdRes.status === "fulfilled" ? bdRes.value : null;
+    const reels = reelsRes.status === "fulfilled" ? reelsRes.value : [];
+    const bdError = bdRes.status === "rejected" ? String((bdRes.reason as Error)?.message ?? bdRes.reason) : null;
+    const apifyError = reelsRes.status === "rejected" ? String((reelsRes.reason as Error)?.message ?? reelsRes.reason) : null;
+
+    if (!bd && reels.length === 0) {
+      return badRequest(
+        "sync_failed",
+        `Both data sources failed. Official API: ${bdError ?? "?"} | Scraper: ${apifyError ?? "?"} — if the scraper message mentions a missing token, add APIFY_TOKEN in Render.`,
+      );
     }
 
-    const bd: BdProfile | undefined = body?.business_discovery;
-    if (!bd) return badRequest("business_discovery_failed", `Instagram returned no data for @${username}. The account must be public and a Business/Creator account.`);
+    // If Business Discovery failed, get follower counts from the profile scraper.
+    let apifyProfile: ApifyProfile | null = null;
+    if (!bd && apifyToken) {
+      try {
+        const profiles = await runApify<ApifyProfile>("apify~instagram-profile-scraper", { usernames: [username] }, apifyToken);
+        apifyProfile = profiles[0] ?? null;
+      } catch { /* followers stay null; posts still sync */ }
+    }
 
-    const mediaItems: BdMedia[] = bd.media?.data ?? [];
+    // ── Merge posts by shortcode (BD base + Apify views) ─────────────────────
+    const merged = new Map<string, MergedPost>();
+
+    for (const m of bd?.media?.data ?? []) {
+      const sc = shortcodeOf(m.permalink) ?? m.id;
+      merged.set(sc, {
+        shortcode: sc,
+        permalink: m.permalink ?? `https://www.instagram.com/p/${sc}/`,
+        caption: m.caption ?? null,
+        likes: m.like_count ?? null,
+        comments: m.comments_count ?? null,
+        views: null,
+        postedOn: m.timestamp ? new Date(m.timestamp) : null,
+        thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
+        postType: m.media_product_type === "REELS" ? "REEL" : (m.media_type ?? "POST"),
+      });
+    }
+
+    let viewsEnriched = 0;
+    for (const r of reels) {
+      const sc = r.shortCode ?? shortcodeOf(r.url);
+      if (!sc) continue;
+      const views = r.videoPlayCount ?? r.videoViewCount ?? null;
+      const existing = merged.get(sc);
+      if (existing) {
+        if (views != null) { existing.views = views; viewsEnriched++; }
+        existing.likes = existing.likes ?? r.likesCount ?? null;
+        existing.comments = existing.comments ?? r.commentsCount ?? null;
+        existing.thumbnailUrl = existing.thumbnailUrl ?? r.displayUrl ?? null;
+      } else {
+        if (views != null) viewsEnriched++;
+        merged.set(sc, {
+          shortcode: sc,
+          permalink: r.url ?? `https://www.instagram.com/reel/${sc}/`,
+          caption: r.caption ?? null,
+          likes: r.likesCount ?? null,
+          comments: r.commentsCount ?? null,
+          views,
+          postedOn: r.timestamp ? new Date(r.timestamp) : null,
+          thumbnailUrl: r.displayUrl ?? null,
+          postType: "REEL",
+        });
+      }
+    }
+
+    const posts = [...merged.values()];
 
     // ── Snapshot (today's stats) ─────────────────────────────────────────────
-    const likeCounts = mediaItems.map((m) => m.like_count ?? 0);
-    const commentCounts = mediaItems.map((m) => m.comments_count ?? 0);
-    const n = mediaItems.length || 1;
-    const avgLikes = Math.round(likeCounts.reduce((a, b) => a + b, 0) / n);
-    const avgComments = Math.round(commentCounts.reduce((a, b) => a + b, 0) / n);
-    const followers = bd.followers_count ?? null;
+    const followers = bd?.followers_count ?? apifyProfile?.followersCount ?? null;
+    const following = bd?.follows_count ?? apifyProfile?.followsCount ?? null;
+    const postsCount = bd?.media_count ?? apifyProfile?.postsCount ?? null;
+    const n = posts.length || 1;
+    const avgLikes = Math.round(posts.reduce((s, p) => s + (p.likes ?? 0), 0) / n);
+    const avgComments = Math.round(posts.reduce((s, p) => s + (p.comments ?? 0), 0) / n);
     const engagementRate =
       followers && followers > 0
         ? Math.round(((avgLikes + avgComments) / followers) * 10000) / 100
         : null;
 
     const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-    const existingSnap = await db.competitorSnapshot.findFirst({
-      where: { competitorId: id, capturedOn: today },
-    });
     const snapData = {
       followersCount: followers,
-      followingCount: bd.follows_count ?? null,
-      postsCount: bd.media_count ?? null,
+      followingCount: following,
+      postsCount,
       avgLikes,
       avgComments,
       engagementRate,
-      note: "Auto-synced via Business Discovery API",
+      note: bd ? (viewsEnriched > 0 ? "Official API + view counts via scraper" : "Official Business Discovery API") : "Scraper (official API unavailable)",
     };
+    const existingSnap = await db.competitorSnapshot.findFirst({ where: { competitorId: id, capturedOn: today } });
     if (existingSnap) {
       await db.competitorSnapshot.update({ where: { id: existingSnap.id }, data: snapData });
     } else {
-      await db.competitorSnapshot.create({
-        data: { workspaceId: wsId, competitorId: id, capturedOn: today, ...snapData },
-      });
+      await db.competitorSnapshot.create({ data: { workspaceId: wsId, competitorId: id, capturedOn: today, ...snapData } });
     }
 
-    // ── Upsert recent posts (matched by permalink) ───────────────────────────
+    // ── Upsert posts (matched by shortcode of stored permalink) ─────────────
+    const stored = await db.competitorPost.findMany({ where: { competitorId: id }, select: { id: true, permalink: true } });
+    const storedBySc = new Map(stored.map((p) => [shortcodeOf(p.permalink) ?? p.permalink ?? p.id, p.id]));
+
     let imported = 0;
-    for (const m of mediaItems) {
-      if (!m.permalink) continue;
-      const caption = m.caption ?? null;
-      const postData = {
-        postType: m.media_product_type === "REELS" ? "REEL" : (m.media_type ?? "POST"),
-        caption,
-        hashtags: caption ? (caption.match(HASHTAG_RE) ?? []) : [],
-        likes: m.like_count ?? null,
-        comments: m.comments_count ?? null,
-        postedOn: m.timestamp ? new Date(m.timestamp) : null,
-        thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
+    for (const p of posts) {
+      const data = {
+        postType: p.postType,
+        caption: p.caption,
+        hashtags: p.caption ? (p.caption.match(HASHTAG_RE) ?? []) : [],
+        likes: p.likes,
+        comments: p.comments,
+        views: p.views,
+        postedOn: p.postedOn,
+        thumbnailUrl: p.thumbnailUrl,
       };
-      const existing = await db.competitorPost.findFirst({ where: { competitorId: id, permalink: m.permalink } });
-      if (existing) {
-        await db.competitorPost.update({ where: { id: existing.id }, data: postData });
+      const existingId = storedBySc.get(p.shortcode);
+      if (existingId) {
+        await db.competitorPost.update({ where: { id: existingId }, data });
       } else {
-        await db.competitorPost.create({
-          data: { workspaceId: wsId, competitorId: id, permalink: m.permalink, ...postData },
-        });
+        await db.competitorPost.create({ data: { workspaceId: wsId, competitorId: id, permalink: p.permalink, ...data } });
         imported++;
       }
     }
@@ -132,20 +249,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await db.competitor.update({
       where: { id },
       data: {
-        displayName: bd.name ?? competitor.displayName,
-        avatarUrl: bd.profile_picture_url ?? competitor.avatarUrl,
-        profileUrl: competitor.profileUrl ?? `https://www.instagram.com/${bd.username}/`,
+        displayName: bd?.name ?? apifyProfile?.fullName ?? competitor.displayName,
+        avatarUrl: bd?.profile_picture_url ?? apifyProfile?.profilePicUrl ?? competitor.avatarUrl,
+        profileUrl: competitor.profileUrl ?? `https://www.instagram.com/${username}/`,
       },
     });
 
     return NextResponse.json({
       synced: true,
-      username: bd.username,
+      username,
       followers_count: followers,
       posts_imported: imported,
+      views_enriched: viewsEnriched,
+      source: bd && viewsEnriched > 0 ? "official+scraper" : bd ? "official" : "scraper",
+      warnings: [bdError && `Official API: ${bdError}`, apifyError && `Scraper: ${apifyError}`].filter(Boolean),
     });
   } catch (e) {
     console.error("[competitor sync]", e);
-    return serverError();
+    return serverError(`Sync failed: ${(e as Error)?.message ?? "unknown error"}`);
   }
 }

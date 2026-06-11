@@ -110,10 +110,12 @@ export default function CompetitorsPage() {
     try {
       const r = await syncCompetitor(id);
       await refreshDetail();
-      setBanner({
-        kind: "ok",
-        msg: `Synced @${r.username} — ${r.followers_count?.toLocaleString() ?? "?"} followers, ${r.posts_imported} new post${r.posts_imported === 1 ? "" : "s"} imported`,
-      });
+      const bits = [
+        `${r.followers_count?.toLocaleString() ?? "?"} followers`,
+        `${r.posts_imported} new post${r.posts_imported === 1 ? "" : "s"}`,
+        r.views_enriched ? `view counts on ${r.views_enriched} reels` : null,
+      ].filter(Boolean);
+      setBanner({ kind: "ok", msg: `Synced @${r.username} — ${bits.join(", ")}` });
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Sync failed" });
     } finally {
@@ -172,13 +174,13 @@ export default function CompetitorsPage() {
         </div>
       </div>
 
-      {/* Honesty note about data provenance */}
+      {/* Data provenance */}
       <div className="mb-5 rounded-lg border border-charcoal-700 bg-charcoal-800 px-4 py-2 text-xs text-ink-muted">
-        <span className="font-mono uppercase tracking-wider text-lime">Manual intelligence</span>
+        <span className="font-mono uppercase tracking-wider text-lime">Live intelligence</span>
         <span className="ml-2">
-          You log what you observe (followers, posts, hashtags). Analysis, growth and the AI
-          report are derived from that. Private metrics like a competitor&apos;s reach or saves
-          aren&apos;t available on any official API, so they&apos;re never shown or invented.
+          Sync pulls followers, captions, likes, comments, and posting times from the official
+          Business Discovery API, enriched with reel view counts via the scraper. Private metrics
+          (reach, saves) aren&apos;t exposed anywhere, so they&apos;re never shown or invented.
         </span>
       </div>
 
