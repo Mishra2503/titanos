@@ -94,7 +94,7 @@ function Shell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
-                className={`press flex items-center gap-2.5 rounded-lg py-2 text-sm transition-studio duration-studio ease-studio-out ${
+                className={`press group relative flex items-center gap-2.5 rounded-lg py-2 text-sm transition-studio duration-studio ease-studio-out ${
                   collapsed ? "justify-center px-2" : "px-3"
                 } ${
                   active
@@ -102,7 +102,12 @@ function Shell({ children }: { children: React.ReactNode }) {
                     : "font-medium text-ink-muted hover:bg-charcoal hover:text-ink"
                 }`}
               >
-                <Icon size={18} weight={active ? "fill" : "regular"} />
+                {active && (
+                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-[#a78bfa] to-[#6d28d9]" />
+                )}
+                <span className="transition-transform duration-150 ease-studio-out group-hover:scale-110">
+                  <Icon size={18} weight={active ? "fill" : "regular"} />
+                </span>
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );

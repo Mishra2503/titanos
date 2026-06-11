@@ -23,6 +23,7 @@ import {
   type SnapshotInput,
 } from "@/lib/api";
 import { TrendChart } from "@/components/Charts";
+import { Binoculars } from "@phosphor-icons/react";
 
 type Banner = { kind: "ok" | "err"; msg: string } | null;
 
@@ -199,8 +200,8 @@ export default function CompetitorsPage() {
           onClick={() => setShowAdd(true)}
           className="cursor-pointer rounded-xl border-2 border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-16 text-center hover:border-charcoal-500"
         >
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-charcoal-700 text-2xl">
-            🎯
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-lime/10 text-lime">
+            <Binoculars size={26} />
           </div>
           <p className="mt-4 text-sm text-ink">Add your first competitor to start tracking</p>
           <p className="mt-1 font-mono text-xs text-ink-faint">

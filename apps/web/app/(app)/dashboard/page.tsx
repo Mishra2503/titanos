@@ -137,7 +137,18 @@ export default function DashboardPage() {
       )}
 
       {loading && (
-        <p className="font-mono text-sm text-ink-faint">Loading live video analytics…</p>
+        <div className="space-y-6">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="skeleton h-28" style={{ animationDelay: `${i * 80}ms` }} />
+            ))}
+          </div>
+          <div className="skeleton h-72" />
+          <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+            <div className="skeleton h-96" />
+            <div className="skeleton h-64" />
+          </div>
+        </div>
       )}
 
       {!loading && !hasAccounts && (

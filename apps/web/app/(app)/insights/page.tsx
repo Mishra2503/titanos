@@ -198,7 +198,13 @@ export default function InsightsPage() {
     <div>
       <PageHeader title="Insights" subtitle="Honest per-account analytics from the Instagram Graph API." />
 
-      {loading && <p className="font-mono text-sm text-ink-faint">Loading live insights…</p>}
+      {loading && (
+        <div className="space-y-6">
+          {[0, 1].map((i) => (
+            <div key={i} className="skeleton h-80" style={{ animationDelay: `${i * 120}ms` }} />
+          ))}
+        </div>
+      )}
       {error && <p className="font-mono text-sm text-red-400">{error}</p>}
 
       {!loading && data && data.accounts.length === 0 && (

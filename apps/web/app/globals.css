@@ -54,11 +54,12 @@ body > * {
     border-radius: 4px;
   }
 
-  /* Dark cards get an inset top highlight + deep drop shadow so surfaces
-     separate from the void without extra borders. */
+  /* Dark cards: inset top highlight + deep drop shadow + a faint violet
+     sheen falling from the top-left corner — glass, not rectangles. */
   .bg-charcoal-800.rounded-xl,
   .bg-charcoal-800.rounded-2xl {
     box-shadow: var(--shadow-card);
+    background-image: radial-gradient(120% 90% at 0% 0%, rgba(139, 92, 246, 0.07), transparent 55%);
   }
 
   /* Quiet dark scrollbars. */
@@ -97,9 +98,14 @@ body > * {
     background-color: #6d28d9; /* fallback */
     background-image: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 45%, #321a5e 100%);
   }
+  /* Primary actions cast violet light on the dark canvas. */
+  .press.bg-lime {
+    box-shadow: 0 10px 28px -10px rgba(124, 58, 237, 0.45);
+  }
   @media (hover: hover) and (pointer: fine) {
     .press.bg-lime:hover {
-      background-image: linear-gradient(135deg, #7c3aed 0%, #5b21b6 45%, #241046 100%);
+      background-image: linear-gradient(135deg, #9d70fb 0%, #7c3aed 45%, #2c1456 100%);
+      box-shadow: 0 14px 36px -10px rgba(124, 58, 237, 0.6);
     }
   }
 
@@ -129,6 +135,22 @@ body > * {
 .chart-line {
   stroke-dasharray: 1;
   animation: chart-draw 900ms var(--ease-out) 150ms both;
+}
+
+/* Skeleton shimmer for loading states — show the shape of what's coming. */
+@keyframes shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+.skeleton {
+  border-radius: 0.75rem;
+  background: linear-gradient(100deg, #181226 40%, #241c38 50%, #181226 60%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s linear infinite;
 }
 
 /* Bars grow up from the baseline on mount. */

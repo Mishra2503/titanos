@@ -2,7 +2,8 @@ export function PageHeader({ title, subtitle }: { title: string; subtitle?: stri
   return (
     <header className="mb-8 animate-reveal">
       <h1 className="text-4xl font-bold tracking-tight text-ink">{title}</h1>
-      {subtitle && <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-ink-muted">{subtitle}</p>}
+      <div className="mt-3 h-[3px] w-12 rounded-full bg-gradient-to-r from-[#8b5cf6] via-[#6d28d9] to-transparent" />
+      {subtitle && <p className="mt-3 max-w-xl text-sm leading-relaxed text-ink-muted">{subtitle}</p>}
     </header>
   );
 }
