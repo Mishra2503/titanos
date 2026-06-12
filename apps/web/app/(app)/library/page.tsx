@@ -174,7 +174,7 @@ export default function LibraryPage() {
         <button
           onClick={() => fileInput.current?.click()}
           disabled={uploading}
-          className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="btn-primary press disabled:opacity-50"
         >
           {uploading ? "Uploading…" : "Upload video"}
         </button>

@@ -13,7 +13,7 @@ import {
   KpiTiles,
 } from "@/components/DashboardAnalytics";
 import { StrategyPanel } from "@/components/StrategyPanel";
-import { TrendChart, type TrendSeries } from "@/components/Charts";
+import { TrendChart, DonutChart, type TrendSeries, type DonutSlice } from "@/components/Charts";
 import { AccountPerformance } from "@/components/AccountPerformance";
 import {
   ApiError,
@@ -98,19 +98,42 @@ export default function DashboardPage() {
     return [
       {
         name: "Reach",
-        color: "#7c3aed",
+        color: "#5047EB",
         points: dated
           .filter((p) => p.reach != null)
           .map((p) => ({ t: new Date(p.timestamp!).getTime(), v: p.reach! })),
       },
       {
         name: "Views",
-        color: "#c4b5fd",
+        color: "#7168F0",
         points: dated
           .filter((p) => p.views != null)
           .map((p) => ({ t: new Date(p.timestamp!).getTime(), v: p.views! })),
       },
     ];
+  }, [filteredPosts]);
+
+  const formatSlices: DonutSlice[] = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of filteredPosts) {
+      const type = (p as unknown as Record<string, string>).media_type ?? "IMAGE";
+      const label =
+        type === "REEL" ? "Reels" :
+        type === "CAROUSEL_ALBUM" ? "Carousel" :
+        type === "VIDEO" ? "Video" : "Static";
+      counts[label] = (counts[label] ?? 0) + 1;
+    }
+    const palette: Record<string, string> = {
+      Reels: "#5047EB",
+      Carousel: "#7168F0",
+      Static: "#CACBFF",
+      Video: "#A5B4FC",
+    };
+    return Object.entries(counts).map(([label, value]) => ({
+      label,
+      value,
+      color: palette[label] ?? "#CACBFF",
+    }));
   }, [filteredPosts]);
 
   // DM leads + calls-booked stay sourced from the API summary (GHL pending).
@@ -132,7 +155,7 @@ export default function DashboardPage() {
         subtitle="Cross-account performance and per-video analytics — built to inform tomorrow's content."
       />
 
-      {error && <p className="mb-4 font-mono text-sm text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm font-medium text-red-400">{error}</p>}
 
       {hasAccounts && data && (
         <DashboardFilters
@@ -174,10 +197,10 @@ export default function DashboardPage() {
         <div className="space-y-6">
           {data?.accounts.filter((a) => a.error).map((a) => (
             <div key={a.account_id} className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-4 py-3">
-              <p className="font-mono text-xs text-amber-300">
+              <p className="text-xs font-medium text-amber-600">
                 @{a.username}: {a.error}
               </p>
-              <p className="mt-1 font-mono text-[10px] text-ink-faint">
+              <p className="mt-1 text-[10px] font-medium text-ink-faint">
                 Metrics for this account are unavailable — try reconnecting it on the Connect Instagram page.
               </p>
             </div>
@@ -193,14 +216,35 @@ export default function DashboardPage() {
           )}
 
           {trendSeries.some((s) => s.points.length >= 2) && (
-            <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-6">
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-ink">Performance trend</h3>
-                <p className="mt-0.5 text-xs text-ink-faint">
-                  Reach and views per post across the selected range
-                </p>
+            <div className="animate-reveal grid gap-6 lg:grid-cols-[1fr_280px]">
+              <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-6 shadow-card">
+                <div className="mb-4">
+                  <h3 className="font-heading text-base font-semibold text-ink">Performance trend</h3>
+                  <p className="mt-0.5 text-xs text-ink-faint">
+                    Reach and views per post across the selected range
+                  </p>
+                </div>
+                <TrendChart series={trendSeries} height={200} />
               </div>
-              <TrendChart series={trendSeries} height={200} />
+
+              {formatSlices.length > 0 && (
+                <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-6 shadow-card">
+                  <div className="mb-4">
+                    <h3 className="font-heading text-base font-semibold text-ink">Format mix</h3>
+                    <p className="mt-0.5 text-xs text-ink-faint">
+                      Post types in view
+                    </p>
+                  </div>
+                  <div className="flex items-center justify-center py-2">
+                    <DonutChart
+                      slices={formatSlices}
+                      size={150}
+                      label={String(filteredPosts.length)}
+                      sublabel="posts"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -211,15 +255,15 @@ export default function DashboardPage() {
           <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-lg text-ink">Video performance</h2>
+                <h2 className="font-heading text-lg font-semibold text-ink">Video performance</h2>
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">Sort by</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-ink-faint">Sort by</span>
                   <div className="flex flex-wrap gap-1">
                     {SORT_OPTIONS.map((opt) => (
                       <button
                         key={opt.key}
                         onClick={() => setSortBy(opt.key)}
-                        className={`press rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider transition-studio duration-studio ease-studio-out ${
+                        className={`press rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider transition-studio duration-studio ease-studio-out ${
                           sortBy === opt.key
                             ? "border-lime bg-lime/10 text-lime"
                             : "border-charcoal-600 text-ink-faint hover:text-ink"
@@ -275,8 +319,8 @@ export default function DashboardPage() {
             return (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="text-lg text-ink">Comments Hub</h2>
-                  <p className="font-mono text-[10px] text-ink-faint">Click &ldquo;Reply on Instagram&rdquo; to open the post and respond</p>
+                  <h2 className="font-heading text-lg font-semibold text-ink">Comments Hub</h2>
+                  <p className="text-[10px] font-medium text-ink-faint">Click &ldquo;Reply on Instagram&rdquo; to open the post and respond</p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -305,7 +349,7 @@ export default function DashboardPage() {
                   })}
                 </div>
 
-                <div className="rounded-xl border border-charcoal-700 bg-charcoal-800 p-4">
+                <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-4 shadow-card">
                   {postsWithComments.length === 0 ? (
                     <p className="py-6 text-center text-sm text-ink-muted">
                       No comments yet on @{account.username}&apos;s recent posts.
@@ -313,8 +357,8 @@ export default function DashboardPage() {
                   ) : (
                     <div className="space-y-2">
                       {postsWithComments.map((post) => (
-                        <div key={post.id} className="flex items-center gap-3 rounded-lg border border-charcoal-700 bg-charcoal px-3 py-2.5 transition-colors duration-150 hover:border-lime/30">
-                          <div className="h-16 w-12 shrink-0 overflow-hidden rounded-md bg-charcoal-700">
+                        <div key={post.id} className="flex items-center gap-3 rounded-xl border border-charcoal-700 bg-charcoal px-3 py-2.5 transition-colors duration-150 hover:border-lime/30">
+                          <div className="h-16 w-12 shrink-0 overflow-hidden rounded-lg bg-charcoal-700">
                             {post.thumbnail_url && (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img
@@ -343,7 +387,7 @@ export default function DashboardPage() {
                               href={post.permalink}
                               target="_blank"
                               rel="noreferrer"
-                              className="press shrink-0 rounded-md border border-lime/40 bg-lime/5 px-2.5 py-1 font-mono text-[10px] text-lime hover:bg-lime/10"
+                              className="press shrink-0 rounded-lg border border-lime/40 bg-lime/5 px-2.5 py-1 text-[10px] font-semibold text-lime hover:bg-lime/10"
                             >
                               Reply on Instagram ↗
                             </a>
@@ -354,7 +398,7 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                <p className="font-mono text-[10px] text-ink-faint">
+                <p className="text-[10px] font-medium text-ink-faint">
                   Pick an account above to see its posts with comments. Instagram requires replying
                   natively in the app or via the Meta Business Suite.
                 </p>
@@ -368,7 +412,7 @@ export default function DashboardPage() {
           </div>
 
           {data && (
-            <p className="font-mono text-[11px] text-ink-faint">
+            <p className="text-[11px] font-medium text-ink-faint">
               Last updated {new Date(data.generated_at).toLocaleTimeString()} ·{" "}
               {filteredPosts.length} posts in view · {selectedAccountIds.length} of{" "}
               {data.accounts.length} account(s) selected

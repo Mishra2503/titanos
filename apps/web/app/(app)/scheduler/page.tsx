@@ -314,7 +314,7 @@ export default function SchedulerPage() {
               <button
                 onClick={startUpload}
                 disabled={uploading}
-                className="press w-full rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="btn-primary press w-full py-2 disabled:opacity-60"
               >
                 {uploading ? `Uploading… ${uploadPct}%` : "Upload to Cloudinary"}
               </button>
@@ -474,7 +474,7 @@ export default function SchedulerPage() {
               <button
                 onClick={submitSchedule}
                 disabled={!composeReady || scheduling}
-                className="press rounded-lg bg-lime px-5 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                className="btn-primary press disabled:opacity-50"
               >
                 {scheduling ? "Scheduling…" : `Schedule ${selected.length || ""}`.trim()}
               </button>

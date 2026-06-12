@@ -393,7 +393,7 @@ export function CardDetail({ card, onClose, onSave, onDelete }: Props) {
             <button
               onClick={save}
               disabled={busy === "save"}
-              className="press rounded-lg bg-lime px-4 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="btn-primary press px-4 py-1.5 disabled:opacity-60"
             >
               {busy === "save" ? "Saving…" : "Save"}
             </button>

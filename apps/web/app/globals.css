@@ -4,75 +4,54 @@
 
 :root {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(80,71,235,0.07);
 }
 
 html,
 body {
-  background-color: #0b0712;
-  color: #f7f5fc;
-  /* Base weight is Medium — the user found regular-weight text too dim. */
-  font-weight: 500;
+  background-color: #F5F6FF;
+  color: #18181A;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Signature ambient halo: one soft violet glow bleeding from the top of the
-   viewport (fixed, non-interactive) — the depth cue of the whole dark theme. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20% -10% auto -10%;
-  height: 60vh;
-  background: radial-gradient(55% 60% at 50% 0%, rgba(124, 58, 237, 0.18), transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-body > * {
-  position: relative;
-  z-index: 1;
-}
-
 @layer base {
-  /* Headings break evenly instead of leaving orphans; one family (Archivo)
-     carries the whole app — weight and tracking do the hierarchy. */
   h1,
   h2,
   h3 {
     text-wrap: balance;
     letter-spacing: -0.02em;
     font-weight: 700;
+    font-family: var(--font-heading), system-ui, sans-serif;
   }
 
-  /* Brand selection + visible keyboard focus (WCAG AA). */
   ::selection {
-    background-color: rgba(139, 92, 246, 0.35);
+    background-color: rgba(80, 71, 235, 0.15);
   }
   :focus-visible {
-    outline: 2px solid #a78bfa;
+    outline: 2px solid #5047EB;
     outline-offset: 2px;
     border-radius: 4px;
   }
 
-  /* Dark cards: inset top highlight + deep drop shadow + a faint violet
-     sheen falling from the top-left corner — glass, not rectangles. */
+  /* Light cards: clean white with a subtle shadow + faint blue tint. */
   .bg-charcoal-800.rounded-xl,
   .bg-charcoal-800.rounded-2xl {
     box-shadow: var(--shadow-card);
-    background-image: radial-gradient(120% 90% at 0% 0%, rgba(139, 92, 246, 0.07), transparent 55%);
   }
 
-  /* Quiet dark scrollbars. */
+  /* Light scrollbars. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: #332853 transparent;
+    scrollbar-color: #CACBFF transparent;
   }
   *::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
   }
   *::-webkit-scrollbar-thumb {
-    background: #332853;
+    background: #CACBFF;
     border-radius: 8px;
   }
   *::-webkit-scrollbar-track {
@@ -80,8 +59,8 @@ body > * {
   }
 }
 
-/* scale(0.97) on press for interactive controls. */
 @layer components {
+  /* scale(0.97) press feedback on interactive controls. */
   .press {
     transition: transform 150ms var(--ease-out), background-color 200ms var(--ease-out),
       border-color 200ms var(--ease-out), color 200ms var(--ease-out),
@@ -91,25 +70,54 @@ body > * {
     transform: scale(0.97);
   }
 
-  /* Every solid violet fill carries the brand gradient (violet → near-black).
-     One rule upgrades all primary buttons, active chips, pills, and badges;
-     the /10-style tints stay flat. */
+  /* Brand gradient — used on active chips, badges, pills. */
   .bg-lime {
-    background-color: #6d28d9; /* fallback */
-    background-image: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 45%, #321a5e 100%);
+    background-color: #5047EB;
+    background-image: linear-gradient(135deg, #7C6EF5 0%, #5047EB 60%, #433ECE 100%);
   }
-  /* Primary actions cast violet light on the dark canvas. */
   .press.bg-lime {
-    box-shadow: 0 10px 28px -10px rgba(124, 58, 237, 0.45);
+    box-shadow: 0 8px 24px rgba(80, 71, 235, 0.35);
   }
   @media (hover: hover) and (pointer: fine) {
     .press.bg-lime:hover {
-      background-image: linear-gradient(135deg, #9d70fb 0%, #7c3aed 45%, #2c1456 100%);
-      box-shadow: 0 14px 36px -10px rgba(124, 58, 237, 0.6);
+      background-image: linear-gradient(135deg, #9080FF 0%, #5047EB 60%, #3730A3 100%);
+      box-shadow: 0 12px 32px rgba(80, 71, 235, 0.5);
     }
   }
 
-  /* Cards that reward attention rise on hover (pointer devices only). */
+  /* Primary pill button — the "Demo Lesson" style. */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: #5047EB;
+    background-image: linear-gradient(135deg, #7C6EF5 0%, #5047EB 60%, #433ECE 100%);
+    color: #ffffff;
+    border-radius: 9999px;
+    padding: 0.625rem 1.5rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    box-shadow: 0 8px 24px rgba(80, 71, 235, 0.35);
+    transition: transform 150ms var(--ease-out), box-shadow 200ms var(--ease-out),
+      background-image 200ms var(--ease-out);
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary:hover {
+    background-image: linear-gradient(135deg, #9080FF 0%, #5047EB 60%, #3730A3 100%);
+    box-shadow: 0 12px 32px rgba(80, 71, 235, 0.5);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active {
+    transform: scale(0.97);
+  }
+  .btn-primary:disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  /* Cards reward attention on hover with a subtle lift + blue glow. */
   .lift {
     transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out),
       border-color 200ms var(--ease-out);
@@ -117,59 +125,50 @@ body > * {
   @media (hover: hover) and (pointer: fine) {
     .lift:hover {
       transform: translateY(-2px);
-      /* Violet edge-glow on hover — the dark theme's reward for attention. */
-      box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.28), 0 16px 48px -16px rgba(124, 58, 237, 0.35);
+      box-shadow: 0 0 0 1px rgba(80, 71, 235, 0.18), 0 8px 24px rgba(80, 71, 235, 0.12);
     }
   }
 }
 
 /* Chart lines draw in on mount (pathLength=1 on the path). */
 @keyframes chart-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
 }
 .chart-line {
   stroke-dasharray: 1;
   animation: chart-draw 900ms var(--ease-out) 150ms both;
 }
 
-/* Skeleton shimmer for loading states — show the shape of what's coming. */
+/* Skeleton shimmer for loading states. */
 @keyframes shimmer {
-  from {
-    background-position: -200% 0;
-  }
-  to {
-    background-position: 200% 0;
-  }
+  from { background-position: -200% 0; }
+  to   { background-position:  200% 0; }
 }
 .skeleton {
   border-radius: 0.75rem;
-  background: linear-gradient(100deg, #181226 40%, #241c38 50%, #181226 60%);
+  background: linear-gradient(100deg, #EEF0FF 40%, #F5F6FF 50%, #EEF0FF 60%);
   background-size: 200% 100%;
   animation: shimmer 1.6s linear infinite;
 }
 
 /* Bars grow up from the baseline on mount. */
 @keyframes bar-grow {
-  from {
-    transform: scaleY(0);
-  }
-  to {
-    transform: scaleY(1);
-  }
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
 }
 .chart-bar {
   transform-origin: bottom;
   animation: bar-grow 500ms var(--ease-out) both;
-  /* Shade bars toward black at the base for depth (sits over any bar color). */
-  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.14) 0%, rgba(23, 20, 31, 0) 30%, rgba(23, 20, 31, 0.38) 100%);
 }
 
-/* Honor reduced-motion: disable transforms/animations. */
+/* Reveal animation: fade + rise. */
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);    }
+}
+
+/* Honor reduced-motion. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

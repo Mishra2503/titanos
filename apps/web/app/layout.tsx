@@ -1,21 +1,18 @@
 import type { Metadata } from "next";
-import { Archivo, Instrument_Serif } from "next/font/google";
+import { Inter, Epilogue } from "next/font/google";
 import "./globals.css";
 
-// One clean neo-grotesque family everywhere (per the approved type reference):
-// Archivo carries body, UI, headings, and numerals — weight does the hierarchy.
-const display = Archivo({
+const sans = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-  variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-sans",
   display: "swap",
 });
 
-const serif = Instrument_Serif({
+const heading = Epilogue({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-serif",
+  weight: ["600", "700", "800"],
+  variable: "--font-heading",
   display: "swap",
 });
 
@@ -26,7 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${display.variable} ${serif.variable}`}>
+    <html lang="en" className={`${sans.variable} ${heading.variable}`}>
       <body className="font-display antialiased">{children}</body>
     </html>
   );

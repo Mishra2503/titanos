@@ -1,51 +1,47 @@
 import type { Config } from "tailwindcss";
 
-// Titan OS design language — light violet system (see DESIGN.md).
-// Token names are historical (charcoal/lime/ink) so every screen retains one
-// consistent vocabulary; the VALUES define the light theme:
-//   charcoal*  = light field/surface/border ramp
-//   lime       = the single violet accent
+// Aifluencee Content Hub — light theme design system (June 2026 redesign).
+// Token names are historical; values define the light theme:
+//   charcoal*  = light field/surface/border ramp (inverted from original dark)
+//   lime       = brand blue-violet accent (#5047EB)
 //   ink*       = text ramp (dark on light)
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        // Premium dark scheme: purple, black, white — nothing else.
+        // Light theme — soft lavender page, white cards, blue-violet accent.
         charcoal: {
-          DEFAULT: "#0b0712", // page field, input fills, image scrims
-          800: "#130d1f",     // cards, panels, sidebar
-          700: "#241c38",     // hairline borders, soft fills
-          600: "#332853",     // strong borders, dashed outlines
+          DEFAULT: "#F5F6FF", // page background (soft lavender-white)
+          800: "#FFFFFF",     // cards, panels, sidebar (pure white)
+          700: "#E8E8FF",     // hairline borders
+          600: "#CACBFF",     // strong borders, focused states
         },
         lime: {
-          DEFAULT: "#a78bfa", // accent text/borders on dark (violet-400)
-          dim: "#c4b5fd",     // micro labels needing extra pop on dark
+          DEFAULT: "#5047EB", // brand blue-violet (primary accent)
+          dim: "#7168F0",     // lighter variant for hover/labels
         },
         ink: {
-          DEFAULT: "#f7f5fc", // near-white text
-          muted: "#beb4d6",
-          faint: "#8f85aa",
+          DEFAULT: "#18181A", // near-black text
+          muted: "#64748B",   // secondary text
+          faint: "#94A3B8",   // micro labels, placeholders
         },
-        // Status text steps tuned for dark tinted chips.
-        amber: { 300: "#fcd34d" },
-        sky: { 300: "#7dd3fc" },
-        red: { 400: "#f87171" },
-        rose: { 300: "#fda4af" },
-        emerald: { 300: "#6ee7b9" },
+        // Status colors — tuned for light backgrounds.
+        amber: { 300: "#F59E0B" },
+        sky:   { 300: "#38BDF8" },
+        red:   { 400: "#EF4444" },
+        rose:  { 300: "#FB7185" },
+        emerald: { 300: "#34D399" },
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        heading: ["var(--font-display)", "system-ui", "sans-serif"],
-        serif: ["var(--font-serif)", "Georgia", "serif"],
-        // `font-mono` is intentionally mapped to the main sans: the app's
-        // micro-labels used monospace and read as "robot tech" — one family
-        // (Archivo) now carries every label, stat, and timestamp.
-        mono: ["var(--font-display)", "system-ui", "sans-serif"],
+        display: ["var(--font-sans)", "system-ui", "sans-serif"],
+        heading: ["var(--font-heading)", "system-ui", "sans-serif"],
+        serif:   ["var(--font-serif)", "Georgia", "serif"],
+        mono:    ["var(--font-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {
-        card: "inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 24px -12px rgba(0, 0, 0, 0.6)",
-        pop: "0 0 0 1px rgba(139, 92, 246, 0.18), 0 24px 64px -16px rgba(0, 0, 0, 0.8)",
+        card: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(80,71,235,0.07)",
+        pop:  "0 0 0 1px rgba(80,71,235,0.15), 0 8px 32px rgba(80,71,235,0.18)",
       },
       transitionTimingFunction: {
         "studio-out": "cubic-bezier(0.23, 1, 0.32, 1)",

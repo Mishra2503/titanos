@@ -27,53 +27,62 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden px-6">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-charcoal px-6">
+      {/* Soft blue glow top-center */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-[-10%] h-[55vh] bg-[radial-gradient(55%_55%_at_50%_40%,rgba(124,58,237,0.30),transparent_70%)] blur-2xl"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[40vh] bg-[radial-gradient(60%_60%_at_50%_0%,rgba(80,71,235,0.12),transparent_70%)]"
       />
+
       <div className="relative w-full max-w-sm animate-reveal">
-        <div className="mb-6 flex items-center gap-2.5">
-          <BrandMark size={36} />
-          <BrandWordmark />
+        <div className="mb-8 flex flex-col items-center gap-3 text-center">
+          <BrandMark size={44} />
+          <div>
+            <h1 className="font-heading text-2xl font-bold tracking-tight text-ink">
+              Aifluencee Content Hub
+            </h1>
+            <p className="mt-1 text-sm text-ink-muted">Sign in to your workspace</p>
+          </div>
         </div>
 
-        <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-8 shadow-pop">
-          <h1 className="text-3xl font-bold tracking-tight text-ink">
-            Grow smarter <span className="text-lime">with data</span>
-          </h1>
-          <p className="mt-1.5 text-sm text-ink-muted">Operate every account from one screen.</p>
-
-          <form onSubmit={onSubmit} className="mt-7 space-y-4">
+        <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-8 shadow-card">
+          <form onSubmit={onSubmit} className="space-y-5">
             <div>
-              <label className="font-mono text-xs uppercase tracking-wider text-ink-faint">
-                Email
+              <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-ink-faint">
+                Email address
               </label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-charcoal-600 bg-charcoal px-3 py-2.5 text-ink outline-none transition-studio duration-studio ease-studio-out focus:border-lime"
+                className="w-full rounded-xl border border-charcoal-700 bg-charcoal px-4 py-3 text-sm text-ink outline-none transition-studio duration-studio ease-studio-out placeholder:text-ink-faint focus:border-lime focus:ring-2 focus:ring-lime/20"
+                placeholder="you@example.com"
                 autoComplete="email"
               />
             </div>
             <div>
-              <label className="font-mono text-xs uppercase tracking-wider text-ink-faint">
-                Password
-              </label>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-xs font-semibold uppercase tracking-wider text-ink-faint">
+                  Password
+                </label>
+                <span className="text-xs font-medium text-lime cursor-pointer hover:text-lime-dim">
+                  Forgot password?
+                </span>
+              </div>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-charcoal-600 bg-charcoal px-3 py-2.5 text-ink outline-none transition-studio duration-studio ease-studio-out focus:border-lime"
+                className="w-full rounded-xl border border-charcoal-700 bg-charcoal px-4 py-3 text-sm text-ink outline-none transition-studio duration-studio ease-studio-out placeholder:text-ink-faint focus:border-lime focus:ring-2 focus:ring-lime/20"
+                placeholder="••••••••"
                 autoComplete="current-password"
               />
             </div>
 
             {error && (
-              <p className="font-mono text-xs text-red-400" role="alert">
+              <p className="rounded-lg bg-red-400/10 px-3 py-2 text-xs font-medium text-red-400" role="alert">
                 {error}
               </p>
             )}
@@ -81,11 +90,15 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="press w-full rounded-lg bg-lime px-4 py-2.5 font-semibold text-white hover:bg-lime-dim disabled:opacity-60"
+              className="btn-primary w-full py-3 text-sm font-semibold disabled:opacity-60"
             >
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? "Signing in…" : "Sign in →"}
             </button>
           </form>
+
+          <p className="mt-6 text-center text-xs text-ink-faint">
+            Invite-only workspace — contact your admin for access.
+          </p>
         </div>
       </div>
     </main>

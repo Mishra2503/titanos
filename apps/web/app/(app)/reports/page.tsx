@@ -149,13 +149,13 @@ export default function ReportsPage() {
         <button
           onClick={generate}
           disabled={loading}
-          className="press rounded-lg bg-lime px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="btn-primary press disabled:opacity-50"
         >
           {loading ? "Crunching the week…" : report ? "Refresh report" : "Get weekly report"}
         </button>
       </div>
 
-      {error && <p className="mb-4 font-mono text-sm text-red-400">{error}</p>}
+      {error && <p className="mb-4 text-sm font-medium text-red-400">{error}</p>}
 
       {!report && !loading && (
         <div className="animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-16 text-center">
@@ -167,20 +167,21 @@ export default function ReportsPage() {
       )}
 
       {loading && !report && (
-        <p className="font-mono text-sm text-ink-faint">Fetching live data for all accounts and writing the report — this takes ~30 seconds…</p>
+        <p className="text-sm font-medium text-ink-faint">Fetching live data for all accounts and writing the report — this takes ~30 seconds…</p>
       )}
 
       {report && (
         <div className="space-y-6">
-          <div className="animate-reveal relative overflow-hidden rounded-2xl border border-lime/25 bg-[#100921] p-6 text-white shadow-pop">
+          <div className="animate-reveal relative overflow-hidden rounded-2xl p-6 text-white shadow-pop" style={{ background: "linear-gradient(135deg, #5047EB 0%, #4338CA 50%, #312E81 100%)" }}>
             <div
               aria-hidden
-              className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(124,58,237,0.35),transparent_70%)] blur-2xl"
+              className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full blur-3xl"
+              style={{ background: "radial-gradient(circle, rgba(167,139,250,0.4), transparent 70%)" }}
             />
-            <p className="relative font-mono text-xs uppercase tracking-[0.2em] text-violet-300">Executive summary</p>
-            <div className="relative mt-4 rounded-xl border border-white/10 bg-white/[0.04] p-5">
+            <p className="relative text-xs font-semibold uppercase tracking-[0.2em] text-white/60">Executive summary</p>
+            <div className="relative mt-4 rounded-xl border border-white/10 bg-white/[0.06] p-5">
               <Markdown text={report.summary} />
-              <p className="pt-3 font-mono text-[10px] text-ink-faint">
+              <p className="pt-3 text-[10px] font-medium text-white/40">
                 Generated {new Date(report.generated_at).toLocaleString()} · last {report.range_days} days
               </p>
             </div>

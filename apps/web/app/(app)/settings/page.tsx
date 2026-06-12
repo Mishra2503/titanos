@@ -284,7 +284,7 @@ export default function SettingsPage() {
             <button
               onClick={savePassword}
               disabled={savingPw || !pw.current || !pw.next}
-              className="press w-fit rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              className="btn-primary press w-fit disabled:opacity-50"
             >
               {savingPw ? "Saving…" : "Update password"}
             </button>
@@ -388,7 +388,7 @@ export default function SettingsPage() {
                 <button
                   onClick={sendInvite}
                   disabled={inviting || !inviteEmail.trim()}
-                  className="press shrink-0 rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                  className="btn-primary press shrink-0 disabled:opacity-50"
                 >
                   {inviting ? "Inviting…" : "Send invite"}
                 </button>

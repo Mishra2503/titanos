@@ -85,7 +85,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           {!collapsed && <span className="text-xs font-medium">Collapse</span>}
         </button>
 
-        <nav className="mt-3 flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+        <nav className="mt-3 flex flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden">
           {items.map((item) => {
             const active = pathname === item.href;
             const Icon = ICONS[item.icon] ?? SquaresFour;
@@ -94,18 +94,15 @@ function Shell({ children }: { children: React.ReactNode }) {
                 key={item.href}
                 href={item.href}
                 title={collapsed ? item.label : undefined}
-                className={`press group relative flex items-center gap-2.5 rounded-lg py-2 text-sm transition-studio duration-studio ease-studio-out ${
+                className={`press group flex items-center gap-2.5 rounded-xl py-2.5 text-sm transition-studio duration-studio ease-studio-out ${
                   collapsed ? "justify-center px-2" : "px-3"
                 } ${
                   active
-                    ? "bg-lime/10 font-semibold text-lime"
-                    : "font-medium text-ink-muted hover:bg-charcoal hover:text-ink"
+                    ? "bg-lime font-semibold text-white shadow-sm"
+                    : "font-medium text-ink-muted hover:bg-charcoal-700 hover:text-ink"
                 }`}
               >
-                {active && (
-                  <span className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-gradient-to-b from-[#a78bfa] to-[#6d28d9]" />
-                )}
-                <span className="transition-transform duration-150 ease-studio-out group-hover:scale-110">
+                <span className="flex-shrink-0">
                   <Icon size={18} weight={active ? "fill" : "regular"} />
                 </span>
                 {!collapsed && <span className="truncate">{item.label}</span>}
@@ -118,7 +115,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           {!collapsed && (
             <>
               <p className="truncate px-3 text-xs font-medium text-ink-muted">{me.email}</p>
-              <p className="px-3 font-mono text-[10px] uppercase tracking-wider text-lime-dim">
+              <p className="px-3 text-[10px] font-semibold uppercase tracking-wider text-lime">
                 {me.role}
               </p>
             </>
@@ -126,7 +123,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <button
             onClick={logout}
             title="Sign out"
-            className={`press mt-2 flex w-full items-center gap-2.5 rounded-lg py-2 text-left text-sm font-medium text-ink-muted hover:bg-charcoal hover:text-ink ${
+            className={`press mt-2 flex w-full items-center gap-2.5 rounded-xl py-2 text-left text-sm font-medium text-ink-muted hover:bg-charcoal-700 hover:text-ink ${
               collapsed ? "justify-center px-2" : "px-3"
             }`}
           >

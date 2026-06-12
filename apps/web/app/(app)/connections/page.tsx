@@ -138,7 +138,7 @@ export default function ConnectionsPage() {
         <button
           onClick={connect}
           disabled={busy === "connect" || atLimit}
-          className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          className="btn-primary press disabled:opacity-50"
         >
           {busy === "connect" ? "Redirecting…" : atLimit ? "Limit reached" : "Connect account"}
         </button>

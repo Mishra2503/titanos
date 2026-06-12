@@ -1,3 +1,16 @@
+import {
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  Heart,
+  ShareFat,
+  BookmarkSimple,
+  Timer,
+  ChatTeardrop,
+  PhoneCall,
+  ChartLineUp,
+  type Icon as PhosphorIcon,
+} from "@phosphor-icons/react";
 import type { RecentPost } from "@/lib/api";
 
 // ===== shared helpers =================================================
@@ -147,32 +160,60 @@ export function KpiTiles({
     },
   ];
 
+  const TILE_ICONS: Record<string, PhosphorIcon> = {
+    reach:      ChartLineUp,
+    engagement: Heart,
+    views:      Eye,
+    saves:      BookmarkSimple,
+    shares:     ShareFat,
+    watch:      Timer,
+    dm:         ChatTeardrop,
+    calls:      PhoneCall,
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-      {tiles.map((t, i) => (
-        <div
-          key={t.key}
-          className="lift animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-4"
-          style={{ animationDelay: `${i * 30}ms` }}
-        >
-          <div className="flex items-baseline justify-between">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">
-              {t.label}
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      {tiles.map((t, i) => {
+        const Icon = TILE_ICONS[t.key] ?? ChartLineUp;
+        return (
+          <div
+            key={t.key}
+            className="lift animate-reveal rounded-2xl border border-charcoal-700 bg-charcoal-800 p-5 shadow-card"
+            style={{ animationDelay: `${i * 30}ms` }}
+          >
+            {/* Icon + label row */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-lime/10">
+                  <Icon size={16} weight="duotone" style={{ color: "#5047EB" }} />
+                </div>
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+                  {t.label}
+                </p>
+              </div>
+              {t.delta !== null && (
+                <span
+                  className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                    t.delta > 0
+                      ? "bg-emerald/10 text-emerald-300"
+                      : t.delta < 0
+                      ? "bg-red-400/10 text-red-400"
+                      : "bg-charcoal-700 text-ink-faint"
+                  }`}
+                >
+                  {t.delta > 0 ? <ArrowUp size={10} weight="bold" /> : t.delta < 0 ? <ArrowDown size={10} weight="bold" /> : null}
+                  {Math.abs(t.delta)}%
+                </span>
+              )}
+            </div>
+            {/* Value */}
+            <p className="mt-3 font-heading text-3xl font-bold tracking-tight text-ink">
+              {t.value}
             </p>
-            {t.delta !== null && (
-              <span
-                className={`font-mono text-[10px] ${
-                  t.delta > 0 ? "text-lime" : t.delta < 0 ? "text-red-400" : "text-ink-faint"
-                }`}
-              >
-                {t.delta > 0 ? "▲" : t.delta < 0 ? "▼" : "·"} {Math.abs(t.delta)}%
-              </span>
-            )}
+            <p className="mt-1 text-[11px] text-ink-faint">{t.note}</p>
           </div>
-          <p className="mt-2 font-heading text-3xl font-bold tracking-tight text-ink">{t.value}</p>
-          <p className="mt-1 text-[11px] text-ink-faint">{t.note}</p>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

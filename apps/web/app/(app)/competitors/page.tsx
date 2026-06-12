@@ -167,7 +167,7 @@ export default function CompetitorsPage() {
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white"
+            className="btn-primary press"
           >
             Add competitor
           </button>
@@ -384,7 +384,7 @@ function CompetitorDetailView({
           <button
             onClick={onGenReport}
             disabled={busy === "report"}
-            className="press rounded-lg bg-lime px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+            className="btn-primary press px-3 py-1.5 text-xs disabled:opacity-50"
           >
             {busy === "report" ? "Analyzing…" : "AI report"}
           </button>
@@ -946,7 +946,7 @@ function AddCompetitorModal({
           <button onClick={onClose} className="press rounded-lg border border-charcoal-600 px-4 py-2 text-sm text-ink-muted hover:text-ink">
             Cancel
           </button>
-          <button onClick={submit} disabled={saving || !f.username.trim()} className="press rounded-lg bg-lime px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+          <button onClick={submit} disabled={saving || !f.username.trim()} className="btn-primary press disabled:opacity-50">
             {saving ? "Adding…" : "Add"}
           </button>
         </div>
