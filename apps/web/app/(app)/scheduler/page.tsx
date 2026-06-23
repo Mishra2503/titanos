@@ -67,6 +67,7 @@ export default function SchedulerPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadIsCredentialError, setUploadIsCredentialError] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [rows, setRows] = useState<Record<string, RowDraft>>({});
   const [scheduling, setScheduling] = useState(false);
@@ -108,6 +109,7 @@ export default function SchedulerPage() {
   function handleFile(f: File | null) {
     setMedia(null);
     setUploadError(null);
+    setUploadIsCredentialError(false);
     setLocalSpecs(null);
     setFile(f);
     if (previewUrl) URL.revokeObjectURL(previewUrl);
@@ -134,10 +136,12 @@ export default function SchedulerPage() {
     setUploading(true);
     setUploadPct(0);
     setUploadError(null);
+    setUploadIsCredentialError(false);
     try {
       const asset = await uploadMedia(file, setUploadPct);
       setMedia(asset);
     } catch (err) {
+      setUploadIsCredentialError(err instanceof ApiError && err.code === "cloudinary_not_configured");
       setUploadError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -327,7 +331,7 @@ export default function SchedulerPage() {
             {uploadError && (
               <div className="rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2">
                 <p className="font-mono text-xs text-red-400">{uploadError}</p>
-                {uploadError.toLowerCase().includes("cloudinary") && (
+                {uploadIsCredentialError && (
                   <p className="mt-1 font-mono text-[10px] text-ink-faint">
                     Add <span className="text-ink">CLOUDINARY_CLOUD_NAME</span>,{" "}
                     <span className="text-ink">CLOUDINARY_API_KEY</span>, and{" "}

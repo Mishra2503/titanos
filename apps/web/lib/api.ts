@@ -171,10 +171,8 @@ interface CloudinaryUploadResult {
   duration?: number; format?: string; bytes?: number;
 }
 
-// Uploads the video straight from the browser to Cloudinary (signed), then
-// registers the asset with our API. Avoids pushing the whole file through the
-// Next server, which failed for large reels.
-export async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+// Direct browser→Cloudinary upload via signed URL (fast path).
+async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   const sig = await apiFetch<UploadSignature>("/api/media/sign", {
     method: "POST",
     body: JSON.stringify({ filename: file.name }),
@@ -217,6 +215,45 @@ export async function uploadMedia(file: File, onProgress?: (pct: number) => void
       bytes: result.bytes,
     }),
   });
+}
+
+// Server-side proxy upload — fallback when direct Cloudinary upload is blocked
+// by the client's network (firewall, ad blocker, VPN, etc.).
+function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+  return new Promise<MediaAsset>((resolve, reject) => {
+    const fd = new FormData();
+    fd.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/media/upload");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      type Body = MediaAsset & { error?: { code?: string; message?: string } };
+      let body: Body;
+      try { body = JSON.parse(xhr.responseText) as Body; } catch { body = {} as Body; }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(body);
+      else reject(new ApiError(xhr.status, body?.error?.code ?? "upload_failed", body?.error?.message ?? `Upload failed (HTTP ${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "upload_failed", "Upload failed — could not reach the server."));
+    xhr.send(fd);
+  });
+}
+
+// Tries a direct browser→Cloudinary upload first (no server memory overhead).
+// If that fails due to a network-level error (firewall / ad blocker / VPN blocking
+// api.cloudinary.com), automatically retries via the server-side proxy route.
+export async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+  try {
+    return await uploadMediaDirect(file, onProgress);
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "network_error") {
+      if (onProgress) onProgress(0);
+      return await uploadMediaServerSide(file, onProgress);
+    }
+    throw err;
+  }
 }
 
 export interface MediaUsage { campaigns: number; scheduled_posts: number; published_posts: number; }
