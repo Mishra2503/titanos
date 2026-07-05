@@ -219,13 +219,16 @@ async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void)
 
 // Server-side proxy upload — fallback when direct Cloudinary upload is blocked
 // by the client's network (firewall, ad blocker, VPN, etc.).
+//
+// Sends the raw file as the request body (not multipart/form-data) so the server
+// can stream it straight into Cloudinary instead of buffering + parsing a strict
+// multipart frame — large reels were tripping the multipart parser's "Failed to
+// parse body as FormData" error when the body arrived incomplete.
 function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   return new Promise<MediaAsset>((resolve, reject) => {
-    const fd = new FormData();
-    fd.append("file", file);
-
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/media/upload");
+    xhr.open("POST", `/api/media/upload?filename=${encodeURIComponent(file.name)}`);
+    xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
     };
@@ -237,7 +240,7 @@ function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): 
       else reject(new ApiError(xhr.status, body?.error?.code ?? "upload_failed", body?.error?.message ?? `Upload failed (HTTP ${xhr.status})`));
     };
     xhr.onerror = () => reject(new ApiError(0, "upload_failed", "Upload failed — could not reach the server."));
-    xhr.send(fd);
+    xhr.send(file);
   });
 }
 

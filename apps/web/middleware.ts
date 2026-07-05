@@ -21,11 +21,14 @@ export async function middleware(req: NextRequest) {
 
   const session = await getSessionFromRequest(req);
   if (session) {
-    const res = NextResponse.next();
-    res.headers.set("x-user-id", session.sub);
-    res.headers.set("x-workspace-id", session.ws);
-    res.headers.set("x-user-role", session.role);
-    return res;
+    // NextResponse.next().headers.set(...) only touches the response the browser
+    // sees — it never reaches the Route Handler's req.headers. Forwarding headers
+    // to downstream handlers requires the `request` option below.
+    const requestHeaders = new Headers(req.headers);
+    requestHeaders.set("x-user-id", session.sub);
+    requestHeaders.set("x-workspace-id", session.ws);
+    requestHeaders.set("x-user-role", session.role);
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   const refreshToken = getRefreshTokenFromRequest(req);
@@ -47,7 +50,11 @@ export async function middleware(req: NextRequest) {
         );
       }
 
-      const res = NextResponse.next();
+      const requestHeaders = new Headers(req.headers);
+      requestHeaders.set("x-user-id", refreshPayload.sub);
+      requestHeaders.set("x-workspace-id", refreshPayload.ws);
+      requestHeaders.set("x-user-role", refreshPayload.role);
+      const res = NextResponse.next({ request: { headers: requestHeaders } });
       res.cookies.set("titan.access", newAccess, {
         httpOnly: true,
         secure: isProd,
@@ -55,9 +62,6 @@ export async function middleware(req: NextRequest) {
         path: "/",
         maxAge: ttl * 60,
       });
-      res.headers.set("x-user-id", refreshPayload.sub);
-      res.headers.set("x-workspace-id", refreshPayload.ws);
-      res.headers.set("x-user-role", refreshPayload.role);
       return res;
     }
   }

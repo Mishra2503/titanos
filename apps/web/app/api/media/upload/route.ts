@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Readable } from "node:stream";
+import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 import { db } from "@/lib/server/db";
 import { v2 as cloudinary } from "cloudinary";
 import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
@@ -11,30 +13,40 @@ function configureCloudinary() {
   cloudinary.config({ cloud_name: CLOUDINARY_CLOUD_NAME, api_key: CLOUDINARY_API_KEY, api_secret: CLOUDINARY_API_SECRET, secure: true });
 }
 
+// Streams the raw request body straight into Cloudinary instead of buffering the
+// whole file in memory. The old req.formData() + file.arrayBuffer() approach used a
+// strict, fully-buffered multipart parser that throws "Failed to parse body as
+// FormData" the moment a large upload's body arrives incomplete (slow connection,
+// proxy timeout, memory pressure) — the same large-file risk /api/media/sign's direct
+// Cloudinary path was built to avoid in the first place. Streaming sidesteps both the
+// memory cost and the brittle multipart framing.
 export async function POST(req: NextRequest) {
   try {
     const wsId = req.headers.get("x-workspace-id");
     const userId = req.headers.get("x-user-id");
     if (!wsId) return unauthorized();
 
-    const form = await req.formData();
-    const file = form.get("file") as File | null;
-    if (!file) return badRequest("missing_file", "file is required");
+    const filename = req.nextUrl.searchParams.get("filename") ?? "reel";
+    if (!req.body) return badRequest("missing_file", "file body is required");
 
     try { configureCloudinary(); } catch { return badRequest("cloudinary_not_configured", "Cloudinary credentials are not set. Add CLOUDINARY_CLOUD_NAME / API_KEY / API_SECRET to .env.local"); }
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    const publicId = `${Date.now()}-${file.name.replace(/\.[^.]+$/, "")}`;
+    const publicId = `${Date.now()}-${filename.replace(/\.[^.]+$/, "")}`;
 
     const result = await new Promise<{ secure_url: string; public_id: string; width?: number; height?: number; duration?: number; format?: string; bytes?: number }>((resolve, reject) => {
-      cloudinary.uploader.upload_chunked_stream({ resource_type: "video", folder: "titan-os/masters", public_id: publicId, overwrite: false, chunk_size: 20_000_000 }, (err, r) => err ? reject(err) : resolve(r!)).end(buffer);
+      const uploadStream = cloudinary.uploader.upload_chunked_stream(
+        { resource_type: "video", folder: "titan-os/masters", public_id: publicId, overwrite: false, chunk_size: 20_000_000 },
+        (err, r) => (err ? reject(err) : resolve(r!)),
+      );
+      Readable.fromWeb(req.body as NodeWebReadableStream<Uint8Array>)
+        .on("error", reject)
+        .pipe(uploadStream);
     });
 
     const asset = await db.mediaAsset.create({
       data: {
         workspaceId: wsId,
-        filename: file.name,
+        filename,
         cloudinaryPublicId: result.public_id,
         publicUrl: result.secure_url,
         width: result.width ?? null,
