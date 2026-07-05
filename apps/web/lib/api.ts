@@ -4,6 +4,8 @@
 // No Bearer tokens — auth is via httpOnly cookies set by the server.
 // Fixes: #3 (timeout), #6 (no localStorage), #7 (no Content-Type on GETs).
 
+import { CLOUDINARY_CHUNK_BYTES, SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
+
 const TIMEOUT_MS = 15_000;
 
 export class ApiError extends Error {
@@ -171,16 +173,26 @@ interface CloudinaryUploadResult {
   duration?: number; format?: string; bytes?: number;
 }
 
-// Direct browser→Cloudinary upload via signed URL (fast path).
-async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
-  const sig = await apiFetch<UploadSignature>("/api/media/sign", {
-    method: "POST",
-    body: JSON.stringify({ filename: file.name }),
-  });
+// Chunk responses: intermediate chunks return { done: false } with no asset
+// fields; only the final chunk's response carries the full asset JSON.
+interface CloudinaryChunkResponse extends Partial<CloudinaryUploadResult> {
+  done?: boolean;
+  error?: { message?: string };
+}
 
-  const result = await new Promise<CloudinaryUploadResult>((resolve, reject) => {
+// One POST to Cloudinary's upload endpoint — a whole small file, or one chunk
+// of a large file (chunks carry X-Unique-Upload-Id + Content-Range headers).
+function postCloudinaryChunk(
+  url: string,
+  sig: UploadSignature,
+  blob: Blob,
+  headers: Record<string, string> | undefined,
+  onChunkProgress: ((loadedBytes: number) => void) | undefined,
+  chunkLabel: string,
+): Promise<CloudinaryChunkResponse> {
+  return new Promise<CloudinaryChunkResponse>((resolve, reject) => {
     const fd = new FormData();
-    fd.append("file", file);
+    fd.append("file", blob);
     fd.append("api_key", sig.api_key);
     fd.append("timestamp", String(sig.timestamp));
     fd.append("signature", sig.signature);
@@ -188,19 +200,61 @@ async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void)
     fd.append("public_id", sig.public_id);
 
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`);
+    xhr.open("POST", url);
+    for (const [k, v] of Object.entries(headers ?? {})) xhr.setRequestHeader(k, v);
     xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+      if (e.lengthComputable && onChunkProgress) onChunkProgress(e.loaded);
     };
     xhr.onload = () => {
-      let body: { error?: { message?: string } } & CloudinaryUploadResult;
+      let body: CloudinaryChunkResponse;
       try { body = JSON.parse(xhr.responseText); } catch { body = {} as never; }
       if (xhr.status >= 200 && xhr.status < 300) resolve(body);
-      else reject(new ApiError(xhr.status, "cloudinary_upload_failed", body?.error?.message ?? `Cloudinary rejected the upload (HTTP ${xhr.status})`));
+      else reject(new ApiError(xhr.status, "cloudinary_upload_failed", body?.error?.message ?? `Cloudinary rejected the upload (HTTP ${xhr.status})${chunkLabel}`));
     };
-    xhr.onerror = () => reject(new ApiError(0, "network_error", "Network error while uploading to Cloudinary"));
+    xhr.onerror = () => reject(new ApiError(0, "network_error", `Network error while uploading to Cloudinary${chunkLabel}`));
     xhr.send(fd);
   });
+}
+
+// Direct browser→Cloudinary upload via signed URL (fast path). Files above one
+// chunk go up in sequential 20MB chunks (Cloudinary rejects >100MB single
+// requests, and Cloudflare kills >100MB bodies through our own server anyway).
+// The same signature covers every chunk — it's valid for 1 hour.
+async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+  const sig = await apiFetch<UploadSignature>("/api/media/sign", {
+    method: "POST",
+    body: JSON.stringify({ filename: file.name }),
+  });
+  const url = `https://api.cloudinary.com/v1_1/${sig.cloud_name}/video/upload`;
+
+  let result: CloudinaryChunkResponse;
+  if (file.size <= CLOUDINARY_CHUNK_BYTES) {
+    // Small file: single request, no custom headers (avoids a CORS preflight).
+    result = await postCloudinaryChunk(
+      url, sig, file, undefined,
+      (loaded) => onProgress?.(Math.round((loaded / file.size) * 100)),
+      "",
+    );
+  } else {
+    const uploadId = crypto.randomUUID();
+    const totalChunks = Math.ceil(file.size / CLOUDINARY_CHUNK_BYTES);
+    result = {};
+    for (let start = 0, i = 0; start < file.size; start += CLOUDINARY_CHUNK_BYTES, i++) {
+      const end = Math.min(start + CLOUDINARY_CHUNK_BYTES, file.size);
+      result = await postCloudinaryChunk(
+        url, sig, file.slice(start, end),
+        {
+          "X-Unique-Upload-Id": uploadId,
+          "Content-Range": `bytes ${start}-${end - 1}/${file.size}`,
+        },
+        (loaded) => onProgress?.(Math.round(((start + loaded) / file.size) * 100)),
+        ` (chunk ${i + 1}/${totalChunks})`,
+      );
+    }
+    if (!result.public_id || !result.secure_url) {
+      throw new ApiError(0, "cloudinary_upload_failed", "Chunked upload completed but Cloudinary returned no asset metadata");
+    }
+  }
 
   return apiFetch<MediaAsset>("/api/media/register", {
     method: "POST",
@@ -246,16 +300,28 @@ function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): 
 
 // Tries a direct browser→Cloudinary upload first (no server memory overhead).
 // If that fails due to a network-level error (firewall / ad blocker / VPN blocking
-// api.cloudinary.com), automatically retries via the server-side proxy route.
+// api.cloudinary.com), retries via the server-side proxy route — but only for
+// files small enough to survive the trip: Cloudflare kills bodies around 100MB
+// at the edge before they ever reach our server, so proxying bigger files can
+// only produce an opaque 502.
 export async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   try {
     return await uploadMediaDirect(file, onProgress);
   } catch (err) {
-    if (err instanceof ApiError && err.code === "network_error") {
-      if (onProgress) onProgress(0);
-      return await uploadMediaServerSide(file, onProgress);
+    if (!(err instanceof ApiError) || err.code !== "network_error") throw err;
+    if (file.size > SERVER_UPLOAD_MAX_BYTES) {
+      const mb = Math.round(file.size / 1024 / 1024);
+      const capMb = Math.round(SERVER_UPLOAD_MAX_BYTES / 1024 / 1024);
+      throw new ApiError(
+        0,
+        "direct_upload_blocked",
+        `Direct upload to Cloudinary was blocked by your browser or network (ad blocker, firewall, or VPN?). ` +
+          `This file (${mb}MB) is too large for the server fallback (max ${capMb}MB). ` +
+          `Try disabling blocking extensions for this site or switching networks. [${err.message}]`,
+      );
     }
-    throw err;
+    if (onProgress) onProgress(0);
+    return await uploadMediaServerSide(file, onProgress);
   }
 }
 
