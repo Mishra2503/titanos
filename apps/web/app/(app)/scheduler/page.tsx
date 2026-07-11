@@ -141,7 +141,7 @@ export default function SchedulerPage() {
       const asset = await uploadMedia(file, setUploadPct);
       setMedia(asset);
     } catch (err) {
-      setUploadIsCredentialError(err instanceof ApiError && err.code === "cloudinary_not_configured");
+      setUploadIsCredentialError(err instanceof ApiError && err.code === "storage_not_configured");
       setUploadError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
@@ -320,7 +320,7 @@ export default function SchedulerPage() {
                 disabled={uploading}
                 className="btn-primary press w-full py-2 disabled:opacity-60"
               >
-                {uploading ? `Uploading… ${uploadPct}%` : "Upload to Cloudinary"}
+                {uploading ? `Uploading… ${uploadPct}%` : "Upload video"}
               </button>
             )}
             {uploading && (
@@ -333,9 +333,12 @@ export default function SchedulerPage() {
                 <p className="font-mono text-xs text-red-400">{uploadError}</p>
                 {uploadIsCredentialError && (
                   <p className="mt-1 font-mono text-[10px] text-ink-faint">
-                    Add <span className="text-ink">CLOUDINARY_CLOUD_NAME</span>,{" "}
-                    <span className="text-ink">CLOUDINARY_API_KEY</span>, and{" "}
-                    <span className="text-ink">CLOUDINARY_API_SECRET</span> to your environment
+                    Add <span className="text-ink">S3_ENDPOINT</span>,{" "}
+                    <span className="text-ink">S3_REGION</span>,{" "}
+                    <span className="text-ink">S3_ACCESS_KEY_ID</span>,{" "}
+                    <span className="text-ink">S3_SECRET_ACCESS_KEY</span>,{" "}
+                    <span className="text-ink">S3_BUCKET</span> and{" "}
+                    <span className="text-ink">S3_PUBLIC_BASE_URL</span> to your environment
                     variables to enable video uploads.
                   </p>
                 )}
