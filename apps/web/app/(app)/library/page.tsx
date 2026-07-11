@@ -86,12 +86,12 @@ export default function LibraryPage() {
           await uploadMedia(file);
           ok++;
         } catch (err) {
-          const isCredentialError = err instanceof ApiError && err.code === "cloudinary_not_configured";
+          const isCredentialError = err instanceof ApiError && err.code === "storage_not_configured";
           const msg = err instanceof ApiError ? err.message : "Upload failed";
           setBanner({
             kind: "err",
             msg: isCredentialError
-              ? `Upload disabled — add CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET to your environment variables.`
+              ? `Upload disabled — add the S3_* storage variables (S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_BASE_URL) to your environment.`
               : `${file.name}: ${msg}`,
           });
         }
@@ -106,7 +106,7 @@ export default function LibraryPage() {
   );
 
   async function remove(a: LibraryAsset) {
-    if (!confirm(`Delete "${a.filename}"? This removes it from Cloudinary permanently.`)) return;
+    if (!confirm(`Delete "${a.filename}"? This removes it from storage permanently.`)) return;
     setBusyId(a.id);
     try {
       await deleteMedia(a.id);
@@ -169,7 +169,7 @@ export default function LibraryPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
           title="Content Library"
-          subtitle="Your master Reels in Cloudinary — upload once, schedule across every account."
+          subtitle="Your master Reels — upload once, schedule across every account."
         />
         <button
           onClick={() => fileInput.current?.click()}

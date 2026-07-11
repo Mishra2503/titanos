@@ -114,8 +114,11 @@ model MediaAsset {
   id                 String   @id @default(uuid())
   workspaceId        String   @map("workspace_id")
   filename           String
-  cloudinaryPublicId String?  @map("cloudinary_public_id")
+  // Object key in the S3-compatible store (R2/B2). DB column keeps its
+  // historical name to avoid a rename migration; legacy rows hold Cloudinary ids.
+  storageKey         String?  @map("cloudinary_public_id")
   publicUrl          String   @map("public_url")
+  thumbnailUrl       String?  @map("thumbnail_url")
   width              Int?
   height             Int?
   durationS          Float?   @map("duration_s")

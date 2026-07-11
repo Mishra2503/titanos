@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     const emailById = new Map(uploaders.map((u) => [u.id, u.email]));
 
     return NextResponse.json(assets.map((a) => ({
-      id: a.id, filename: a.filename, public_url: a.publicUrl, thumbnail_url: null,
+      id: a.id, filename: a.filename, public_url: a.publicUrl, thumbnail_url: a.thumbnailUrl,
       width: a.width, height: a.height, duration_s: a.durationS, format: a.format,
       size_bytes: a.sizeBytes, created_at: a.createdAt,
       uploaded_by_email: a.uploadedBy ? emailById.get(a.uploadedBy) ?? null : null,

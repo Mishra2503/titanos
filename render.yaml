@@ -19,8 +19,9 @@ services:
         value: "1"
 
       # ── Database (Supabase) ─────────────────────────────────────────
-      # DATABASE_URL  → pooler connection (port 6543, ?pgbouncer=true) — runtime queries
-      # DIRECT_URL    → direct connection (port 5432, no pgbouncer) — prisma migrate
+      # DATABASE_URL → transaction-pooler connection (port 6543) — runtime queries.
+      # Migrations derive the IPv4 session pooler (port 5432) from it automatically
+      # (see prisma.config.ts); DIRECT_URL is only a fallback for non-Supabase DBs.
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
@@ -44,12 +45,20 @@ services:
       - key: INSTAGRAM_REDIRECT_URI
         sync: false
 
-      # ── Cloudinary ─────────────────────────────────────────────────
-      - key: CLOUDINARY_CLOUD_NAME
+      # ── Object storage (Cloudflare R2 / any S3-compatible) ─────────
+      # Browser uploads go straight to the bucket via presigned PUT;
+      # Instagram fetches published videos from S3_PUBLIC_BASE_URL.
+      - key: S3_ENDPOINT
         sync: false
-      - key: CLOUDINARY_API_KEY
+      - key: S3_REGION
+        value: auto
+      - key: S3_ACCESS_KEY_ID
         sync: false
-      - key: CLOUDINARY_API_SECRET
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_PUBLIC_BASE_URL
         sync: false
 
       # ── Anthropic ──────────────────────────────────────────────────
