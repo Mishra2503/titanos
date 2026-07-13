@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { decryptSecret } from "@/lib/server/crypto";
 import { unauthorized, notFound, badRequest, serverError } from "@/lib/server/errors";
+import { enqueueCompetitorVideoAnalyses } from "@/lib/server/videoAnalyzer";
 
 // Competitor sync, two sources merged:
 //  1. Official Business Discovery API (followers, captions, likes/comments,
@@ -12,8 +13,9 @@ import { unauthorized, notFound, badRequest, serverError } from "@/lib/server/er
 const GRAPH_VERSION = process.env.INSTAGRAM_GRAPH_VERSION ?? "v23.0";
 const GRAPH = `https://graph.instagram.com/${GRAPH_VERSION}`;
 const HASHTAG_RE = /#\w+/gu;
-const MEDIA_LIMIT = 25;
-const REEL_LIMIT = 20;
+const MEDIA_LIMIT = 50;
+const REEL_LIMIT = 50;
+const BD_MAX_PAGES = 2; // bounded follow-up pages if the first returns a cursor
 
 // ── Source types ────────────────────────────────────────────────────────────
 
@@ -26,7 +28,7 @@ interface BdMedia {
 interface BdProfile {
   username: string; name?: string; biography?: string; website?: string;
   profile_picture_url?: string; followers_count?: number; follows_count?: number;
-  media_count?: number; media?: { data?: BdMedia[] };
+  media_count?: number; media?: { data?: BdMedia[]; paging?: { cursors?: { after?: string } } };
 }
 
 interface ApifyReel {
@@ -34,6 +36,7 @@ interface ApifyReel {
   commentsCount?: number; likesCount?: number;
   videoViewCount?: number; videoPlayCount?: number;
   timestamp?: string; displayUrl?: string; type?: string;
+  videoUrl?: string; // direct .mp4 CDN link (transient) — feeds video analysis
 }
 
 interface ApifyProfile {
@@ -50,6 +53,7 @@ interface MergedPost {
   views: number | null;
   postedOn: Date | null;
   thumbnailUrl: string | null;
+  videoUrl: string | null;
   postType: string;
 }
 
@@ -79,6 +83,22 @@ async function runApify<T>(actor: string, input: unknown, token: string): Promis
   return Array.isArray(body) ? (body as T[]) : [];
 }
 
+async function fetchBusinessDiscoveryPage(igUserId: string, token: string, username: string, after: string | null): Promise<BdProfile> {
+  const mediaArgs = after ? `media.limit(${MEDIA_LIMIT}).after(${after})` : `media.limit(${MEDIA_LIMIT})`;
+  const fields =
+    `business_discovery.username(${username})` +
+    `{username,name,biography,website,profile_picture_url,followers_count,follows_count,media_count,` +
+    `${mediaArgs}{id,caption,like_count,comments_count,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp}}`;
+  const r = await fetch(
+    `${GRAPH}/${igUserId}?fields=${encodeURIComponent(fields)}&access_token=${token}`,
+    { signal: AbortSignal.timeout(20000) },
+  );
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body?.error?.message ?? `Instagram API error ${r.status}`);
+  if (!body?.business_discovery) throw new Error("Instagram returned no data (account must be a public professional account).");
+  return body.business_discovery as BdProfile;
+}
+
 async function fetchBusinessDiscovery(wsId: string, username: string): Promise<BdProfile> {
   const account = await db.igAccount.findFirst({
     where: { workspaceId: wsId, status: "CONNECTED" },
@@ -86,18 +106,24 @@ async function fetchBusinessDiscovery(wsId: string, username: string): Promise<B
   });
   if (!account) throw new Error("No connected Instagram account to query through.");
   const token = decryptSecret(account.accessTokenEnc);
-  const fields =
-    `business_discovery.username(${username})` +
-    `{username,name,biography,website,profile_picture_url,followers_count,follows_count,media_count,` +
-    `media.limit(${MEDIA_LIMIT}){id,caption,like_count,comments_count,media_type,media_product_type,media_url,thumbnail_url,permalink,timestamp}}`;
-  const r = await fetch(
-    `${GRAPH}/${account.igUserId}?fields=${encodeURIComponent(fields)}&access_token=${token}`,
-    { signal: AbortSignal.timeout(20000) },
-  );
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body?.error?.message ?? `Instagram API error ${r.status}`);
-  if (!body?.business_discovery) throw new Error("Instagram returned no data (account must be a public professional account).");
-  return body.business_discovery as BdProfile;
+
+  // First page carries the profile fields; follow-up pages only add media so we
+  // reach ~50 reels when limit(50) alone returns fewer (bounded to avoid loops).
+  const profile = await fetchBusinessDiscoveryPage(account.igUserId, token, username, null);
+  const media: BdMedia[] = [...(profile.media?.data ?? [])];
+  let after = profile.media?.paging?.cursors?.after ?? null;
+  for (let page = 1; page < BD_MAX_PAGES && after && media.length < MEDIA_LIMIT; page++) {
+    try {
+      const next = await fetchBusinessDiscoveryPage(account.igUserId, token, username, after);
+      const batch = next.media?.data ?? [];
+      if (batch.length === 0) break;
+      media.push(...batch);
+      after = next.media?.paging?.cursors?.after ?? null;
+    } catch {
+      break; // paging is best-effort; keep whatever we already have
+    }
+  }
+  return { ...profile, media: { data: media } };
 }
 
 // ── Route ───────────────────────────────────────────────────────────────────
@@ -158,6 +184,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         views: null,
         postedOn: m.timestamp ? new Date(m.timestamp) : null,
         thumbnailUrl: m.thumbnail_url ?? m.media_url ?? null,
+        // For videos, BD's media_url IS the mp4 (thumbnail_url is the image)
+        videoUrl: m.media_product_type === "REELS" || m.media_type === "VIDEO" ? (m.media_url ?? null) : null,
         postType: m.media_product_type === "REELS" ? "REEL" : (m.media_type ?? "POST"),
       });
     }
@@ -173,6 +201,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         existing.likes = existing.likes ?? r.likesCount ?? null;
         existing.comments = existing.comments ?? r.commentsCount ?? null;
         existing.thumbnailUrl = existing.thumbnailUrl ?? r.displayUrl ?? null;
+        existing.videoUrl = existing.videoUrl ?? r.videoUrl ?? null;
       } else {
         if (views != null) viewsEnriched++;
         merged.set(sc, {
@@ -184,6 +213,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           views,
           postedOn: r.timestamp ? new Date(r.timestamp) : null,
           thumbnailUrl: r.displayUrl ?? null,
+          videoUrl: r.videoUrl ?? null,
           postType: "REEL",
         });
       }
@@ -238,11 +268,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       };
       const existingId = storedBySc.get(p.shortcode);
       if (existingId) {
-        await db.competitorPost.update({ where: { id: existingId }, data });
+        // Never wipe a stored video URL with null — a fresh one only helps.
+        await db.competitorPost.update({ where: { id: existingId }, data: { ...data, videoUrl: p.videoUrl ?? undefined } });
       } else {
-        await db.competitorPost.create({ data: { workspaceId: wsId, competitorId: id, permalink: p.permalink, ...data } });
+        await db.competitorPost.create({ data: { workspaceId: wsId, competitorId: id, permalink: p.permalink, videoUrl: p.videoUrl, ...data } });
         imported++;
       }
+    }
+
+    // ── Queue "watch the reel" analyses (frames + transcript → AI) ──────────
+    let videosEnqueued = 0;
+    try {
+      videosEnqueued = await enqueueCompetitorVideoAnalyses(wsId, id);
+    } catch (e) {
+      console.error("[competitor sync] video enqueue failed", e);
     }
 
     // ── Refresh profile metadata ─────────────────────────────────────────────
@@ -261,6 +300,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       followers_count: followers,
       posts_imported: imported,
       views_enriched: viewsEnriched,
+      videos_enqueued: videosEnqueued,
       source: bd && viewsEnriched > 0 ? "official+scraper" : bd ? "official" : "scraper",
       warnings: [bdError && `Official API: ${bdError}`, apifyError && `Scraper: ${apifyError}`].filter(Boolean),
     });

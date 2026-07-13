@@ -24,6 +24,7 @@ model Workspace {
   snapshots      CompetitorSnapshot[]
   posts          CompetitorPost[]
   reports        CompetitorReport[]
+  videoAnalyses  VideoAnalysis[]
 
   @@map("workspace")
 }
@@ -234,14 +235,49 @@ model CompetitorPost {
   views        Int?
   postedOn     DateTime? @map("posted_on")
   thumbnailUrl String?  @map("thumbnail_url")
+  videoUrl     String?  @map("video_url")
   whatWorks    String?  @map("what_works")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitor    Competitor     @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  videoAnalysis VideoAnalysis?
 
   @@map("competitor_post")
+}
+
+// One row per "watched" video — both queue state and cached analysis result.
+// COMPETITOR rows FK a CompetitorPost; OWN rows key the user's Graph media id.
+// Stored videoUrl is a transient CDN link: competitor URLs refresh on re-sync,
+// OWN rows re-fetch a fresh media_url from the Graph API at analysis time.
+model VideoAnalysis {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @map("workspace_id")
+  source              String    // COMPETITOR | OWN
+  competitorPostId    String?   @unique @map("competitor_post_id")
+  igMediaId           String?   @map("ig_media_id")
+  igAccountId         String?   @map("ig_account_id")
+  videoUrl            String?   @map("video_url")
+  status              String    @default("PENDING") // PENDING | PROCESSING | DONE | FAILED | SKIPPED
+  attempts            Int       @default(0)
+  processingStartedAt DateTime? @map("processing_started_at")
+  error               String?
+  model               String?
+  durationS           Float?    @map("duration_s")
+  transcript          String?
+  analysis            Json?
+  summary             String?
+  analyzedAt          DateTime? @map("analyzed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitorPost CompetitorPost? @relation(fields: [competitorPostId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, igMediaId], name: "uq_video_analysis_ws_igmedia")
+  @@index([status, createdAt])
+  @@map("video_analysis")
 }
 
 model CompetitorReport {

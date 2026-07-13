@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/server/db";
 import { getWorkspaceInsights } from "@/lib/server/insights";
 import { runClaude, aiErrorResponse } from "@/lib/server/ai";
+import { formatAnalysisForReport } from "@/lib/server/videoAnalysis";
 import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
 
 // Weekly performance report: per-account stats for the last 7 days computed
@@ -50,6 +52,7 @@ export async function POST(req: NextRequest) {
           ? { caption: top.caption, reach: top.reach, views: top.views, likes: top.likes, comments: top.comments, permalink: top.permalink, engagement_rate: top.engagement_rate, avg_watch_time_sec: top.avg_watch_time_sec }
           : null,
         posts: week.map((p) => ({
+          id: p.id,
           caption: p.caption, timestamp: p.timestamp, permalink: p.permalink,
           reach: p.reach, views: p.views, likes: p.likes, comments: p.comments,
           shares: p.shares, saved: p.saved, engagement_rate: p.engagement_rate,
@@ -58,22 +61,44 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    // Watched-reel analyses for this week's posts (server downloaded and
+    // analyzed the actual videos — real hooks/formats, not caption guesses).
+    const weekPostIds = perAccount.flatMap((a) => a.posts.map((p) => p.id));
+    const watchedById = new Map<string, string>();
+    if (weekPostIds.length) {
+      const analyses = await db.videoAnalysis.findMany({
+        where: { workspaceId: wsId, source: "OWN", status: "DONE", igMediaId: { in: weekPostIds } },
+        select: { igMediaId: true, summary: true, analysis: true },
+      });
+      for (const a of analyses) {
+        const line = formatAnalysisForReport(a);
+        if (a.igMediaId && line) watchedById.set(a.igMediaId, line);
+      }
+    }
+
     const dataLines = perAccount.map((a) => {
       const head = `@${a.username} (${a.followers ?? "?"} followers): ${a.posts_published} posts this week, reach ${a.reach} (prev week ${a.prev_reach}), views ${a.views}, likes ${a.likes}, comments ${a.comments}, shares ${a.shares}, saves ${a.saves}`;
       const posts = a.posts
-        .map((p) => `   - "${(p.caption ?? "(no caption)").replace(/\s+/g, " ").slice(0, 90)}" [${p.timestamp?.slice(0, 16).replace("T", " ")}] reach ${p.reach ?? "?"}, views ${p.views ?? "?"}, er ${p.engagement_rate ?? "?"}%${p.avg_watch_time_sec != null ? `, watch ${p.avg_watch_time_sec}s` : ""}`)
+        .map((p) => {
+          const line = `   - "${(p.caption ?? "(no caption)").replace(/\s+/g, " ").slice(0, 90)}" [${p.timestamp?.slice(0, 16).replace("T", " ")}] reach ${p.reach ?? "?"}, views ${p.views ?? "?"}, er ${p.engagement_rate ?? "?"}%${p.avg_watch_time_sec != null ? `, watch ${p.avg_watch_time_sec}s` : ""}`;
+          const watched = watchedById.get(p.id);
+          return watched ? `${line}\n     · watched: ${watched}` : line;
+        })
         .join("\n");
       return head + (posts ? "\n" + posts : "\n   - (no posts this week)");
     });
 
     const prompt = [
       "WEEKLY DATA FOR ALL ACCOUNTS (last 7 days, with prior week reach for comparison). The first account is the MAIN account; the rest are satellite/distribution accounts meant to funnel audience to the main one.",
+      ...(watchedById.size > 0
+        ? ["Posts with a '· watched:' line were actually WATCHED by the server (video frames + audio transcript analyzed) — their visual hook, spoken hook, format and pacing are ground truth, not guesses from the caption."]
+        : []),
       "",
       ...dataLines,
       "",
       "Write this week's report with exactly these sections:",
       "1. **Week in one paragraph** — the honest headline of the week across the network.",
-      "2. **Account by account** — for each account: 2-3 sentences on performance vs last week, what their best post did right (quote its hook), and one fix for next week.",
+      "2. **Account by account** — for each account: 2-3 sentences on performance vs last week, what their best post did right (quote its real hook — for watched posts use the actual visual/spoken hook), and one fix for next week.",
       "3. **What's trending in our content** — patterns across the network: topics, hooks, formats that pulled reach this week.",
       "4. **Next week's focus** — 4 concrete priorities for the network, distribution-first (how the satellites feed the main account).",
     ].join("\n");

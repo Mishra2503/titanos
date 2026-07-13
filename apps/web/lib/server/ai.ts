@@ -19,6 +19,61 @@ export class AiError extends Error {
   }
 }
 
+// ── Provider selection ────────────────────────────────────────────────────
+// Default is Anthropic. Set AI_PROVIDER=openai (local .env.local only) to route
+// every AI call through an OpenAI-compatible endpoint — e.g. GitHub Models for
+// free local testing. GitHub Models is rate-limited and dev-only; keep prod on
+// Anthropic. On this path Anthropic's server-side web_search is unavailable.
+export function aiProvider(): "anthropic" | "openai" {
+  return (process.env.AI_PROVIDER ?? "anthropic").toLowerCase() === "openai" ? "openai" : "anthropic";
+}
+
+export function openAIConfig() {
+  return {
+    apiKey: process.env.OPENAI_API_KEY,
+    baseUrl: (process.env.OPENAI_BASE_URL ?? "https://models.github.ai/inference").replace(/\/$/, ""),
+    model: process.env.OPENAI_MODEL ?? "openai/gpt-5",
+  };
+}
+
+type OpenAIMessage = { role: "system" | "user" | "assistant"; content: unknown };
+
+// One OpenAI-compatible /chat/completions call. Used for both text prompts and
+// vision (image_url content blocks). Errors are mapped to AiError so the UI
+// shows the real reason.
+export async function openAIChat(messages: OpenAIMessage[], maxTokens: number): Promise<{ text: string; model: string }> {
+  const { apiKey, baseUrl, model } = openAIConfig();
+  if (!apiKey) {
+    throw new AiError(400, "ai_not_configured", "Add OPENAI_API_KEY (your GitHub Models token) to .env.local to use the OpenAI test provider.");
+  }
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      // GPT-5 and other reasoning models require max_completion_tokens (not
+      // max_tokens) and consume part of it as reasoning, so keep headroom.
+      body: JSON.stringify({ model, messages, max_completion_tokens: Math.max(maxTokens, 4096) }),
+      signal: AbortSignal.timeout(180_000),
+    });
+  } catch (e) {
+    throw new AiError(502, "ai_failed", `AI request failed to reach ${baseUrl}: ${(e as Error).message}`);
+  }
+  const json = (await res.json().catch(() => ({}))) as {
+    error?: { message?: string }; model?: string; choices?: { message?: { content?: string } }[];
+  };
+  if (!res.ok) {
+    const friendly =
+      res.status === 401 ? "The OPENAI_API_KEY (GitHub Models token) is invalid or is missing the 'models' permission."
+      : res.status === 429 ? "GitHub Models rate limit hit — wait a bit and try again (it is heavily throttled)."
+      : json?.error?.message ?? `AI request failed (HTTP ${res.status})`;
+    throw new AiError(res.status === 401 ? 401 : 502, "ai_failed", friendly);
+  }
+  const text = (json?.choices?.[0]?.message?.content ?? "").trim();
+  if (!text) throw new AiError(502, "ai_empty", "The AI returned an empty response — GPT-5 reasoning may have used the whole token budget; try again.");
+  return { text, model: json?.model ?? model };
+}
+
 export function aiErrorResponse(e: unknown): NextResponse | null {
   if (e instanceof AiError) {
     return NextResponse.json({ error: { code: e.code, message: e.message } }, { status: e.status });
@@ -42,6 +97,18 @@ export async function runClaude(opts: {
   webSearch?: boolean;
   maxSearches?: number;
 }): Promise<{ text: string; model: string }> {
+  // OpenAI-compatible test provider (e.g. GitHub Models). Web search is not
+  // available on this path, so it is silently ignored.
+  if (aiProvider() === "openai") {
+    return openAIChat(
+      [
+        { role: "system", content: opts.system },
+        { role: "user", content: opts.prompt },
+      ],
+      opts.maxTokens ?? 4096,
+    );
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new AiError(400, "ai_not_configured", "Add ANTHROPIC_API_KEY to the server environment to enable AI features.");

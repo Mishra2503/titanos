@@ -308,9 +308,10 @@ export interface CompetitorListItem {
   follower_delta: number | null; follower_delta_pct: number | null; snapshot_count: number; post_count: number; report_count: number;
 }
 export interface CompetitorSnapshot { id: string; captured_on: string; followers_count: number | null; following_count: number | null; posts_count: number | null; avg_likes: number | null; avg_comments: number | null; engagement_rate: number | null; note: string | null; }
-export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; }
+export interface PostVideoAnalysis { status: string; summary: string | null; hook_visual: string | null; hook_spoken: string | null; format: string | null; why_it_works: string | null; }
+export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; }
 export interface HashtagStat { tag: string; count: number; avg_engagement: number | null; }
-export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; }
+export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; median_views?: number | null; outlier_metric?: "views" | "engagement"; outliers?: CompetitorPost[]; }
 export interface CompetitorReport { id: string; competitor_id: string | null; title: string; content: string; model: string | null; generated_at: string; }
 export interface CompetitorDetail { id: string; username: string; display_name: string | null; category: string | null; profile_url: string | null; avatar_url: string | null; notes: string | null; snapshots: CompetitorSnapshot[]; posts: CompetitorPost[]; analytics: CompetitorAnalytics; reports: CompetitorReport[]; }
 export interface CompetitorInput { username: string; display_name?: string | null; category?: string | null; profile_url?: string | null; notes?: string | null; }
@@ -331,10 +332,21 @@ export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/com
 
 export interface CompetitorSyncResult {
   synced: true; username: string; followers_count: number | null; posts_imported: number;
-  views_enriched?: number; source?: "official+scraper" | "official" | "scraper"; warnings?: string[];
+  views_enriched?: number; videos_enqueued?: number; source?: "official+scraper" | "official" | "scraper"; warnings?: string[];
 }
 export const syncCompetitor = (id: string) =>
   apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 180_000);
+
+// === Video analysis ("watch the reels") ==========================
+
+export interface VideoStatusResult {
+  counts: { PENDING: number; PROCESSING: number; DONE: number; FAILED: number; SKIPPED: number };
+  recent_errors: { source: string; error: string | null; at: string }[];
+}
+export const getVideoStatus = () => apiFetch<VideoStatusResult>("/api/videos/status");
+export const analyzeOwnReels = () =>
+  apiFetch<{ enqueued: number; already_done: number; accounts_checked: number; warnings: string[] }>(
+    "/api/reports/analyze-own", { method: "POST" }, 120_000);
 
 // === AI content strategy =========================================
 
