@@ -311,7 +311,7 @@ export interface CompetitorSnapshot { id: string; captured_on: string; followers
 export interface PostVideoAnalysis { status: string; summary: string | null; hook_visual: string | null; hook_spoken: string | null; format: string | null; why_it_works: string | null; }
 export interface ContentIdeaSource { title: string; url: string; }
 export interface ContentIdea { idea: string; angle: string | null; suggested_hook: string | null; suggested_format: string | null; hot_score: number | null; hot_tag: string | null; trend_summary: string | null; sources: ContentIdeaSource[]; }
-export interface ContentAnalysis { hook: string | null; body: string | null; cta: string | null; content_ideas: ContentIdea[]; generated_at?: string | null; }
+export interface ContentAnalysis { hook: string | null; body: string | null; cta: string | null; content_ideas: ContentIdea[]; estimate?: boolean; generated_at?: string | null; }
 export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; content_analysis?: ContentAnalysis | null; }
 export interface HashtagStat { tag: string; count: number; avg_engagement: number | null; }
 export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; median_views?: number | null; outlier_metric?: "views" | "engagement"; outliers?: CompetitorPost[]; }
@@ -340,6 +340,30 @@ export interface CompetitorSyncResult {
 }
 export const syncCompetitor = (id: string) =>
   apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 180_000);
+
+// === Scriptwriter ================================================
+export interface ScriptResearch { angle: string | null; trend_note: string | null; similar_creators: string[]; hook_options: string[]; estimate: boolean; }
+export interface Script {
+  id: string; competitor_id: string | null; competitor_post_id: string | null; competitor_username: string | null;
+  title: string; status: string; source_reel: unknown; research: ScriptResearch | null;
+  hook: string | null; body: string; caption: string | null; hashtags: string[];
+  model: string | null; board_card_id: string | null; created_at: string; updated_at: string;
+}
+export type ScriptPatch = Partial<Pick<Script, "title" | "body" | "hook" | "caption" | "hashtags">>;
+
+export const generateScriptFromReel = (competitorId: string, postId: string) =>
+  apiFetch<Script>(`/api/competitors/${competitorId}/posts/${postId}/script`, { method: "POST" }, 240_000);
+export const listScripts = () => apiFetch<Script[]>("/api/scripts");
+export const getScript = (id: string) => apiFetch<Script>(`/api/scripts/${id}`);
+export const updateScript = (id: string, body: ScriptPatch) =>
+  apiFetch<Script>(`/api/scripts/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+export const deleteScript = (id: string) => apiFetch<void>(`/api/scripts/${id}`, { method: "DELETE" });
+export const rewriteScript = (id: string, instruction: string) =>
+  apiFetch<Script>(`/api/scripts/${id}/rewrite`, { method: "POST", body: JSON.stringify({ instruction }) }, 240_000);
+export const regenerateScript = (id: string) =>
+  apiFetch<Script>(`/api/scripts/${id}/regenerate`, { method: "POST" }, 240_000);
+export const approveScript = (id: string) =>
+  apiFetch<{ script: Script; card_id: string; column_id: string }>(`/api/scripts/${id}/approve`, { method: "POST" });
 
 // === Video analysis ("watch the reels") ==========================
 

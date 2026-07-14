@@ -1,13 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
+import AnthropicBedrock from "@anthropic-ai/bedrock-sdk";
 import { NextResponse } from "next/server";
 
 // Shared Claude helper for all AI routes. Centralizes:
-// - model selection
-// - optional server-side web search (real market research)
+// - provider selection (Anthropic API | AWS Bedrock | OpenAI-compatible test)
+// - optional server-side web search (Anthropic API only)
 // - pause_turn continuation (server tools can pause long loops)
 // - typed error mapping so the UI shows the real reason, never a bare 500
 
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
+// When set (e.g. "us.anthropic.claude-sonnet-4-5-20250929-v1:0"), Claude is
+// routed through AWS Bedrock using the standard AWS credential chain
+// (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION). Bedrock does NOT
+// support Anthropic's hosted web_search tool.
+const BEDROCK_MODEL = process.env.BEDROCK_MODEL;
+
+// A minimal structural view of the client so the Anthropic and Bedrock SDKs
+// (API-compatible but distinct classes) can share one code path.
+interface ClaudeLike {
+  messages: { create(body: Anthropic.MessageCreateParamsNonStreaming): Promise<Anthropic.Message> };
+}
+
+function useBedrock(): boolean {
+  return !!BEDROCK_MODEL && aiProvider() !== "openai";
+}
+
+// Anthropic's hosted web_search server tool is only available on the direct
+// Anthropic API — not on Bedrock and not on the OpenAI-compatible test path.
+export function aiWebSearchAvailable(): boolean {
+  return aiProvider() === "anthropic" && !useBedrock() && !!process.env.ANTHROPIC_API_KEY;
+}
 
 export class AiError extends Error {
   constructor(
@@ -80,12 +102,38 @@ export function aiErrorResponse(e: unknown): NextResponse | null {
   }
   if (e instanceof Anthropic.APIError) {
     const status = typeof e.status === "number" ? e.status : 502;
+    // Billing/credit is not a gateway problem — surface it as 402 so the client
+    // can show a clear "add credit" message instead of a scary 502.
+    if (status === 400 && /credit|billing/i.test(e.message)) {
+      return NextResponse.json(
+        { error: { code: "ai_billing", message: "Anthropic account has insufficient credit. Top up at console.anthropic.com, or switch Titan OS to AWS Bedrock (set BEDROCK_MODEL + AWS credentials in Render)." } },
+        { status: 402 },
+      );
+    }
     const friendly =
       status === 401 ? "The ANTHROPIC_API_KEY on the server is invalid. Update it in your Render environment."
       : status === 429 ? "AI rate limit hit — wait a minute and try again."
-      : status === 400 && /credit|billing/i.test(e.message) ? "Anthropic account has insufficient credit. Top up at console.anthropic.com."
       : `AI request failed: ${e.message}`;
     return NextResponse.json({ error: { code: "ai_failed", message: friendly } }, { status: 502 });
+  }
+  // AWS Bedrock / credential errors (thrown by the Bedrock SDK or AWS credential
+  // chain) are not Anthropic.APIError instances — map the common ones by shape.
+  const err = e as { name?: string; message?: string; status?: number };
+  const msg = err?.message ?? "";
+  if (err?.name?.includes("Credential") || /security token|credential|Unable to locate credentials|Resolved credential/i.test(msg)) {
+    return NextResponse.json(
+      { error: { code: "ai_bedrock_auth", message: "AWS Bedrock credentials are missing or invalid. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_REGION in Render." } },
+      { status: 402 },
+    );
+  }
+  if (/AccessDenied|don't have access|not authorized|model access/i.test(msg)) {
+    return NextResponse.json(
+      { error: { code: "ai_bedrock_access", message: `Bedrock denied the request: ${msg}. Enable access to this Claude model in the AWS Bedrock console and check the IAM permissions.` } },
+      { status: 403 },
+    );
+  }
+  if (typeof err?.status === "number" && err.status >= 400) {
+    return NextResponse.json({ error: { code: "ai_failed", message: `AI request failed: ${msg || `HTTP ${err.status}`}` } }, { status: 502 });
   }
   return null;
 }
@@ -96,32 +144,47 @@ export async function runClaude(opts: {
   maxTokens?: number;
   webSearch?: boolean;
   maxSearches?: number;
-}): Promise<{ text: string; model: string }> {
+}): Promise<{ text: string; model: string; searched: boolean }> {
   // OpenAI-compatible test provider (e.g. GitHub Models). Web search is not
   // available on this path, so it is silently ignored.
   if (aiProvider() === "openai") {
-    return openAIChat(
+    const r = await openAIChat(
       [
         { role: "system", content: opts.system },
         { role: "user", content: opts.prompt },
       ],
       opts.maxTokens ?? 4096,
     );
+    return { ...r, searched: false };
   }
 
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new AiError(400, "ai_not_configured", "Add ANTHROPIC_API_KEY to the server environment to enable AI features.");
+  const bedrock = useBedrock();
+  let client: ClaudeLike;
+  let model: string;
+  if (bedrock) {
+    // AWS credentials come from the standard chain (env vars in Render).
+    client = new AnthropicBedrock({
+      awsRegion: process.env.AWS_REGION ?? process.env.BEDROCK_AWS_REGION ?? "us-east-1",
+    }) as unknown as ClaudeLike;
+    model = BEDROCK_MODEL!;
+  } else {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new AiError(400, "ai_not_configured", "No AI provider configured. Set BEDROCK_MODEL (+ AWS credentials) or ANTHROPIC_API_KEY in the server environment.");
+    }
+    client = new Anthropic({ apiKey, maxRetries: 2 });
+    model = MODEL;
   }
 
-  const client = new Anthropic({ apiKey, maxRetries: 2 });
-  const tools = opts.webSearch
+  // Web search runs only on the Anthropic API (not Bedrock).
+  const searched = !!opts.webSearch && !bedrock;
+  const tools = searched
     ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: opts.maxSearches ?? 6 }]
     : undefined;
 
   let messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
   let response = await client.messages.create({
-    model: MODEL,
+    model,
     max_tokens: opts.maxTokens ?? 4096,
     system: opts.system,
     messages,
@@ -132,7 +195,7 @@ export async function runClaude(opts: {
   for (let i = 0; i < 5 && response.stop_reason === "pause_turn"; i++) {
     messages = [...messages, { role: "assistant", content: response.content }];
     response = await client.messages.create({
-      model: MODEL,
+      model,
       max_tokens: opts.maxTokens ?? 4096,
       system: opts.system,
       messages,
@@ -145,5 +208,5 @@ export async function runClaude(opts: {
     .join("")
     .trim();
   if (!text) throw new AiError(502, "ai_empty", "The AI returned an empty response — try again.");
-  return { text, model: response.model };
+  return { text, model: response.model, searched };
 }

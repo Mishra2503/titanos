@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/Placeholder";
 import {
   ApiError,
@@ -8,6 +9,7 @@ import {
   addSnapshot,
   analyzeReelIdea,
   createCompetitor,
+  generateScriptFromReel,
   deleteCompetitor,
   deleteCompetitorPost,
   deleteSnapshot,
@@ -637,14 +639,46 @@ function HotBadge({ score, tag }: { score: number | null; tag: string | null }) 
   );
 }
 
+function GenerateScriptButton({
+  post,
+  onGenerateScript,
+  scripting,
+  variant,
+}: {
+  post: CompetitorPost;
+  onGenerateScript: (p: CompetitorPost) => void;
+  scripting: boolean;
+  variant: "primary" | "ghost";
+}) {
+  return (
+    <button
+      onClick={() => onGenerateScript(post)}
+      disabled={scripting}
+      className={
+        variant === "primary"
+          ? "btn-primary press mt-3 w-full disabled:opacity-60"
+          : "press mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-charcoal-600 px-3 py-2 text-xs font-semibold text-ink-muted hover:border-lime/40 hover:text-lime disabled:opacity-60"
+      }
+    >
+      {scripting ? "Writing script…" : "✍️ Generate full script"}
+    </button>
+  );
+}
+
 function ContentOpportunity({
   post,
   analyzing,
   onAnalyze,
+  error,
+  onGenerateScript,
+  scripting,
 }: {
   post: CompetitorPost;
   analyzing: boolean;
   onAnalyze: (p: CompetitorPost) => void;
+  error?: string | null;
+  onGenerateScript: (p: CompetitorPost) => void;
+  scripting: boolean;
 }) {
   const ca = post.content_analysis;
 
@@ -670,14 +704,20 @@ function ContentOpportunity({
         </p>
         <p className="mt-1 text-xs text-ink-muted">
           Deep-research this reel — hook, body and CTA — then find a high-potential idea for you and score how
-          hot the topic is right now across the web.
+          hot the topic is.
         </p>
+        {error && (
+          <p className="mt-3 rounded-lg border border-red-400/40 bg-red-400/10 px-3 py-2 text-xs text-red-400">
+            {error}
+          </p>
+        )}
         <button
           onClick={() => onAnalyze(post)}
           className="btn-primary press mt-3 w-full"
         >
-          Analyze this reel
+          {error ? "Try again" : "Analyze this reel"}
         </button>
+        <GenerateScriptButton post={post} onGenerateScript={onGenerateScript} scripting={scripting} variant="ghost" />
       </div>
     );
   }
@@ -693,6 +733,11 @@ function ContentOpportunity({
           <p className="flex items-center gap-2 text-sm font-semibold text-ink">
             <Sparkle size={16} weight="fill" className="text-lime" /> Content opportunities for you
           </p>
+          {ca.estimate && (
+            <p className="mt-1 text-[11px] text-ink-faint">
+              Trend read is an AI estimate (live web research is off). Scores reflect the model&apos;s judgement, not measured data.
+            </p>
+          )}
           <div className="mt-3 space-y-3">
             {ca.content_ideas.map((idea, i) => (
               <div key={i} className="rounded-lg border border-charcoal-700 bg-charcoal-800 p-3">
@@ -740,6 +785,7 @@ function ContentOpportunity({
               </div>
             ))}
           </div>
+          <GenerateScriptButton post={post} onGenerateScript={onGenerateScript} scripting={scripting} variant="primary" />
         </div>
       )}
     </div>
@@ -751,11 +797,17 @@ function ReelModal({
   onClose,
   onAnalyze,
   analyzing,
+  error,
+  onGenerateScript,
+  scripting,
 }: {
   post: CompetitorPost;
   onClose: () => void;
   onAnalyze: (p: CompetitorPost) => void;
   analyzing: boolean;
+  error?: string | null;
+  onGenerateScript: (p: CompetitorPost) => void;
+  scripting: boolean;
 }) {
   const va = post.video_analysis;
   const watched = va?.status === "DONE";
@@ -828,7 +880,14 @@ function ReelModal({
 
           {/* What the reel says + AI dissection */}
           <div className="space-y-3">
-            <ContentOpportunity post={post} analyzing={analyzing} onAnalyze={onAnalyze} />
+            <ContentOpportunity
+              post={post}
+              analyzing={analyzing}
+              onAnalyze={onAnalyze}
+              error={error}
+              onGenerateScript={onGenerateScript}
+              scripting={scripting}
+            />
 
             {watched ? (
               <>
@@ -897,16 +956,37 @@ function CompetitorDetailView({
   const [openPost, setOpenPost] = useState<CompetitorPost | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const [analyzeError, setAnalyzeError] = useState<string | null>(null);
+  const [scriptingId, setScriptingId] = useState<string | null>(null);
+  const router = useRouter();
   const totalMix = Object.values(a.content_mix).reduce((s, n) => s + n, 0);
 
   const err = (e: unknown, fallback: string) =>
     setBanner({ kind: "err", msg: e instanceof ApiError ? e.message : fallback });
 
-  // Deep per-reel research → content idea + trend/hot score (web search).
+  // Generate a full script from a reel, then hand off to the Scriptwriter tab.
+  const generateScript = useCallback(
+    async (post: CompetitorPost) => {
+      setScriptingId(post.id);
+      setBanner({ kind: "ok", msg: "Writing a script from this reel…" });
+      try {
+        const s = await generateScriptFromReel(detail.id, post.id);
+        router.push(`/scriptwriter?script=${s.id}`);
+      } catch (e) {
+        setBanner({ kind: "err", msg: e instanceof ApiError ? e.message : "Script generation failed" });
+      } finally {
+        setScriptingId(null);
+      }
+    },
+    [detail.id, router],
+  );
+
+  // Deep per-reel research → content idea + trend/hot score.
   const analyzeReel = useCallback(
     async (post: CompetitorPost) => {
       setOpenPost(post); // open the modal so progress + results are visible
       if (post.content_analysis) return; // already researched — just view it
+      setAnalyzeError(null);
       setAnalyzingId(post.id);
       try {
         const res = await analyzeReelIdea(detail.id, post.id);
@@ -914,7 +994,9 @@ function CompetitorDetailView({
         await onChanged();
         setBanner({ kind: "ok", msg: "Content opportunity ready" });
       } catch (e) {
-        err(e, "Analysis failed — try again");
+        const msg = e instanceof ApiError ? e.message : "Analysis failed — try again";
+        setAnalyzeError(msg);
+        setBanner({ kind: "err", msg });
       } finally {
         setAnalyzingId(null);
       }
@@ -1307,9 +1389,12 @@ function CompetitorDetailView({
       {openPost && (
         <ReelModal
           post={openPost}
-          onClose={() => setOpenPost(null)}
+          onClose={() => { setOpenPost(null); setAnalyzeError(null); }}
           onAnalyze={analyzeReel}
           analyzing={analyzingId === openPost.id}
+          error={analyzeError}
+          onGenerateScript={generateScript}
+          scripting={scriptingId === openPost.id}
         />
       )}
     </div>

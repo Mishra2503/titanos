@@ -25,6 +25,7 @@ model Workspace {
   posts          CompetitorPost[]
   reports        CompetitorReport[]
   videoAnalyses  VideoAnalysis[]
+  scripts        Script[]
 
   @@map("workspace")
 }
@@ -301,4 +302,29 @@ model CompetitorReport {
   competitor Competitor? @relation(fields: [competitorId], references: [id], onDelete: Cascade)
 
   @@map("competitor_report")
+}
+
+model Script {
+  id               String   @id @default(uuid())
+  workspaceId      String   @map("workspace_id")
+  competitorId     String?  @map("competitor_id")       // plain ref (no FK) — survives competitor deletion
+  competitorPostId String?  @map("competitor_post_id")
+  title            String
+  status           String   @default("DRAFT")           // DRAFT | APPROVED
+  sourceReel       Json?    @map("source_reel")          // snapshot of the reel it came from
+  research         Json?                                  // angle, trend estimate, similar creators, hook bank
+  hook             String?
+  body             String   @default("")                 // the full script text (editable)
+  caption          String?
+  hashtags         Json     @default("[]")
+  model            String?
+  boardCardId      String?  @map("board_card_id")        // set once pushed to the Content Board
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@map("script")
 }
