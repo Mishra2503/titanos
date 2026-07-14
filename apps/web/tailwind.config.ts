@@ -22,9 +22,9 @@ const config: Config = {
           dim: "#7168F0",     // lighter variant for hover/labels
         },
         ink: {
-          DEFAULT: "#18181A", // near-black text
-          muted: "#64748B",   // secondary text
-          faint: "#94A3B8",   // micro labels, placeholders
+          DEFAULT: "#15151A", // near-black text
+          muted: "#475569",   // secondary text (darkened for readability)
+          faint: "#5B647A",   // micro labels, placeholders (darkened for readability)
         },
         // Status colors — tuned for light backgrounds.
         amber: { 300: "#F59E0B" },
@@ -38,6 +38,11 @@ const config: Config = {
         heading: ["var(--font-heading)", "system-ui", "sans-serif"],
         serif:   ["var(--font-serif)", "Georgia", "serif"],
         mono:    ["var(--font-sans)", "system-ui", "sans-serif"],
+      },
+      // Nudge the smallest tiers up one notch so labels/body read cleanly site-wide.
+      fontSize: {
+        xs: ["0.8125rem", { lineHeight: "1.15rem" }],   // 13px (was 12px)
+        sm: ["0.9375rem", { lineHeight: "1.4rem" }],    // 15px (was 14px)
       },
       boxShadow: {
         card: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(80,71,235,0.07)",

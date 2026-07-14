@@ -10,11 +10,18 @@
 html,
 body {
   background-color: #F5F6FF;
-  color: #18181A;
+  color: #15151A;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
+
+/* Site-wide legibility floor: the smallest arbitrary text tiers are used heavily
+   for labels/metrics and read too small. Unlayered rules override Tailwind's
+   utility layer, so this lifts every `text-[10px]`/`text-[11px]` a notch without
+   touching each component. */
+.text-\[10px\] { font-size: 11px; }
+.text-\[11px\] { font-size: 12px; }
 
 @layer base {
   h1,

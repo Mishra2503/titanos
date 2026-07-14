@@ -169,6 +169,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         outlier_multiple: mult,
         is_outlier: mult != null && mult >= 2,
         video_analysis: videoAnalysisOut(p.videoAnalysis),
+        content_analysis: p.contentAnalysis ?? null,
       };
     });
 

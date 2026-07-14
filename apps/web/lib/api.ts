@@ -309,7 +309,10 @@ export interface CompetitorListItem {
 }
 export interface CompetitorSnapshot { id: string; captured_on: string; followers_count: number | null; following_count: number | null; posts_count: number | null; avg_likes: number | null; avg_comments: number | null; engagement_rate: number | null; note: string | null; }
 export interface PostVideoAnalysis { status: string; summary: string | null; hook_visual: string | null; hook_spoken: string | null; format: string | null; why_it_works: string | null; }
-export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; }
+export interface ContentIdeaSource { title: string; url: string; }
+export interface ContentIdea { idea: string; angle: string | null; suggested_hook: string | null; suggested_format: string | null; hot_score: number | null; hot_tag: string | null; trend_summary: string | null; sources: ContentIdeaSource[]; }
+export interface ContentAnalysis { hook: string | null; body: string | null; cta: string | null; content_ideas: ContentIdea[]; generated_at?: string | null; }
+export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; content_analysis?: ContentAnalysis | null; }
 export interface HashtagStat { tag: string; count: number; avg_engagement: number | null; }
 export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; median_views?: number | null; outlier_metric?: "views" | "engagement"; outliers?: CompetitorPost[]; }
 export interface CompetitorReport { id: string; competitor_id: string | null; title: string; content: string; model: string | null; generated_at: string; }
@@ -327,6 +330,7 @@ export const addSnapshot = (id: string, body: SnapshotInput) => apiFetch<Competi
 export const deleteSnapshot = (id: string, snapshotId: string) => apiFetch<void>(`/api/competitors/${id}/snapshots/${snapshotId}`, { method: "DELETE" });
 export const addCompetitorPost = (id: string, body: PostInput) => apiFetch<CompetitorPost>(`/api/competitors/${id}/posts`, { method: "POST", body: JSON.stringify(body) });
 export const deleteCompetitorPost = (id: string, postId: string) => apiFetch<void>(`/api/competitors/${id}/posts/${postId}`, { method: "DELETE" });
+export const analyzeReelIdea = (id: string, postId: string) => apiFetch<ContentAnalysis>(`/api/competitors/${id}/posts/${postId}/analyze`, { method: "POST" }, 180_000);
 export const generateCompetitorReport = (id: string) => apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" }, 180_000);
 export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" }, 120_000);
 

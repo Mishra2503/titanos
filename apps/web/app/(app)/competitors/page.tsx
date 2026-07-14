@@ -6,6 +6,7 @@ import {
   ApiError,
   addCompetitorPost,
   addSnapshot,
+  analyzeReelIdea,
   createCompetitor,
   deleteCompetitor,
   deleteCompetitorPost,
@@ -20,6 +21,7 @@ import {
   type CompetitorListItem,
   type CompetitorPost,
   type CompetitorReport,
+  type ContentAnalysis,
   type PostInput,
   type SnapshotInput,
 } from "@/lib/api";
@@ -490,9 +492,9 @@ function ReelMetric({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <Icon size={15} weight="fill" className={accent ? "text-lime" : "text-ink-faint"} />
+      <Icon size={16} weight="fill" className={accent ? "text-lime" : "text-ink-muted"} />
       <span className="text-sm font-semibold text-ink">{value}</span>
-      <span className="text-[11px] text-ink-faint">{label}</span>
+      <span className="text-xs text-ink-muted">{label}</span>
     </div>
   );
 }
@@ -539,41 +541,73 @@ function ReelThumb({ post, rounded }: { post: CompetitorPost; rounded: string })
   );
 }
 
-function ReelCard({ post, onOpen }: { post: CompetitorPost; onOpen: (p: CompetitorPost) => void }) {
+function ReelCard({
+  post,
+  onOpen,
+  onAnalyze,
+  analyzing,
+}: {
+  post: CompetitorPost;
+  onOpen: (p: CompetitorPost) => void;
+  onAnalyze: (p: CompetitorPost) => void;
+  analyzing: boolean;
+}) {
   const hook = post.video_analysis?.hook_spoken || post.video_analysis?.hook_visual;
   const er = reelEngRate(post);
+  const analyzed = !!post.content_analysis;
   return (
-    <button
+    <div
       onClick={() => onOpen(post)}
-      className="group block overflow-hidden rounded-xl border border-charcoal-700 bg-charcoal-800 text-left transition-studio duration-studio ease-studio-out hover:border-charcoal-500 hover:shadow-pop"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onOpen(post); }}
+      className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border border-charcoal-700 bg-charcoal-800 text-left transition-studio duration-studio ease-studio-out hover:border-charcoal-500 hover:shadow-pop"
     >
       <ReelThumb post={post} rounded="" />
-      <div className="p-3">
-        <p className="text-[11px] text-ink-faint">
+      <div className="flex flex-1 flex-col p-3">
+        <p className="text-xs text-ink-muted">
           {post.post_type || "REEL"}
           {post.posted_on ? ` · ${String(post.posted_on).slice(0, 10)}` : ""}
         </p>
-        <p className="mt-1 line-clamp-2 text-sm text-ink">{hook || post.caption || "No caption"}</p>
-        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-          <ReelMetric icon={Eye} value={compact(post.views)} label="views" accent={post.views != null} />
-          <ReelMetric icon={TrendUp} value={er != null ? `${er}%` : "—"} label="eng rate" />
-          <ReelMetric icon={Heart} value={compact(post.likes)} label="likes" />
-          <ReelMetric icon={ChatCircle} value={compact(post.comments)} label="comments" />
-        </div>
-        {post.hashtags.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1">
+        <p className="mt-1 line-clamp-2 min-h-[2.75rem] text-sm text-ink">{hook || post.caption || "No caption"}</p>
+
+        {/* Footer pinned to the bottom so every card in a row is the same height. */}
+        <div className="mt-auto">
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
+            <ReelMetric icon={Eye} value={compact(post.views)} label="views" accent={post.views != null} />
+            <ReelMetric icon={TrendUp} value={er != null ? `${er}%` : "—"} label="eng rate" />
+            <ReelMetric icon={Heart} value={compact(post.likes)} label="likes" />
+            <ReelMetric icon={ChatCircle} value={compact(post.comments)} label="comments" />
+          </div>
+
+          {/* Hashtag row is always rendered (min height reserved) so presence/absence
+              never changes card height. */}
+          <div className="mt-3 flex min-h-[1.5rem] flex-wrap items-center gap-1">
             {post.hashtags.slice(0, 3).map((h) => (
-              <span key={h} className="rounded bg-charcoal-700 px-1.5 py-0.5 text-[10px] text-ink-muted">
+              <span key={h} className="rounded bg-charcoal-700 px-1.5 py-0.5 text-[11px] text-ink-muted">
                 {h}
               </span>
             ))}
             {post.hashtags.length > 3 && (
-              <span className="px-1 py-0.5 text-[10px] text-ink-faint">+{post.hashtags.length - 3}</span>
+              <span className="px-1 py-0.5 text-[11px] text-ink-faint">+{post.hashtags.length - 3}</span>
             )}
           </div>
-        )}
+
+          <button
+            onClick={(e) => { e.stopPropagation(); onAnalyze(post); }}
+            disabled={analyzing}
+            className={`press mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-studio disabled:opacity-60 ${
+              analyzed
+                ? "border-lime/40 bg-lime/10 text-lime hover:bg-lime/15"
+                : "border-charcoal-600 text-ink-muted hover:border-lime/40 hover:text-lime"
+            }`}
+          >
+            <Sparkle size={14} weight="fill" />
+            {analyzing ? "Researching…" : analyzed ? "View content idea" : "Analyze"}
+          </button>
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -581,13 +615,148 @@ function InsightRow({ label, value }: { label: string; value: string | null | un
   if (!value) return null;
   return (
     <div className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
-      <p className="text-[11px] uppercase tracking-wider text-lime">{label}</p>
+      <p className="text-xs uppercase tracking-wider text-lime">{label}</p>
       <p className="mt-1 text-sm text-ink-muted">{value}</p>
     </div>
   );
 }
 
-function ReelModal({ post, onClose }: { post: CompetitorPost; onClose: () => void }) {
+function HotBadge({ score, tag }: { score: number | null; tag: string | null }) {
+  const s = score ?? 0;
+  const tone =
+    s >= 70
+      ? "border-red-400/40 bg-red-400/10 text-red-400"
+      : s >= 40
+        ? "border-amber-300/50 bg-amber-300/10 text-amber-300"
+        : "border-charcoal-600 bg-charcoal text-ink-muted";
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${tone}`}>
+      {tag || (s >= 70 ? "🔥 Hot" : s >= 40 ? "Rising" : "Steady")}
+      {score != null && <span className="opacity-80">· {score}/100</span>}
+    </span>
+  );
+}
+
+function ContentOpportunity({
+  post,
+  analyzing,
+  onAnalyze,
+}: {
+  post: CompetitorPost;
+  analyzing: boolean;
+  onAnalyze: (p: CompetitorPost) => void;
+}) {
+  const ca = post.content_analysis;
+
+  if (analyzing) {
+    return (
+      <div className="rounded-xl border border-lime/30 bg-lime/5 p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-lime">
+          <Sparkle size={16} weight="fill" className="animate-pulse" /> Researching this reel across the web…
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Dissecting the hook, body and CTA, then checking how hot the topic is right now across social,
+          blogs and articles. This can take up to a minute.
+        </p>
+      </div>
+    );
+  }
+
+  if (!ca) {
+    return (
+      <div className="rounded-xl border border-charcoal-600 bg-charcoal p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+          <Sparkle size={16} weight="fill" className="text-lime" /> Turn this reel into a content idea
+        </p>
+        <p className="mt-1 text-xs text-ink-muted">
+          Deep-research this reel — hook, body and CTA — then find a high-potential idea for you and score how
+          hot the topic is right now across the web.
+        </p>
+        <button
+          onClick={() => onAnalyze(post)}
+          className="btn-primary press mt-3 w-full"
+        >
+          Analyze this reel
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <InsightRow label="Hook" value={ca.hook} />
+      <InsightRow label="Body" value={ca.body} />
+      <InsightRow label="CTA" value={ca.cta} />
+
+      {ca.content_ideas.length > 0 && (
+        <div className="rounded-xl border border-lime/30 bg-lime/5 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <Sparkle size={16} weight="fill" className="text-lime" /> Content opportunities for you
+          </p>
+          <div className="mt-3 space-y-3">
+            {ca.content_ideas.map((idea, i) => (
+              <div key={i} className="rounded-lg border border-charcoal-700 bg-charcoal-800 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold text-ink">{idea.idea}</p>
+                  <HotBadge score={idea.hot_score} tag={idea.hot_tag} />
+                </div>
+                {idea.angle && <p className="mt-1 text-sm text-ink-muted">{idea.angle}</p>}
+                {idea.trend_summary && (
+                  <p className="mt-2 text-xs text-ink-muted">
+                    <span className="font-semibold text-ink">Why it's hot: </span>
+                    {idea.trend_summary}
+                  </p>
+                )}
+                {(idea.suggested_hook || idea.suggested_format) && (
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                    {idea.suggested_format && (
+                      <span className="rounded-md bg-charcoal-700 px-2 py-1 text-ink-muted">
+                        Format: {idea.suggested_format}
+                      </span>
+                    )}
+                    {idea.suggested_hook && (
+                      <span className="rounded-md bg-charcoal-700 px-2 py-1 text-ink-muted">
+                        Hook: {idea.suggested_hook}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {idea.sources.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
+                    {idea.sources.slice(0, 5).map((src, j) => (
+                      <a
+                        key={j}
+                        href={src.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="text-xs text-lime hover:underline"
+                      >
+                        {src.title || "source"} ↗
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReelModal({
+  post,
+  onClose,
+  onAnalyze,
+  analyzing,
+}: {
+  post: CompetitorPost;
+  onClose: () => void;
+  onAnalyze: (p: CompetitorPost) => void;
+  analyzing: boolean;
+}) {
   const va = post.video_analysis;
   const watched = va?.status === "DONE";
   const watching = va?.status === "PENDING" || va?.status === "PROCESSING";
@@ -659,6 +828,8 @@ function ReelModal({ post, onClose }: { post: CompetitorPost; onClose: () => voi
 
           {/* What the reel says + AI dissection */}
           <div className="space-y-3">
+            <ContentOpportunity post={post} analyzing={analyzing} onAnalyze={onAnalyze} />
+
             {watched ? (
               <>
                 <InsightRow label="Spoken hook" value={va?.hook_spoken} />
@@ -725,10 +896,31 @@ function CompetitorDetailView({
   const [reelView, setReelView] = useState<"recent" | "top" | "trending">("recent");
   const [openPost, setOpenPost] = useState<CompetitorPost | null>(null);
   const [showLog, setShowLog] = useState(false);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const totalMix = Object.values(a.content_mix).reduce((s, n) => s + n, 0);
 
   const err = (e: unknown, fallback: string) =>
     setBanner({ kind: "err", msg: e instanceof ApiError ? e.message : fallback });
+
+  // Deep per-reel research → content idea + trend/hot score (web search).
+  const analyzeReel = useCallback(
+    async (post: CompetitorPost) => {
+      setOpenPost(post); // open the modal so progress + results are visible
+      if (post.content_analysis) return; // already researched — just view it
+      setAnalyzingId(post.id);
+      try {
+        const res = await analyzeReelIdea(detail.id, post.id);
+        setOpenPost((cur) => (cur && cur.id === post.id ? { ...cur, content_analysis: res } : cur));
+        await onChanged();
+        setBanner({ kind: "ok", msg: "Content opportunity ready" });
+      } catch (e) {
+        err(e, "Analysis failed — try again");
+      } finally {
+        setAnalyzingId(null);
+      }
+    },
+    [detail.id, onChanged, setBanner],
+  );
 
   // Reel lists for the segmented control.
   const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
@@ -911,11 +1103,11 @@ function CompetitorDetailView({
           {detail.posts.length > 0 && (
             <div>
               <SectionTitle hint="top by views & engagement">Viral reels</SectionTitle>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
                 {byScore(detail.posts)
                   .slice(0, 6)
                   .map((p) => (
-                    <ReelCard key={p.id} post={p} onOpen={setOpenPost} />
+                    <ReelCard key={p.id} post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
                   ))}
               </div>
             </div>
@@ -1064,10 +1256,10 @@ function CompetitorDetailView({
                 : "No reels yet. Hit Sync live data to pull them automatically."}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
               {reels.map((p) => (
                 <div key={p.id} className="group relative">
-                  <ReelCard post={p} onOpen={setOpenPost} />
+                  <ReelCard post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
                   <button
                     onClick={async (e) => {
                       e.stopPropagation();
@@ -1112,7 +1304,14 @@ function CompetitorDetailView({
         </div>
       )}
 
-      {openPost && <ReelModal post={openPost} onClose={() => setOpenPost(null)} />}
+      {openPost && (
+        <ReelModal
+          post={openPost}
+          onClose={() => setOpenPost(null)}
+          onAnalyze={analyzeReel}
+          analyzing={analyzingId === openPost.id}
+        />
+      )}
     </div>
   );
 }

@@ -237,6 +237,11 @@ model CompetitorPost {
   thumbnailUrl String?  @map("thumbnail_url")
   videoUrl     String?  @map("video_url")
   whatWorks    String?  @map("what_works")
+
+  // Deep on-demand research (Analyze button): hook/body/CTA + scored content ideas.
+  contentAnalysis   Json?     @map("content_analysis")
+  contentAnalyzedAt DateTime? @map("content_analyzed_at")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
