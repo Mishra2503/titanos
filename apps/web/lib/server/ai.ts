@@ -190,26 +190,26 @@ export async function runClaude(opts: {
     ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: opts.maxSearches ?? 6 }]
     : undefined;
 
-  let messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
-  let response = await client.messages.create({
+  // Shared params. These are structured-JSON extraction calls, so disable
+  // thinking: Sonnet 5 (and other current models) default adaptive thinking ON,
+  // which can consume the whole max_tokens budget and leave NO answer text block
+  // to read. Disabling it sends the full budget to the answer and is cheaper.
+  const baseParams = {
     model,
     max_tokens: opts.maxTokens ?? 4096,
     system: opts.system,
-    messages,
+    thinking: { type: "disabled" as const },
     ...(tools ? { tools } : {}),
-  });
+  };
+
+  let messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
+  let response = await client.messages.create({ ...baseParams, messages });
 
   // Server-side tools can pause long loops — resume up to 5 times. Only the
   // Anthropic-API path uses tools, so `response.content` exists here.
   for (let i = 0; i < 5 && response?.stop_reason === "pause_turn"; i++) {
     messages = [...messages, { role: "assistant", content: response.content }];
-    response = await client.messages.create({
-      model,
-      max_tokens: opts.maxTokens ?? 4096,
-      system: opts.system,
-      messages,
-      ...(tools ? { tools } : {}),
-    });
+    response = await client.messages.create({ ...baseParams, messages });
   }
 
   const text = extractText(response);
