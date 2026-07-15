@@ -191,8 +191,9 @@ export async function runClaude(opts: {
     ...(tools ? { tools } : {}),
   });
 
-  // Server-side tools can pause long loops — resume up to 5 times.
-  for (let i = 0; i < 5 && response.stop_reason === "pause_turn"; i++) {
+  // Server-side tools can pause long loops — resume up to 5 times. Only the
+  // Anthropic-API path uses tools, so `response.content` exists here.
+  for (let i = 0; i < 5 && response?.stop_reason === "pause_turn"; i++) {
     messages = [...messages, { role: "assistant", content: response.content }];
     response = await client.messages.create({
       model,
@@ -203,10 +204,31 @@ export async function runClaude(opts: {
     });
   }
 
-  const text = response.content
-    .map((b) => (b.type === "text" ? b.text : ""))
+  const text = extractText(response);
+  if (!text) {
+    // Bedrock (and gateways) can return a message in a shape we don't expect.
+    // Surface the real shape instead of a raw "reading 'map'" crash.
+    const raw = (() => { try { return JSON.stringify(response); } catch { return String(response); } })();
+    console.error("[runClaude] no text extracted from response:", raw?.slice(0, 2000));
+    throw new AiError(502, "ai_bad_response", `The AI response could not be read. Raw start: ${raw?.slice(0, 200)}`);
+  }
+  return { text, model: response?.model ?? model, searched };
+}
+
+// The text/content blocks of a message, tolerant of the Anthropic Message shape
+// (`content: [...]`) and the AWS Bedrock Converse shape (`output.message.content`).
+function contentBlocks(response: unknown): { type: string; text?: string }[] {
+  const r = response as { content?: unknown; output?: { message?: { content?: unknown } } } | null;
+  const fromContent = r?.content;
+  if (Array.isArray(fromContent)) return fromContent as { type: string; text?: string }[];
+  const fromConverse = r?.output?.message?.content;
+  if (Array.isArray(fromConverse)) return fromConverse as { type: string; text?: string }[];
+  return [];
+}
+
+function extractText(response: unknown): string {
+  return contentBlocks(response)
+    .map((b) => (typeof b?.text === "string" ? b.text : ""))
     .join("")
     .trim();
-  if (!text) throw new AiError(502, "ai_empty", "The AI returned an empty response — try again.");
-  return { text, model: response.model, searched };
 }
