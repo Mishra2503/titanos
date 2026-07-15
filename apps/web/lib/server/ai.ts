@@ -8,7 +8,9 @@ import { NextResponse } from "next/server";
 // - pause_turn continuation (server tools can pause long loops)
 // - typed error mapping so the UI shows the real reason, never a bare 500
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
+// Default to Sonnet 5 — strong quality at ~40% of Opus cost. Override per-deploy
+// with ANTHROPIC_MODEL (e.g. claude-opus-4-8 for max quality, claude-haiku-4-5 for cheapest).
+const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
 // When set (e.g. "us.anthropic.claude-sonnet-4-5-20250929-v1:0"), Claude is
 // routed through AWS Bedrock using the standard AWS credential chain
 // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION). Bedrock does NOT
