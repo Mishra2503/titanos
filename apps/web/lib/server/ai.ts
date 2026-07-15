@@ -120,9 +120,9 @@ export function aiErrorResponse(e: unknown): NextResponse | null {
   // chain) are not Anthropic.APIError instances — map the common ones by shape.
   const err = e as { name?: string; message?: string; status?: number };
   const msg = err?.message ?? "";
-  if (err?.name?.includes("Credential") || /security token|credential|Unable to locate credentials|Resolved credential/i.test(msg)) {
+  if (err?.name?.includes("Credential") || /security token|credential|Unable to locate credentials|Resolved credential|bearer|api key/i.test(msg)) {
     return NextResponse.json(
-      { error: { code: "ai_bedrock_auth", message: "AWS Bedrock credentials are missing or invalid. Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and AWS_REGION in Render." } },
+      { error: { code: "ai_bedrock_auth", message: "AWS Bedrock credentials are missing or invalid. Set AWS_BEARER_TOKEN_BEDROCK (a Bedrock API key) and AWS_REGION in Render — or AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY instead." } },
       { status: 402 },
     );
   }
