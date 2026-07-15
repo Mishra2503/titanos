@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import AnthropicBedrock from "@anthropic-ai/bedrock-sdk";
+import AnthropicBedrock, { AnthropicBedrockMantle } from "@anthropic-ai/bedrock-sdk";
 import { NextResponse } from "next/server";
 
 // Shared Claude helper for all AI routes. Centralizes:
@@ -162,10 +162,16 @@ export async function runClaude(opts: {
   let client: ClaudeLike;
   let model: string;
   if (bedrock) {
-    // AWS credentials come from the standard chain (env vars in Render).
-    client = new AnthropicBedrock({
-      awsRegion: process.env.AWS_REGION ?? process.env.BEDROCK_AWS_REGION ?? "us-east-1",
-    }) as unknown as ClaudeLike;
+    const awsRegion = process.env.AWS_REGION ?? process.env.BEDROCK_AWS_REGION ?? "us-east-1";
+    const bearer = process.env.AWS_BEARER_TOKEN_BEDROCK;
+    client = bearer
+      // A Bedrock API key (bearer token) targets the modern bedrock-mantle
+      // endpoint (https://bedrock-mantle.{region}.api.aws/anthropic), which
+      // speaks the standard Anthropic Messages API. The classic invoke endpoint
+      // rejects this key with UnknownOperationException.
+      ? (new AnthropicBedrockMantle({ awsRegion, apiKey: bearer }) as unknown as ClaudeLike)
+      // AWS access key + secret → classic bedrock-runtime InvokeModel (SigV4).
+      : (new AnthropicBedrock({ awsRegion }) as unknown as ClaudeLike);
     model = BEDROCK_MODEL!;
   } else {
     const apiKey = process.env.ANTHROPIC_API_KEY;
