@@ -38,7 +38,7 @@ export interface ReelSeed {
 }
 
 const SYSTEM =
-  "You are a world-class short-form video scriptwriter for an AI/tech Instagram brand. You write tight, punchy reel scripts that hook in the first 2 seconds and drive a clear CTA. You never use em dashes. You never fabricate sources or cite URLs you cannot verify. Reply with ONLY a single minified JSON object, no markdown fences.";
+  "You are a top short-form creator who writes reel scripts the way real people actually talk to camera — punchy, specific, and human. VOICE RULES: sound like a real person, never like a brand or an AI. Use short spoken sentences, contractions, and everyday words. Be concrete (real names, numbers, specifics) instead of vague hype. NEVER use AI/marketing clichés such as 'in today's video', 'let's dive in', 'game-changer', 'unlock', 'in this fast-paced world', 'revolutionize', 'the truth is', 'buckle up', or rhetorical 'ever wondered'. No em dashes. No emoji spam. Write for the ear, not the page. You never fabricate sources or cite URLs you cannot verify. Reply with ONLY a single minified JSON object, no markdown fences.";
 
 function str(v: unknown): string | null {
   if (v == null) return null;
@@ -99,7 +99,7 @@ function researchStep(canSearch: boolean): string {
 }
 
 const BODY_SPEC =
-  "The body must be a complete, shoot-ready script with labelled sections on their own lines: HOOK (0-3s), then 3-6 BODY beats, then CTA. Write spoken lines the creator can read aloud, plus brief [on-screen text] / [b-roll] cues in brackets. Keep it under 45 seconds of speech.";
+  "The body is a complete, shoot-ready script the creator reads aloud. Put labelled sections on their own lines: HOOK (0-2s), then 3-6 BODY beats, then CTA. Write the exact spoken lines in a natural talking voice (contractions, short sentences, no corporate phrasing), plus brief [on-screen text] and [b-roll] cues in brackets. Keep it under 40 seconds of speech. The CTA should feel earned, not salesy.";
 
 export async function generateScript(seed: ReelSeed): Promise<GeneratedScript> {
   const canSearch = aiWebSearchAvailable();
@@ -113,7 +113,7 @@ export async function generateScript(seed: ReelSeed): Promise<GeneratedScript> {
     "",
     OUT_SHAPE,
   ].join("\n");
-  const { text, model, searched } = await runClaude({ system: SYSTEM, prompt, maxTokens: 3500, webSearch: canSearch, maxSearches: 6 });
+  const { text, model, searched } = await runClaude({ system: SYSTEM, prompt, maxTokens: 3500, webSearch: canSearch, maxSearches: 2 });
   return parse(text, !searched, model);
 }
 
@@ -132,7 +132,7 @@ export async function regenerateScript(seed: ReelSeed, previousBody: string): Pr
     "",
     OUT_SHAPE,
   ].join("\n");
-  const { text, model, searched } = await runClaude({ system: SYSTEM, prompt, maxTokens: 3500, webSearch: canSearch, maxSearches: 6 });
+  const { text, model, searched } = await runClaude({ system: SYSTEM, prompt, maxTokens: 3500, webSearch: canSearch, maxSearches: 2 });
   return parse(text, !searched, model);
 }
 
@@ -140,7 +140,7 @@ export async function regenerateScript(seed: ReelSeed, previousBody: string): Pr
 // (no web search — this is an edit, not research).
 export async function rewriteScriptBody(currentBody: string, instruction: string): Promise<{ body: string; model: string | null }> {
   const system =
-    "You are a short-form video script editor. You rewrite the given reel script following the user's instruction, keeping it shoot-ready with HOOK / BODY beats / CTA and [on-screen] cues. You never use em dashes. Return ONLY the rewritten script text, no preamble, no markdown fences.";
+    "You are a short-form video script editor. Rewrite the given reel script following the user's instruction, keeping it shoot-ready with HOOK / BODY beats / CTA and [on-screen] cues. Keep it in a natural talking-to-camera voice: short spoken sentences, contractions, concrete specifics, and NO AI/marketing clichés ('let's dive in', 'game-changer', 'in today's video', 'buckle up'). You never use em dashes. Return ONLY the rewritten script text, no preamble, no markdown fences.";
   const prompt = [
     "CURRENT SCRIPT:",
     currentBody,

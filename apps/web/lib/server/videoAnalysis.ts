@@ -311,6 +311,30 @@ export async function analyzeVideo(opts: {
   }
 }
 
+export interface TranscriptResult {
+  transcript: string | null;
+  durationS: number | null;
+}
+
+// Cheap path for competitor reels: Groq transcription ONLY — no frame extraction
+// and no Claude vision. Keeps competitor sync near-free at scale (50 reels each).
+export async function transcribeVideoOnly(opts: { videoUrl: string }): Promise<TranscriptResult> {
+  const tmpDir = await mkdtemp(path.join(os.tmpdir(), "va-"));
+  try {
+    const videoPath = path.join(tmpDir, "in.mp4");
+    await downloadVideo(opts.videoUrl, videoPath);
+
+    const { durationS, hasAudio } = await probe(videoPath);
+    if (durationS == null) throw new Error("Could not read video duration");
+    if (durationS > MAX_DURATION_S) throw new NotAVideoError(`Video is ${Math.round(durationS)}s — longer than a reel, skipping`);
+
+    const transcript = hasAudio ? await transcribe(videoPath, tmpDir) : null;
+    return { transcript, durationS };
+  } finally {
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
 // Crash-safety: remove leftover va-* work dirs older than an hour.
 export async function sweepOrphanTmpDirs(): Promise<void> {
   try {

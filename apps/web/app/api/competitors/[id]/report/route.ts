@@ -127,7 +127,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       prompt,
       maxTokens: 5120,
       webSearch: true,
-      maxSearches: 5,
+      maxSearches: 3,
     });
 
     const report = await db.competitorReport.create({

@@ -8,12 +8,13 @@ function toDateStr(d: Date | null | undefined): string | null {
 }
 
 // Compact video-analysis view for the UI badge/tooltip.
-function videoAnalysisOut(va: { status: string; summary: string | null; analysis: unknown } | null) {
+function videoAnalysisOut(va: { status: string; summary: string | null; analysis: unknown; transcript: string | null } | null) {
   if (!va) return null;
   const a = (va.analysis ?? {}) as Record<string, unknown>;
   return {
     status: va.status,
     summary: va.summary,
+    transcript: va.transcript,
     hook_visual: typeof a.hookVisual === "string" ? a.hookVisual : null,
     hook_spoken: typeof a.hookSpoken === "string" ? a.hookSpoken : null,
     format: typeof a.format === "string" ? a.format : null,
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         snapshots: { orderBy: { capturedOn: "asc" } },
         posts: {
           orderBy: [{ postedOn: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
-          include: { videoAnalysis: { select: { status: true, summary: true, analysis: true } } },
+          include: { videoAnalysis: { select: { status: true, summary: true, analysis: true, transcript: true } } },
         },
         reports: { orderBy: { generatedAt: "desc" } },
       },
@@ -163,7 +164,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         comments: p.comments,
         views: p.views,
         posted_on: toDateStr(p.postedOn),
+        posted_at: p.postedOn ? p.postedOn.toISOString() : null,
         thumbnail_url: p.thumbnailUrl,
+        video_url: p.videoUrl,
         what_works: p.whatWorks,
         engagement: (p.likes ?? 0) + (p.comments ?? 0) || null,
         outlier_multiple: mult,

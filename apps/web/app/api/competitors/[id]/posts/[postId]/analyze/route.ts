@@ -130,7 +130,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       prompt,
       maxTokens: 3000,
       webSearch: canSearch,
-      maxSearches: 8,
+      maxSearches: 2,
     });
     const analysis = parseAnalysis(text, canSearch);
 

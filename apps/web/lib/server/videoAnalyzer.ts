@@ -2,6 +2,7 @@ import { db } from "@/lib/server/db";
 import { decryptSecret } from "@/lib/server/crypto";
 import {
   analyzeVideo,
+  transcribeVideoOnly,
   sweepOrphanTmpDirs,
   NotAVideoError,
   VideoUrlExpiredError,
@@ -112,21 +113,39 @@ async function analyzeOne(rowId: string): Promise<void> {
       }
     }
 
-    const result = await analyzeVideo({ videoUrl, caption, metricsLine });
-    await db.videoAnalysis.update({
-      where: { id: row.id },
-      data: {
-        status: "DONE",
-        transcript: result.transcript,
-        analysis: result.analysis as object,
-        summary: result.summary,
-        durationS: result.durationS,
-        model: result.model,
-        analyzedAt: new Date(),
-        error: null,
-      },
-    });
-    console.log(`[video-analyzer] analyzed ${row.source} video ${row.id} (${result.durationS}s)`);
+    if (row.source === "COMPETITOR") {
+      // Cheap path: Groq transcript only, no Claude vision (cost control at scale).
+      const result = await transcribeVideoOnly({ videoUrl });
+      await db.videoAnalysis.update({
+        where: { id: row.id },
+        data: {
+          status: "DONE",
+          transcript: result.transcript,
+          durationS: result.durationS,
+          model: null,
+          analyzedAt: new Date(),
+          error: null,
+        },
+      });
+      console.log(`[video-analyzer] transcribed COMPETITOR video ${row.id} (${result.durationS}s)`);
+    } else {
+      // OWN dashboard videos keep the full vision analysis (watch-time insights).
+      const result = await analyzeVideo({ videoUrl, caption, metricsLine });
+      await db.videoAnalysis.update({
+        where: { id: row.id },
+        data: {
+          status: "DONE",
+          transcript: result.transcript,
+          analysis: result.analysis as object,
+          summary: result.summary,
+          durationS: result.durationS,
+          model: result.model,
+          analyzedAt: new Date(),
+          error: null,
+        },
+      });
+      console.log(`[video-analyzer] analyzed ${row.source} video ${row.id} (${result.durationS}s)`);
+    }
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     let data: { status: string; error: string };

@@ -184,10 +184,12 @@ export async function runClaude(opts: {
     model = MODEL;
   }
 
-  // Web search runs only on the Anthropic API (not Bedrock).
+  // Web search runs only on the Anthropic API (not Bedrock). Keep max_uses small
+  // — each search fetches + re-processes page content that gets re-billed on every
+  // pause_turn round, so this is the main lever on cost.
   const searched = !!opts.webSearch && !bedrock;
   const tools = searched
-    ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: opts.maxSearches ?? 6 }]
+    ? [{ type: "web_search_20260209" as const, name: "web_search" as const, max_uses: opts.maxSearches ?? 2 }]
     : undefined;
 
   // Shared params. These are structured-JSON extraction calls, so disable
@@ -205,9 +207,9 @@ export async function runClaude(opts: {
   let messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
   let response = await client.messages.create({ ...baseParams, messages });
 
-  // Server-side tools can pause long loops — resume up to 5 times. Only the
-  // Anthropic-API path uses tools, so `response.content` exists here.
-  for (let i = 0; i < 5 && response?.stop_reason === "pause_turn"; i++) {
+  // Server-side tools can pause long loops — resume a bounded number of times.
+  // Capped low (2) because each resume re-sends and re-bills the growing context.
+  for (let i = 0; i < 2 && response?.stop_reason === "pause_turn"; i++) {
     messages = [...messages, { role: "assistant", content: response.content }];
     response = await client.messages.create({ ...baseParams, messages });
   }

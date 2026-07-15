@@ -10,6 +10,8 @@ import {
   analyzeReelIdea,
   createCompetitor,
   generateScriptFromReel,
+  getWindowInsights,
+  scriptFromWindowTrend,
   deleteCompetitor,
   deleteCompetitorPost,
   deleteSnapshot,
@@ -26,6 +28,7 @@ import {
   type ContentAnalysis,
   type PostInput,
   type SnapshotInput,
+  type WindowInsights,
 } from "@/lib/api";
 import { TrendChart } from "@/components/Charts";
 import {
@@ -46,6 +49,35 @@ const inputCls =
 
 const fmt = (n: number | null | undefined) =>
   n == null ? "—" : n.toLocaleString();
+
+// Reel date + time, e.g. "Jul 15, 2:30 PM". Falls back to the date-only string.
+const fmtDateTime = (p: CompetitorPost): string => {
+  const iso = p.posted_at ?? (p.posted_on ? `${p.posted_on}T00:00:00Z` : null);
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return p.posted_on ?? "";
+  const date = d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return p.posted_at ? `${date}, ${d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}` : date;
+};
+// Full day header, e.g. "Monday, July 15".
+const fmtDayHeader = (iso: string): string => {
+  const d = new Date(iso.length <= 10 ? `${iso}T00:00:00` : iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+};
+// Group posts (already newest-first) by day key, preserving descending order.
+function groupByDay(posts: CompetitorPost[]): [string, CompetitorPost[]][] {
+  const groups = new Map<string, CompetitorPost[]>();
+  for (const p of posts) {
+    const key = p.posted_at ? p.posted_at.slice(0, 10) : (p.posted_on ?? "undated");
+    (groups.get(key) ?? groups.set(key, []).get(key)!).push(p);
+  }
+  return [...groups.entries()];
+}
+const RANGE_OPTIONS: [number, string][] = [
+  [7, "Last 7 days"], [28, "Last 28 days"], [30, "Last 30 days"],
+  [60, "Last 60 days"], [90, "Last 90 days"], [0, "All time"],
+];
 
 // Compact number for tight card chips: 203680 → "203.7K", 1_600_000 → "1.6M".
 const compact = (n: number | null | undefined) => {
@@ -569,7 +601,7 @@ function ReelCard({
       <div className="flex flex-1 flex-col p-3">
         <p className="text-xs text-ink-muted">
           {post.post_type || "REEL"}
-          {post.posted_on ? ` · ${String(post.posted_on).slice(0, 10)}` : ""}
+          {fmtDateTime(post) ? ` · ${fmtDateTime(post)}` : ""}
         </p>
         <p className="mt-1 line-clamp-2 min-h-[2.75rem] text-sm text-ink">{hook || post.caption || "No caption"}</p>
 
@@ -792,6 +824,25 @@ function ContentOpportunity({
   );
 }
 
+// Official Instagram embed — plays the real reel, never expires, free.
+function IgEmbed({ post }: { post: CompetitorPost }) {
+  const base = post.permalink?.trim();
+  const src = base ? `${base.replace(/\/+$/, "")}/embed/` : null;
+  if (!src) return <ReelThumb post={post} rounded="rounded-xl" />;
+  return (
+    <div className="overflow-hidden rounded-xl border border-charcoal-700 bg-charcoal-700" style={{ aspectRatio: "4 / 6" }}>
+      <iframe
+        src={src}
+        className="h-full w-full"
+        loading="lazy"
+        allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+        allowFullScreen
+        title="Instagram reel"
+      />
+    </div>
+  );
+}
+
 function ReelModal({
   post,
   onClose,
@@ -841,10 +892,10 @@ function ReelModal({
           </div>
         </div>
 
-        <div className="grid gap-5 overflow-y-auto p-5 md:[grid-template-columns:280px_1fr]">
+        <div className="grid gap-5 overflow-y-auto p-5 md:[grid-template-columns:300px_1fr]">
           {/* Media + metrics */}
           <div>
-            <ReelThumb post={post} rounded="rounded-xl" />
+            <IgEmbed post={post} />
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-charcoal-700 bg-charcoal p-2.5">
                 <p className="text-[10px] uppercase tracking-wider text-ink-faint">Views</p>
@@ -889,23 +940,34 @@ function ReelModal({
               scripting={scripting}
             />
 
-            {watched ? (
+            {/* Transcript (Groq) — the "watch the reel" payload */}
+            {va?.transcript ? (
+              <details className="rounded-lg border border-charcoal-700 bg-charcoal p-3" open>
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-lime">Transcript</summary>
+                <p className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-ink-muted">{va.transcript}</p>
+              </details>
+            ) : watching ? (
+              <div className="rounded-lg border border-sky-400/30 bg-sky-400/5 p-3 text-sm text-sky-400">
+                Transcribing this reel now — the transcript appears here automatically.
+              </div>
+            ) : watched ? (
+              <div className="rounded-lg border border-dashed border-charcoal-600 bg-charcoal p-3 text-sm text-ink-faint">
+                No spoken audio detected (music-only), so there is no transcript.
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-charcoal-600 bg-charcoal p-3 text-sm text-ink-faint">
+                Not transcribed yet. Reels are queued automatically on sync (needs GROQ_API_KEY).
+              </div>
+            )}
+
+            {/* Detected hook/format/why (present for own-style vision analysis only) */}
+            {(va?.hook_spoken || va?.hook_visual || va?.format || va?.why_it_works) && (
               <>
                 <InsightRow label="Spoken hook" value={va?.hook_spoken} />
                 <InsightRow label="Visual hook" value={va?.hook_visual} />
                 <InsightRow label="Format" value={va?.format} />
                 <InsightRow label="Why it works" value={va?.why_it_works} />
-                <InsightRow label="Summary" value={va?.summary} />
               </>
-            ) : watching ? (
-              <div className="rounded-lg border border-sky-400/30 bg-sky-400/5 p-3 text-sm text-sky-400">
-                AI is watching this reel now — the transcript, hook and format breakdown will appear
-                here automatically.
-              </div>
-            ) : (
-              <div className="rounded-lg border border-dashed border-charcoal-600 bg-charcoal p-3 text-sm text-ink-faint">
-                This reel hasn&apos;t been watched yet. Reels are queued automatically on sync.
-              </div>
             )}
 
             {post.caption && (
@@ -958,11 +1020,38 @@ function CompetitorDetailView({
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scriptingId, setScriptingId] = useState<string | null>(null);
+  const [rangeDays, setRangeDays] = useState<number>(28); // 0 = all time
+  const [insights, setInsights] = useState<WindowInsights | null>(null);
+  const [insightsBusy, setInsightsBusy] = useState<"analyze" | "script" | null>(null);
   const router = useRouter();
   const totalMix = Object.values(a.content_mix).reduce((s, n) => s + n, 0);
 
   const err = (e: unknown, fallback: string) =>
     setBanner({ kind: "err", msg: e instanceof ApiError ? e.message : fallback });
+
+  // Aggregate "this window" trend read (on-demand, one light AI call).
+  async function analyzeWindow() {
+    setInsightsBusy("analyze");
+    try {
+      setInsights(await getWindowInsights(detail.id, rangeDays || 28));
+    } catch (e) {
+      err(e, "Weekly analysis failed");
+    } finally {
+      setInsightsBusy(null);
+    }
+  }
+  async function scriptFromTrend(angle: string) {
+    setInsightsBusy("script");
+    setBanner({ kind: "ok", msg: "Writing a script from this trend…" });
+    try {
+      const { script } = await scriptFromWindowTrend(detail.id, rangeDays || 28, angle);
+      router.push(`/scriptwriter?script=${script.id}`);
+    } catch (e) {
+      err(e, "Script generation failed");
+    } finally {
+      setInsightsBusy(null);
+    }
+  }
 
   // Generate a full script from a reel, then hand off to the Scriptwriter tab.
   const generateScript = useCallback(
@@ -1004,14 +1093,23 @@ function CompetitorDetailView({
     [detail.id, onChanged, setBanner],
   );
 
-  // Reel lists for the segmented control.
+  // Reel lists for the segmented control. The range dropdown filters the Recent
+  // view; Top/Trending keep their own logic.
   const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+  const inRange = (p: CompetitorPost) => {
+    if (rangeDays === 0) return true;
+    const t = p.posted_at ? new Date(p.posted_at).getTime() : null;
+    return t != null && Date.now() - t <= rangeDays * 24 * 3600 * 1000;
+  };
+  const recentReels = detail.posts.filter(inRange); // already newest-first from the API
   const reels =
     reelView === "trending"
       ? byScore(detail.posts.filter((p) => p.posted_on && new Date(p.posted_on).getTime() >= cutoff)).slice(0, 10)
       : reelView === "top"
         ? byScore(detail.posts).slice(0, 50)
-        : detail.posts;
+        : recentReels;
+  const rangeLabel = RANGE_OPTIONS.find(([d]) => d === rangeDays)?.[1] ?? `Last ${rangeDays} days`;
+  const postsPerWeek = rangeDays > 0 && recentReels.length ? Math.round((recentReels.length / rangeDays) * 7 * 10) / 10 : null;
 
   return (
     <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-5">
@@ -1290,32 +1388,114 @@ function CompetitorDetailView({
       )}
 
       {/* Reels */}
-      {tab === "reels" && (
+      {tab === "reels" && (() => {
+        const reelCell = (p: CompetitorPost) => (
+          <div key={p.id} className="group relative">
+            <ReelCard post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await deleteCompetitorPost(detail.id, p.id);
+                  await onChanged();
+                } catch (er) {
+                  err(er, "Delete failed");
+                }
+              }}
+              className="press absolute bottom-2 right-2 z-10 hidden rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] text-white backdrop-blur-sm hover:text-red-400 group-hover:block"
+              title="Remove this reel"
+            >
+              ✕
+            </button>
+          </div>
+        );
+        return (
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="inline-flex rounded-lg border border-charcoal-700 bg-charcoal p-0.5">
-              {(
-                [
-                  ["recent", "Recent"],
-                  ["top", "Top 50"],
-                  ["trending", "Trending 30d"],
-                ] as const
-              ).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setReelView(key)}
-                  className={`press rounded-md px-3 py-1.5 text-xs font-medium ${
-                    reelView === key ? "bg-lime/15 text-lime" : "text-ink-muted hover:text-ink"
-                  }`}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex rounded-lg border border-charcoal-700 bg-charcoal p-0.5">
+                {(
+                  [
+                    ["recent", "Recent"],
+                    ["top", "Top 50"],
+                    ["trending", "Trending 30d"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => setReelView(key)}
+                    className={`press rounded-md px-3 py-1.5 text-xs font-medium ${
+                      reelView === key ? "bg-lime/15 text-lime" : "text-ink-muted hover:text-ink"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {reelView === "recent" && (
+                <select
+                  value={rangeDays}
+                  onChange={(e) => { setRangeDays(Number(e.target.value)); setInsights(null); }}
+                  className="rounded-lg border border-charcoal-600 bg-charcoal px-2.5 py-1.5 text-xs text-ink outline-none focus:border-lime/50"
                 >
-                  {label}
-                </button>
-              ))}
+                  {RANGE_OPTIONS.map(([d, label]) => (
+                    <option key={d} value={d}>{label}</option>
+                  ))}
+                </select>
+              )}
             </div>
             <button onClick={() => setShowLog((v) => !v)} className="press text-xs text-ink-faint hover:text-ink">
               {showLog ? "Hide manual log" : "Log a reel manually"}
             </button>
           </div>
+
+          {/* Window insights: posting cadence (free) + on-demand trend → script */}
+          {reelView === "recent" && (
+            <div className="rounded-xl border border-charcoal-700 bg-charcoal p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm text-ink">
+                  <span className="font-semibold text-ink">{recentReels.length}</span> reels in {rangeLabel.toLowerCase()}
+                  {postsPerWeek != null && <span className="text-ink-muted"> · ~{postsPerWeek}/week</span>}
+                </p>
+                <button
+                  onClick={analyzeWindow}
+                  disabled={insightsBusy != null || recentReels.length === 0}
+                  className="press flex items-center gap-1.5 rounded-lg border border-lime/40 bg-lime/10 px-3 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
+                >
+                  <Sparkle size={14} weight="fill" /> {insightsBusy === "analyze" ? "Analyzing…" : "Analyze this week"}
+                </button>
+              </div>
+              {insights && (
+                <div className="mt-3 space-y-2 border-t border-charcoal-700 pt-3">
+                  {insights.estimate && (
+                    <p className="text-[11px] text-ink-faint">Trend read is an AI estimate (live web research off).</p>
+                  )}
+                  {insights.summary && <p className="text-sm text-ink-muted">{insights.summary}</p>}
+                  {insights.topics.length > 0 && (
+                    <p className="text-sm text-ink-muted"><span className="font-semibold text-ink">Topics: </span>{insights.topics.join(", ")}</p>
+                  )}
+                  {insights.what_works.length > 0 && (
+                    <ul className="ml-4 list-disc text-sm text-ink-muted">
+                      {insights.what_works.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  )}
+                  {insights.best_angle && (
+                    <div className="mt-2 rounded-lg border border-lime/30 bg-lime/5 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-lime">Best angle for you</p>
+                      <p className="mt-1 text-sm text-ink">{insights.best_angle}</p>
+                      <button
+                        onClick={() => scriptFromTrend(insights.best_angle!)}
+                        disabled={insightsBusy != null}
+                        className="btn-primary press mt-2 text-xs disabled:opacity-60"
+                      >
+                        {insightsBusy === "script" ? "Writing script…" : "✍️ Generate script from this"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {showLog && (
             <PostForm
@@ -1333,36 +1513,35 @@ function CompetitorDetailView({
 
           {reels.length === 0 ? (
             <p className="font-mono text-sm text-ink-faint">
-              {reelView === "trending"
-                ? "No reels in the last 30 days yet — Sync to pull recent posts."
-                : "No reels yet. Hit Sync live data to pull them automatically."}
+              {reelView === "recent"
+                ? `No reels in ${rangeLabel.toLowerCase()} — widen the range or Sync.`
+                : reelView === "trending"
+                  ? "No reels in the last 30 days yet — Sync to pull recent posts."
+                  : "No reels yet. Hit Sync live data to pull them automatically."}
             </p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
-              {reels.map((p) => (
-                <div key={p.id} className="group relative">
-                  <ReelCard post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      try {
-                        await deleteCompetitorPost(detail.id, p.id);
-                        await onChanged();
-                      } catch (er) {
-                        err(er, "Delete failed");
-                      }
-                    }}
-                    className="press absolute bottom-2 right-2 z-10 hidden rounded-md bg-black/55 px-1.5 py-0.5 text-[11px] text-white backdrop-blur-sm hover:text-red-400 group-hover:block"
-                    title="Remove this reel"
-                  >
-                    ✕
-                  </button>
+          ) : reelView === "recent" ? (
+            // Newest-first, grouped by day
+            <div className="space-y-5">
+              {groupByDay(reels).map(([day, dayReels]) => (
+                <div key={day}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
+                    {day === "undated" ? "Undated" : fmtDayHeader(day)}
+                    <span className="ml-2 text-ink-muted">· {dayReels.length} reel{dayReels.length === 1 ? "" : "s"}</span>
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
+                    {dayReels.map(reelCell)}
+                  </div>
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
+              {reels.map(reelCell)}
+            </div>
           )}
         </div>
-      )}
+        );
+      })()}
 
       {/* Reports */}
       {tab === "reports" && (
