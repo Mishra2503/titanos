@@ -3,6 +3,7 @@ import { db } from "@/lib/server/db";
 import { decryptSecret } from "@/lib/server/crypto";
 import { unauthorized, notFound, badRequest, serverError } from "@/lib/server/errors";
 import { enqueueCompetitorVideoAnalyses } from "@/lib/server/videoAnalyzer";
+import { shortcodeOf, runApify, apifyToken } from "@/lib/server/instagram";
 
 // Competitor sync, two sources merged:
 //  1. Official Business Discovery API (followers, captions, likes/comments,
@@ -58,30 +59,8 @@ interface MergedPost {
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function shortcodeOf(url: string | null | undefined): string | null {
-  if (!url) return null;
-  const m = url.match(/\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/);
-  return m ? m[1] : null;
-}
-
-async function runApify<T>(actor: string, input: unknown, token: string): Promise<T[]> {
-  const r = await fetch(
-    `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${token}&timeout=110`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
-      signal: AbortSignal.timeout(125_000),
-    },
-  );
-  const body = await r.json().catch(() => null);
-  if (!r.ok) {
-    const msg = (body as { error?: { message?: string } } | null)?.error?.message ?? `HTTP ${r.status}`;
-    throw new Error(`Apify: ${msg}`);
-  }
-  return Array.isArray(body) ? (body as T[]) : [];
-}
+// shortcodeOf + runApify now live in lib/server/instagram.ts (shared with the
+// Content Board's per-card reel resolver).
 
 async function fetchBusinessDiscoveryPage(igUserId: string, token: string, username: string, after: string | null): Promise<BdProfile> {
   const mediaArgs = after ? `media.limit(${MEDIA_LIMIT}).after(${after})` : `media.limit(${MEDIA_LIMIT})`;
@@ -138,14 +117,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!competitor) return notFound("Competitor not found");
 
     const username = competitor.username.replace(/^@/, "").trim();
-    const apifyToken =
-      process.env.APIFY_TOKEN ?? process.env.APIFY_API_TOKEN ?? process.env.APIFY_KEY ?? null;
+    const token = apifyToken();
 
     // Fire both sources in parallel; merge whatever succeeds.
     const [bdRes, reelsRes] = await Promise.allSettled([
       fetchBusinessDiscovery(wsId, username),
-      apifyToken
-        ? runApify<ApifyReel>("apify~instagram-reel-scraper", { username: [username], resultsLimit: REEL_LIMIT }, apifyToken)
+      token
+        ? runApify<ApifyReel>("apify~instagram-reel-scraper", { username: [username], resultsLimit: REEL_LIMIT }, token)
         : Promise.reject(new Error("APIFY_TOKEN is not set in the server environment.")),
     ]);
 
@@ -163,9 +141,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // If Business Discovery failed, get follower counts from the profile scraper.
     let apifyProfile: ApifyProfile | null = null;
-    if (!bd && apifyToken) {
+    if (!bd && token) {
       try {
-        const profiles = await runApify<ApifyProfile>("apify~instagram-profile-scraper", { usernames: [username] }, apifyToken);
+        const profiles = await runApify<ApifyProfile>("apify~instagram-profile-scraper", { usernames: [username] }, token);
         apifyProfile = profiles[0] ?? null;
       } catch { /* followers stay null; posts still sync */ }
     }

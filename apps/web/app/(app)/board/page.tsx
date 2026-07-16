@@ -79,6 +79,17 @@ export default function BoardPage() {
     );
   }
 
+  // Live-merge a card in the board (used by Analyze polling + Script it, which
+  // change a card without going through the Save button).
+  function patchCardInState(id: string, partial: Partial<BoardCard>) {
+    setColumns((cols) =>
+      cols.map((c) => ({
+        ...c,
+        cards: c.cards.map((card) => (card.id === id ? { ...card, ...partial } : card)),
+      })),
+    );
+  }
+
   async function removeCard(id: string) {
     setEditing(null);
     setColumns((cols) => cols.map((c) => ({ ...c, cards: c.cards.filter((x) => x.id !== id) })));
@@ -234,6 +245,32 @@ export default function BoardPage() {
                         {card.hashtags.slice(0, 4).join(" ")}
                       </p>
                     )}
+                    {(() => {
+                      const va = card.video_analysis?.status;
+                      const analyzed = va === "DONE";
+                      const watching = va === "PENDING" || va === "PROCESSING";
+                      const scripted = !!card.scripted_at;
+                      const tags = card.tags ?? [];
+                      if (!analyzed && !watching && !scripted && tags.length === 0) return null;
+                      return (
+                        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                          {analyzed && (
+                            <span className="rounded-full bg-sky-400/10 px-1.5 py-0.5 text-[9px] font-medium text-sky-300">👁 Analyzed</span>
+                          )}
+                          {watching && (
+                            <span className="rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[9px] font-medium text-amber-300">Watching…</span>
+                          )}
+                          {scripted && (
+                            <span className="rounded-full bg-lime/10 px-1.5 py-0.5 text-[9px] font-medium text-lime">📝 Scripted</span>
+                          )}
+                          {tags.map((t) => (
+                            <span key={t} className="rounded-full border border-charcoal-600 px-1.5 py-0.5 text-[9px] text-ink-muted">
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
 
@@ -332,6 +369,7 @@ export default function BoardPage() {
           onClose={() => setEditing(null)}
           onSave={saveEdit}
           onDelete={() => removeCard(editing.id)}
+          onCardChanged={(partial) => patchCardInState(editing.id, partial)}
         />
       )}
     </div>

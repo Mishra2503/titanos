@@ -20,6 +20,7 @@ import {
   getCompetitor,
   listCompetitors,
   syncCompetitor,
+  tagCompetitorPost,
   updateCompetitor,
   type CompetitorDetail,
   type CompetitorListItem,
@@ -539,6 +540,9 @@ function ReelThumb({ post, rounded }: { post: CompetitorPost; rounded: string })
   const watched = va?.status === "DONE";
   const watching = va?.status === "PENDING" || va?.status === "PROCESSING";
   const outlier = post.is_outlier || (post.outlier_multiple != null && post.outlier_multiple >= 2);
+  const onBoard = !!post.board_card_id;
+  const scripted = post.scripted && !onBoard;
+  const used = post.used;
   return (
     <div className={`relative aspect-[4/5] overflow-hidden bg-charcoal-700 ${rounded}`}>
       {post.thumbnail_url && !broken ? (
@@ -571,6 +575,19 @@ function ReelThumb({ post, rounded }: { post: CompetitorPost; rounded: string })
           Watching…
         </span>
       )}
+      {(onBoard || scripted || used) && (
+        <div className="absolute bottom-2 left-2 flex flex-wrap items-center gap-1">
+          {onBoard && (
+            <span className="rounded-md bg-lime px-1.5 py-0.5 text-[10px] font-bold text-black shadow-pop">On board</span>
+          )}
+          {scripted && (
+            <span className="rounded-md bg-lime/85 px-1.5 py-0.5 text-[10px] font-bold text-black shadow-pop">Scripted</span>
+          )}
+          {used && (
+            <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Used</span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -580,11 +597,15 @@ function ReelCard({
   onOpen,
   onAnalyze,
   analyzing,
+  onTag,
+  tagging,
 }: {
   post: CompetitorPost;
   onOpen: (p: CompetitorPost) => void;
   onAnalyze: (p: CompetitorPost) => void;
   analyzing: boolean;
+  onTag: (p: CompetitorPost, patch: { used?: boolean }) => void;
+  tagging: boolean;
 }) {
   const hook = post.video_analysis?.hook_spoken || post.video_analysis?.hook_visual;
   const er = reelEngRate(post);
@@ -627,18 +648,42 @@ function ReelCard({
             )}
           </div>
 
-          <button
-            onClick={(e) => { e.stopPropagation(); onAnalyze(post); }}
-            disabled={analyzing}
-            className={`press mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-studio disabled:opacity-60 ${
-              analyzed
-                ? "border-lime/40 bg-lime/10 text-lime hover:bg-lime/15"
-                : "border-charcoal-600 text-ink-muted hover:border-lime/40 hover:text-lime"
-            }`}
-          >
-            <Sparkle size={14} weight="fill" />
-            {analyzing ? "Researching…" : analyzed ? "View content idea" : "Analyze"}
-          </button>
+          {(post.tags?.length ?? 0) > 0 && (
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              {post.tags!.slice(0, 4).map((t) => (
+                <span key={t} className="rounded-full border border-charcoal-600 px-1.5 py-0.5 text-[10px] text-ink-muted">
+                  {t}
+                </span>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <button
+              onClick={(e) => { e.stopPropagation(); onAnalyze(post); }}
+              disabled={analyzing}
+              className={`press flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-studio disabled:opacity-60 ${
+                analyzed
+                  ? "border-lime/40 bg-lime/10 text-lime hover:bg-lime/15"
+                  : "border-charcoal-600 text-ink-muted hover:border-lime/40 hover:text-lime"
+              }`}
+            >
+              <Sparkle size={14} weight="fill" />
+              {analyzing ? "Researching…" : analyzed ? "View content idea" : "Analyze"}
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onTag(post, { used: !post.used }); }}
+              disabled={tagging}
+              title={post.used ? "Marked used — click to unmark" : "Mark as used so it drops out of Hide-used"}
+              className={`press flex items-center justify-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-studio disabled:opacity-60 ${
+                post.used
+                  ? "border-charcoal-500 bg-charcoal-600/60 text-ink"
+                  : "border-charcoal-600 text-ink-faint hover:border-charcoal-500 hover:text-ink-muted"
+              }`}
+            >
+              {post.used ? "Used ✓" : "Mark used"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -851,6 +896,8 @@ function ReelModal({
   error,
   onGenerateScript,
   scripting,
+  onTag,
+  tagging,
 }: {
   post: CompetitorPost;
   onClose: () => void;
@@ -859,11 +906,21 @@ function ReelModal({
   error?: string | null;
   onGenerateScript: (p: CompetitorPost) => void;
   scripting: boolean;
+  onTag: (p: CompetitorPost, patch: { tags?: string[]; used?: boolean }) => void;
+  tagging: boolean;
 }) {
   const va = post.video_analysis;
   const watched = va?.status === "DONE";
   const watching = va?.status === "PENDING" || va?.status === "PROCESSING";
   const er = reelEngRate(post);
+  const [tagText, setTagText] = useState("");
+  const tags = post.tags ?? [];
+  const addTag = () => {
+    const t = tagText.trim().replace(/[,]+$/, "").trim();
+    if (!t || tags.includes(t)) { setTagText(""); return; }
+    onTag(post, { tags: [...tags, t].slice(0, 20) });
+    setTagText("");
+  };
   return (
     <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px] animate-reveal">
       <div
@@ -986,6 +1043,39 @@ function ReelModal({
                 ))}
               </div>
             )}
+
+            {/* Tags + used marker — so this reel isn't re-worked twice */}
+            <div className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] uppercase tracking-wider text-ink-faint">Tags</p>
+                <button
+                  onClick={() => onTag(post, { used: !post.used })}
+                  disabled={tagging}
+                  className={`press rounded-md border px-2 py-1 text-[11px] font-semibold disabled:opacity-60 ${
+                    post.used ? "border-charcoal-500 bg-charcoal-600/60 text-ink" : "border-charcoal-600 text-ink-faint hover:text-ink-muted"
+                  }`}
+                >
+                  {post.used ? "Used ✓" : "Mark used"}
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg border border-charcoal-600 bg-charcoal-700 p-2">
+                {tags.map((t) => (
+                  <span key={t} className="flex items-center gap-1 rounded-full border border-charcoal-500 bg-charcoal-600/60 px-2 py-0.5 text-xs text-ink-muted">
+                    {t}
+                    <button onClick={() => onTag(post, { tags: tags.filter((x) => x !== t) })} disabled={tagging} className="text-ink-faint hover:text-red-400" aria-label={`Remove ${t}`}>
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <input
+                  value={tagText}
+                  onChange={(e) => setTagText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === ",") { e.preventDefault(); addTag(); } }}
+                  placeholder="add tag…"
+                  className="min-w-[120px] flex-1 bg-transparent text-xs text-ink outline-none placeholder:text-ink-faint"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1020,6 +1110,8 @@ function CompetitorDetailView({
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scriptingId, setScriptingId] = useState<string | null>(null);
+  const [taggingId, setTaggingId] = useState<string | null>(null);
+  const [hideUsed, setHideUsed] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(28); // 0 = all time
   const [insights, setInsights] = useState<WindowInsights | null>(null);
   const [insightsBusy, setInsightsBusy] = useState<"analyze" | "script" | null>(null);
@@ -1093,6 +1185,26 @@ function CompetitorDetailView({
     [detail.id, onChanged, setBanner],
   );
 
+  // Tag a reel (manual tags + "used" toggle) so it isn't re-worked twice.
+  const tagReel = useCallback(
+    async (post: CompetitorPost, patch: { tags?: string[]; used?: boolean }) => {
+      setTaggingId(post.id);
+      // Optimistically reflect the change in the open modal.
+      setOpenPost((cur) => (cur && cur.id === post.id ? { ...cur, ...patch } : cur));
+      try {
+        const res = await tagCompetitorPost(detail.id, post.id, patch);
+        setOpenPost((cur) => (cur && cur.id === post.id ? { ...cur, tags: res.tags, used: res.used } : cur));
+        await onChanged();
+      } catch (e) {
+        err(e, "Could not update tags");
+        await onChanged(); // revert the optimistic change from server truth
+      } finally {
+        setTaggingId(null);
+      }
+    },
+    [detail.id, onChanged],
+  );
+
   // Reel lists for the segmented control. The range dropdown filters the Recent
   // view; Top/Trending keep their own logic.
   const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
@@ -1108,6 +1220,8 @@ function CompetitorDetailView({
       : reelView === "top"
         ? byScore(detail.posts).slice(0, 50)
         : recentReels;
+  const visibleReels = hideUsed ? reels.filter((p) => !p.used) : reels;
+  const usedCount = reels.filter((p) => p.used).length;
   const rangeLabel = RANGE_OPTIONS.find(([d]) => d === rangeDays)?.[1] ?? `Last ${rangeDays} days`;
   const postsPerWeek = rangeDays > 0 && recentReels.length ? Math.round((recentReels.length / rangeDays) * 7 * 10) / 10 : null;
 
@@ -1287,7 +1401,7 @@ function CompetitorDetailView({
                 {byScore(detail.posts)
                   .slice(0, 6)
                   .map((p) => (
-                    <ReelCard key={p.id} post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
+                    <ReelCard key={p.id} post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} onTag={tagReel} tagging={taggingId === p.id} />
                   ))}
               </div>
             </div>
@@ -1391,7 +1505,7 @@ function CompetitorDetailView({
       {tab === "reels" && (() => {
         const reelCell = (p: CompetitorPost) => (
           <div key={p.id} className="group relative">
-            <ReelCard post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} />
+            <ReelCard post={p} onOpen={setOpenPost} onAnalyze={analyzeReel} analyzing={analyzingId === p.id} onTag={tagReel} tagging={taggingId === p.id} />
             <button
               onClick={async (e) => {
                 e.stopPropagation();
@@ -1444,9 +1558,21 @@ function CompetitorDetailView({
                 </select>
               )}
             </div>
-            <button onClick={() => setShowLog((v) => !v)} className="press text-xs text-ink-faint hover:text-ink">
-              {showLog ? "Hide manual log" : "Log a reel manually"}
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setHideUsed((v) => !v)}
+                disabled={usedCount === 0 && !hideUsed}
+                className={`press rounded-lg border px-2.5 py-1.5 text-xs font-medium disabled:opacity-40 ${
+                  hideUsed ? "border-lime/40 bg-lime/10 text-lime" : "border-charcoal-600 text-ink-muted hover:text-ink"
+                }`}
+                title="Hide reels you've marked used"
+              >
+                {hideUsed ? `Showing unused${usedCount ? ` · ${usedCount} hidden` : ""}` : `Hide used${usedCount ? ` (${usedCount})` : ""}`}
+              </button>
+              <button onClick={() => setShowLog((v) => !v)} className="press text-xs text-ink-faint hover:text-ink">
+                {showLog ? "Hide manual log" : "Log a reel manually"}
+              </button>
+            </div>
           </div>
 
           {/* Window insights: posting cadence (free) + on-demand trend → script */}
@@ -1511,18 +1637,20 @@ function CompetitorDetailView({
             />
           )}
 
-          {reels.length === 0 ? (
+          {visibleReels.length === 0 ? (
             <p className="font-mono text-sm text-ink-faint">
-              {reelView === "recent"
-                ? `No reels in ${rangeLabel.toLowerCase()} — widen the range or Sync.`
-                : reelView === "trending"
-                  ? "No reels in the last 30 days yet — Sync to pull recent posts."
-                  : "No reels yet. Hit Sync live data to pull them automatically."}
+              {hideUsed && reels.length > 0
+                ? "Every reel here is marked used — turn off Hide used to see them."
+                : reelView === "recent"
+                  ? `No reels in ${rangeLabel.toLowerCase()} — widen the range or Sync.`
+                  : reelView === "trending"
+                    ? "No reels in the last 30 days yet — Sync to pull recent posts."
+                    : "No reels yet. Hit Sync live data to pull them automatically."}
             </p>
           ) : reelView === "recent" ? (
             // Newest-first, grouped by day
             <div className="space-y-5">
-              {groupByDay(reels).map(([day, dayReels]) => (
+              {groupByDay(visibleReels).map(([day, dayReels]) => (
                 <div key={day}>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
                     {day === "undated" ? "Undated" : fmtDayHeader(day)}
@@ -1536,7 +1664,7 @@ function CompetitorDetailView({
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
-              {reels.map(reelCell)}
+              {visibleReels.map(reelCell)}
             </div>
           )}
         </div>
@@ -1574,6 +1702,8 @@ function CompetitorDetailView({
           error={analyzeError}
           onGenerateScript={generateScript}
           scripting={scriptingId === openPost.id}
+          onTag={tagReel}
+          tagging={taggingId === openPost.id}
         />
       )}
     </div>

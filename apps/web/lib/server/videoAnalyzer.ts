@@ -7,6 +7,7 @@ import {
   NotAVideoError,
   VideoUrlExpiredError,
 } from "@/lib/server/videoAnalysis";
+import { resolveInstagramVideoUrl } from "@/lib/server/instagram";
 
 // Background queue worker for VideoAnalysis rows — same pattern as
 // publisher.ts: atomic PENDING → PROCESSING claims, serial processing,
@@ -48,6 +49,26 @@ export async function enqueueCompetitorVideoAnalyses(wsId: string, competitorId:
   return enqueued;
 }
 
+// Called when the user hits "Analyze reel" on a Content Board card: (re)queue a
+// BOARD-source VideoAnalysis for the card's reference reel. The worker resolves
+// the reel URL to a fresh mp4 (Apify) and runs the FULL watch (frames + Groq +
+// Claude vision), the same depth as OWN dashboard videos. Returns the row id.
+export async function enqueueBoardCardAnalysis(wsId: string, cardId: string): Promise<string> {
+  const existing = await db.videoAnalysis.findUnique({ where: { boardCardId: cardId } });
+  if (existing) {
+    if (existing.status === "PROCESSING") return existing.id; // a watch is already in flight
+    const row = await db.videoAnalysis.update({
+      where: { id: existing.id },
+      data: { status: "PENDING", attempts: 0, error: null, videoUrl: null },
+    });
+    return row.id;
+  }
+  const row = await db.videoAnalysis.create({
+    data: { workspaceId: wsId, source: "BOARD", boardCardId: cardId },
+  });
+  return row.id;
+}
+
 // ── Per-row processing ──────────────────────────────────────────────────────
 
 async function graphGet(path: string, token: string) {
@@ -82,7 +103,10 @@ function metricsLineFor(post: { likes: number | null; comments: number | null; v
 async function analyzeOne(rowId: string): Promise<void> {
   const row = await db.videoAnalysis.findUnique({
     where: { id: rowId },
-    include: { competitorPost: { select: { caption: true, likes: true, comments: true, views: true, videoUrl: true } } },
+    include: {
+      competitorPost: { select: { caption: true, likes: true, comments: true, views: true, videoUrl: true } },
+      boardCard: { select: { referenceUrl: true } },
+    },
   });
   if (!row || row.status !== "PROCESSING") return;
 
@@ -97,6 +121,27 @@ async function analyzeOne(rowId: string): Promise<void> {
         await db.videoAnalysis.update({
           where: { id: row.id },
           data: { status: "SKIPPED", error: "Instagram returned no media_url (often copyright-muted media)" },
+        });
+        return;
+      }
+    } else if (row.source === "BOARD") {
+      // Resolve the card's reference reel URL to a fresh mp4 each attempt (the
+      // CDN link is transient), pulling the caption along for the vision prompt.
+      const refUrl = row.boardCard?.referenceUrl ?? null;
+      if (!refUrl) {
+        await db.videoAnalysis.update({
+          where: { id: row.id },
+          data: { status: "FAILED", error: "This card has no reference reel URL to analyze." },
+        });
+        return;
+      }
+      const resolved = await resolveInstagramVideoUrl(refUrl);
+      videoUrl = resolved.videoUrl;
+      caption = resolved.caption;
+      if (!videoUrl) {
+        await db.videoAnalysis.update({
+          where: { id: row.id },
+          data: { status: "SKIPPED", error: "That Instagram link isn't a video (image or carousel), so there's nothing to watch." },
         });
         return;
       }
@@ -129,7 +174,8 @@ async function analyzeOne(rowId: string): Promise<void> {
       });
       console.log(`[video-analyzer] transcribed COMPETITOR video ${row.id} (${result.durationS}s)`);
     } else {
-      // OWN dashboard videos keep the full vision analysis (watch-time insights).
+      // OWN dashboard videos + BOARD reference reels get the full vision analysis
+      // (frames + Groq transcript + Claude vision → hook/format/script/why).
       const result = await analyzeVideo({ videoUrl, caption, metricsLine });
       await db.videoAnalysis.update({
         where: { id: row.id },

@@ -40,6 +40,23 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     if (!c) return notFound("Competitor not found");
 
+    // Which reels already became scripts / board cards — powers the per-reel
+    // "Scripted" / "On board" tags so the same reel isn't reworked twice.
+    const postIds = c.posts.map((p) => p.id);
+    const scripts = postIds.length
+      ? await db.script.findMany({
+          where: { workspaceId: wsId, competitorPostId: { in: postIds } },
+          select: { competitorPostId: true, boardCardId: true },
+        })
+      : [];
+    const scriptByPost = new Map<string, { board_card_id: string | null }>();
+    for (const s of scripts) {
+      if (!s.competitorPostId) continue;
+      const prev = scriptByPost.get(s.competitorPostId);
+      // Keep a board_card_id if any script for this reel reached the board.
+      scriptByPost.set(s.competitorPostId, { board_card_id: prev?.board_card_id ?? s.boardCardId ?? null });
+    }
+
     // ── Compute analytics from stored data ───────────────────────────────────
     const snaps = c.snapshots;
     const latestSnap = snaps[snaps.length - 1] ?? null;
@@ -173,6 +190,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         is_outlier: mult != null && mult >= 2,
         video_analysis: videoAnalysisOut(p.videoAnalysis),
         content_analysis: p.contentAnalysis ?? null,
+        tags: (p.tags as string[]) ?? [],
+        used: p.usedAt != null,
+        scripted: scriptByPost.has(p.id),
+        board_card_id: scriptByPost.get(p.id)?.board_card_id ?? null,
       };
     });
 

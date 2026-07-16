@@ -278,6 +278,29 @@ export function buildSummary(analysis: Record<string, unknown>): string {
   return s.length > 380 ? s.slice(0, 377) + "…" : s;
 }
 
+// Compact client view of a watched video — used by the Content Board card and
+// its analyze endpoint. Pulls the readable fields out of the analysis JSON.
+export function videoAnalysisOut(
+  va: { status: string; summary: string | null; analysis: unknown; transcript: string | null; analyzedAt?: Date | null; error?: string | null } | null,
+) {
+  if (!va) return null;
+  const a = (va.analysis ?? {}) as Record<string, unknown>;
+  const pick = (k: string): string | null => (typeof a[k] === "string" && (a[k] as string).trim() ? (a[k] as string) : null);
+  return {
+    status: va.status,
+    summary: va.summary,
+    transcript: va.transcript,
+    hook_visual: pick("hookVisual"),
+    hook_spoken: pick("hookSpoken"),
+    format: pick("format"),
+    script: pick("script"),
+    cta: pick("cta"),
+    why_it_works: pick("whyItWorks"),
+    analyzed_at: va.analyzedAt ? va.analyzedAt.toISOString() : null,
+    error: va.error ?? null,
+  };
+}
+
 // One-line injection for report prompts. Prefers the prebuilt summary.
 export function formatAnalysisForReport(row: { summary: string | null; analysis: unknown }): string | null {
   if (row.summary) return row.summary;
