@@ -13,6 +13,7 @@ import {
   InstagramLogo,
   Kanban,
   PencilLine,
+  Plug,
   SidebarSimple,
   SignOut,
   SquaresFour,
@@ -31,6 +32,7 @@ const ICONS: Record<string, React.ComponentType<{ size?: number; weight?: "regul
   report: ClipboardText,
   binoculars: Binoculars,
   library: FilmStrip,
+  plug: Plug,
   settings: GearSix,
 };
 

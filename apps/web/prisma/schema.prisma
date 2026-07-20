@@ -24,6 +24,7 @@ model Workspace {
   snapshots      CompetitorSnapshot[]
   posts          CompetitorPost[]
   reports        CompetitorReport[]
+  accessTokens   PersonalAccessToken[]
 
   @@map("workspace")
 }
@@ -41,9 +42,35 @@ model User {
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  accessTokens PersonalAccessToken[]
 
   @@unique([workspaceId, email], name: "uq_user_workspace_email")
   @@map("user")
+}
+
+// Personal Access Tokens — machine-to-machine auth for the MCP endpoint
+// (LLM connectors: Claude, ChatGPT, any model). The plaintext token
+// `tos_<id>_<secret>` is shown once at creation; only `token_hash`
+// (sha256 of the secret) is stored. A token inherits its user's role, and
+// `scopes` may narrow it further (e.g. read-only). See lib/server/pat.ts.
+model PersonalAccessToken {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  userId      String    @map("user_id")
+  name        String
+  tokenHash   String    @map("token_hash")
+  scopes      String[]  @default([])
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("personal_access_token")
 }
 
 model IgAccount {

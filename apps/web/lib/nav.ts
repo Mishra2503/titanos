@@ -18,5 +18,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Weekly Report", href: "/reports", icon: "report" },
   { label: "Competitors", href: "/competitors", icon: "binoculars" },
   { label: "Content Library", href: "/library", icon: "library" },
+  { label: "AI Connectors", href: "/settings/connectors", icon: "plug" },
   { label: "Settings", href: "/settings", icon: "settings", ownerOnly: true },
 ];

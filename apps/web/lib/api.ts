@@ -369,3 +369,26 @@ export interface WeeklyReport {
 }
 export const getWeeklyReport = () =>
   apiFetch<WeeklyReport>("/api/reports/weekly", { method: "POST" }, 180_000);
+
+// === Personal Access Tokens (MCP connector) ========================
+
+export interface AccessToken {
+  id: string;
+  name: string;
+  scopes: string[];
+  last_used_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+// Returned only on create — includes the one-time plaintext `token`.
+export interface CreatedAccessToken extends AccessToken {
+  token: string;
+}
+export const listAccessTokens = () => apiFetch<AccessToken[]>("/api/auth/tokens");
+export const createAccessToken = (name: string, scopes: string[], expiresInDays?: number) =>
+  apiFetch<CreatedAccessToken>("/api/auth/tokens", {
+    method: "POST",
+    body: JSON.stringify({ name, scopes, expires_in_days: expiresInDays }),
+  });
+export const revokeAccessToken = (id: string) =>
+  apiFetch<void>(`/api/auth/tokens/${id}`, { method: "DELETE" });
