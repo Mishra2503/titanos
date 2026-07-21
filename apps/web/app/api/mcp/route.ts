@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyToken, canWrite, type TokenIdentity } from "@/lib/server/pat";
+import { verifyAccessToken } from "@/lib/server/oauth";
 import { TOOLS, TOOL_MAP } from "@/lib/server/mcp/tools";
 
 export const runtime = "nodejs";
@@ -93,15 +94,22 @@ async function handleOne(req: RpcRequest, identity: TokenIdentity, origin: strin
 }
 
 export async function POST(request: NextRequest) {
-  const identity = await verifyToken(request.headers.get("authorization"));
+  const origin = new URL(request.url).origin;
+  const authz = request.headers.get("authorization");
+  // Accept either a Personal Access Token (tos_…) or an OAuth access-token JWT.
+  const identity = (await verifyToken(authz)) ?? (await verifyAccessToken(authz));
   if (!identity) {
+    // Point OAuth-capable clients (Cowork/ChatGPT/Perplexity) at our discovery doc.
+    const resourceMeta = `${origin}/.well-known/oauth-protected-resource`;
     return new NextResponse(JSON.stringify(rpcError(null, -32001, "Unauthorized: missing or invalid Bearer token")), {
       status: 401,
-      headers: { "Content-Type": "application/json", "WWW-Authenticate": "Bearer", ...CORS },
+      headers: {
+        "Content-Type": "application/json",
+        "WWW-Authenticate": `Bearer resource_metadata="${resourceMeta}"`,
+        ...CORS,
+      },
     });
   }
-
-  const origin = new URL(request.url).origin;
 
   let body: unknown;
   try {

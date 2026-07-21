@@ -75,6 +75,58 @@ model PersonalAccessToken {
   @@map("personal_access_token")
 }
 
+// OAuth 2.1 authorization-server tables — let external LLM connectors
+// (Claude Cowork, ChatGPT, Perplexity) sign in via the MCP OAuth flow instead of
+// pasting a token. Access tokens are stateless JWTs (not stored here); only
+// registered clients, short-lived auth codes, and refresh tokens are persisted.
+// Only hashes of codes/refresh tokens are stored. See lib/server/oauth.ts.
+model OAuthClient {
+  id                      String   @id @default(uuid())
+  clientName              String?  @map("client_name")
+  redirectUris            String[] @map("redirect_uris")
+  tokenEndpointAuthMethod String   @default("none") @map("token_endpoint_auth_method")
+  clientSecretHash        String?  @map("client_secret_hash")
+  grantTypes              String[] @default([]) @map("grant_types")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  @@map("oauth_client")
+}
+
+model OAuthAuthCode {
+  id            String    @id @default(uuid())
+  codeHash      String    @unique @map("code_hash")
+  clientId      String    @map("client_id")
+  userId        String    @map("user_id")
+  workspaceId   String    @map("workspace_id")
+  role          String
+  redirectUri   String    @map("redirect_uri")
+  codeChallenge String    @map("code_challenge")
+  scope         String
+  expiresAt     DateTime  @map("expires_at")
+  usedAt        DateTime? @map("used_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@map("oauth_auth_code")
+}
+
+model OAuthRefreshToken {
+  id          String    @id @default(uuid())
+  tokenHash   String    @unique @map("token_hash")
+  clientId    String    @map("client_id")
+  userId      String    @map("user_id")
+  workspaceId String    @map("workspace_id")
+  role        String
+  scope       String
+  expiresAt   DateTime  @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([clientId])
+  @@index([userId])
+  @@map("oauth_refresh_token")
+}
+
 model IgAccount {
   id              String    @id @default(uuid())
   workspaceId     String    @map("workspace_id")

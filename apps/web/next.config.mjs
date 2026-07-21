@@ -13,6 +13,18 @@ const nextConfig = {
     config.resolve.alias["@"] = __dirname;
     return config;
   },
+  // OAuth/MCP discovery lives at fixed /.well-known/* URLs (RFC 8414 / 9728) that
+  // connectors probe. Serve them from normal route handlers via rewrites so we
+  // don't depend on dot-prefixed app-dir folders. Clients also probe the
+  // resource-suffixed variants, so map those to the same handlers.
+  async rewrites() {
+    return [
+      { source: "/.well-known/oauth-authorization-server", destination: "/api/oauth/meta/authorization-server" },
+      { source: "/.well-known/oauth-authorization-server/api/mcp", destination: "/api/oauth/meta/authorization-server" },
+      { source: "/.well-known/oauth-protected-resource", destination: "/api/oauth/meta/protected-resource" },
+      { source: "/.well-known/oauth-protected-resource/api/mcp", destination: "/api/oauth/meta/protected-resource" },
+    ];
+  },
   experimental: {
     // Next.js caps request bodies passing through middleware at 10MB by
     // default. Our middleware matches every route (including

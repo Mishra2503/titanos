@@ -1,12 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { ApiError, login } from "@/lib/api";
 import { BrandMark, BrandWordmark } from "@/components/BrandMark";
 
+// Only allow same-origin, absolute-path redirects (e.g. the OAuth authorize URL).
+// Never follow an external URL from ?next= (open-redirect protection).
+function safeNext(next: string | null): string {
+  if (next && next.startsWith("/") && !next.startsWith("//")) return next;
+  return "/dashboard";
+}
+
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -18,7 +23,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      router.replace("/dashboard");
+      // A full navigation (not router.replace) ensures the freshly-set auth cookie
+      // is sent on the next request — important when returning to the OAuth flow.
+      const next = new URLSearchParams(window.location.search).get("next");
+      window.location.href = safeNext(next);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
