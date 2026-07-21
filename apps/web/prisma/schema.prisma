@@ -25,6 +25,8 @@ model Workspace {
   posts          CompetitorPost[]
   reports        CompetitorReport[]
   accessTokens   PersonalAccessToken[]
+  videoAnalyses  VideoAnalysis[]
+  scripts        Script[]
 
   @@map("workspace")
 }
@@ -128,11 +130,16 @@ model BoardCard {
   referenceUrl   String?  @map("reference_url")
   rawFootageUrl  String?  @map("raw_footage_url")
   coverImageUrl  String?  @map("cover_image_url")
+  // Set once "Script it" fills the card from a watched reel; drives the "Scripted" badge.
+  scriptedAt     DateTime? @map("scripted_at")
+  // Manual user tags (both the Content Board and Competitors share this concept).
+  tags           Json     @default("[]")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  workspace Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  column    BoardColumn @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  column        BoardColumn    @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  videoAnalysis VideoAnalysis? // the "watched" reference reel (source BOARD)
 
   @@map("board_card")
 }
@@ -261,14 +268,60 @@ model CompetitorPost {
   views        Int?
   postedOn     DateTime? @map("posted_on")
   thumbnailUrl String?  @map("thumbnail_url")
+  videoUrl     String?  @map("video_url")
   whatWorks    String?  @map("what_works")
+
+  // Deep on-demand research (Analyze button): hook/body/CTA + scored content ideas.
+  contentAnalysis   Json?     @map("content_analysis")
+  contentAnalyzedAt DateTime? @map("content_analyzed_at")
+
+  // Manual user tags + a "used / don't reuse" marker (drives the Hide-used filter).
+  tags   Json      @default("[]")
+  usedAt DateTime? @map("used_at")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  competitor Competitor @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitor    Competitor     @relation(fields: [competitorId], references: [id], onDelete: Cascade)
+  videoAnalysis VideoAnalysis?
 
   @@map("competitor_post")
+}
+
+// One row per "watched" video — both queue state and cached analysis result.
+// COMPETITOR rows FK a CompetitorPost; OWN rows key the user's Graph media id.
+// Stored videoUrl is a transient CDN link: competitor URLs refresh on re-sync,
+// OWN rows re-fetch a fresh media_url from the Graph API at analysis time.
+model VideoAnalysis {
+  id                  String    @id @default(uuid())
+  workspaceId         String    @map("workspace_id")
+  source              String    // COMPETITOR | OWN | BOARD
+  competitorPostId    String?   @unique @map("competitor_post_id")
+  boardCardId         String?   @unique @map("board_card_id")
+  igMediaId           String?   @map("ig_media_id")
+  igAccountId         String?   @map("ig_account_id")
+  videoUrl            String?   @map("video_url")
+  status              String    @default("PENDING") // PENDING | PROCESSING | DONE | FAILED | SKIPPED
+  attempts            Int       @default(0)
+  processingStartedAt DateTime? @map("processing_started_at")
+  error               String?
+  model               String?
+  durationS           Float?    @map("duration_s")
+  transcript          String?
+  analysis            Json?
+  summary             String?
+  analyzedAt          DateTime? @map("analyzed_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  competitorPost CompetitorPost? @relation(fields: [competitorPostId], references: [id], onDelete: Cascade)
+  boardCard      BoardCard?      @relation(fields: [boardCardId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, igMediaId], name: "uq_video_analysis_ws_igmedia")
+  @@index([status, createdAt])
+  @@map("video_analysis")
 }
 
 model CompetitorReport {
@@ -287,4 +340,29 @@ model CompetitorReport {
   competitor Competitor? @relation(fields: [competitorId], references: [id], onDelete: Cascade)
 
   @@map("competitor_report")
+}
+
+model Script {
+  id               String   @id @default(uuid())
+  workspaceId      String   @map("workspace_id")
+  competitorId     String?  @map("competitor_id")       // plain ref (no FK) — survives competitor deletion
+  competitorPostId String?  @map("competitor_post_id")
+  title            String
+  status           String   @default("DRAFT")           // DRAFT | APPROVED
+  sourceReel       Json?    @map("source_reel")          // snapshot of the reel it came from
+  research         Json?                                  // angle, trend estimate, similar creators, hook bank
+  hook             String?
+  body             String   @default("")                 // the full script text (editable)
+  caption          String?
+  hashtags         Json     @default("[]")
+  model            String?
+  boardCardId      String?  @map("board_card_id")        // set once pushed to the Content Board
+  createdBy        String?  @map("created_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@map("script")
 }

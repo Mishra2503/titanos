@@ -129,8 +129,9 @@ export interface BoardCard {
   status: string | null; platforms: string[]; publish_date: string | null; hook: string | null;
   visual_hook: string | null; caption: string | null; hashtags: string[]; reference_url: string | null;
   raw_footage_url: string | null; cover_image_url: string | null;
+  tags: string[]; scripted_at: string | null; video_analysis?: PostVideoAnalysis | null;
 }
-export type CardPatch = Partial<Omit<BoardCard, "id" | "column_id" | "position">>;
+export type CardPatch = Partial<Omit<BoardCard, "id" | "column_id" | "position" | "scripted_at" | "video_analysis">>;
 export type AiAction = "hooks" | "caption" | "hashtags" | "refine";
 export interface AiOut { action: AiAction; text: string; }
 export interface BoardColumn { id: string; name: string; color: string; position: number; cards: BoardCard[]; }
@@ -143,6 +144,15 @@ export const updateCard = (id: string, body: CardPatch) =>
 export const cardAi = (id: string, action: AiAction, instruction?: string) =>
   apiFetch<AiOut>(`/api/board/cards/${id}/ai`, { method: "POST", body: JSON.stringify({ action, instruction }) });
 export const deleteCard = (id: string) => apiFetch<void>(`/api/board/cards/${id}`, { method: "DELETE" });
+// Watch the card's reference reel (frames + transcript + Claude vision). POST
+// queues it; getCardAnalysis is polled until status is DONE. scriptCard turns
+// the watched reel into a shoot-ready script written into the card.
+export const analyzeCard = (id: string) =>
+  apiFetch<PostVideoAnalysis | null>(`/api/board/cards/${id}/analyze`, { method: "POST" });
+export const getCardAnalysis = (id: string) =>
+  apiFetch<PostVideoAnalysis | null>(`/api/board/cards/${id}/analyze`);
+export const scriptCard = (id: string) =>
+  apiFetch<BoardCard>(`/api/board/cards/${id}/script`, { method: "POST" }, 240_000);
 export const reorderColumn = (column_id: string, card_ids: string[]) =>
   apiFetch<void>(`/api/board/columns/${column_id}/reorder`, { method: "POST", body: JSON.stringify({ card_ids }) });
 export const createColumn = (name: string, color = "slate") =>
@@ -308,9 +318,13 @@ export interface CompetitorListItem {
   follower_delta: number | null; follower_delta_pct: number | null; snapshot_count: number; post_count: number; report_count: number;
 }
 export interface CompetitorSnapshot { id: string; captured_on: string; followers_count: number | null; following_count: number | null; posts_count: number | null; avg_likes: number | null; avg_comments: number | null; engagement_rate: number | null; note: string | null; }
-export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; thumbnail_url: string | null; what_works: string | null; engagement: number | null; }
+export interface PostVideoAnalysis { status: string; summary: string | null; transcript: string | null; hook_visual: string | null; hook_spoken: string | null; format: string | null; why_it_works: string | null; script?: string | null; cta?: string | null; analyzed_at?: string | null; error?: string | null; }
+export interface ContentIdeaSource { title: string; url: string; }
+export interface ContentIdea { idea: string; angle: string | null; suggested_hook: string | null; suggested_format: string | null; hot_score: number | null; hot_tag: string | null; trend_summary: string | null; sources: ContentIdeaSource[]; }
+export interface ContentAnalysis { hook: string | null; body: string | null; cta: string | null; content_ideas: ContentIdea[]; estimate?: boolean; generated_at?: string | null; }
+export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; posted_at?: string | null; thumbnail_url: string | null; video_url?: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; content_analysis?: ContentAnalysis | null; tags?: string[]; used?: boolean; scripted?: boolean; board_card_id?: string | null; }
 export interface HashtagStat { tag: string; count: number; avg_engagement: number | null; }
-export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; }
+export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; median_views?: number | null; outlier_metric?: "views" | "engagement"; outliers?: CompetitorPost[]; }
 export interface CompetitorReport { id: string; competitor_id: string | null; title: string; content: string; model: string | null; generated_at: string; }
 export interface CompetitorDetail { id: string; username: string; display_name: string | null; category: string | null; profile_url: string | null; avatar_url: string | null; notes: string | null; snapshots: CompetitorSnapshot[]; posts: CompetitorPost[]; analytics: CompetitorAnalytics; reports: CompetitorReport[]; }
 export interface CompetitorInput { username: string; display_name?: string | null; category?: string | null; profile_url?: string | null; notes?: string | null; }
@@ -326,15 +340,61 @@ export const addSnapshot = (id: string, body: SnapshotInput) => apiFetch<Competi
 export const deleteSnapshot = (id: string, snapshotId: string) => apiFetch<void>(`/api/competitors/${id}/snapshots/${snapshotId}`, { method: "DELETE" });
 export const addCompetitorPost = (id: string, body: PostInput) => apiFetch<CompetitorPost>(`/api/competitors/${id}/posts`, { method: "POST", body: JSON.stringify(body) });
 export const deleteCompetitorPost = (id: string, postId: string) => apiFetch<void>(`/api/competitors/${id}/posts/${postId}`, { method: "DELETE" });
+export const analyzeReelIdea = (id: string, postId: string) => apiFetch<ContentAnalysis>(`/api/competitors/${id}/posts/${postId}/analyze`, { method: "POST" }, 180_000);
+// Tag a competitor reel (manual tags + "used / don't reuse" toggle).
+export const tagCompetitorPost = (id: string, postId: string, patch: { tags?: string[]; used?: boolean }) =>
+  apiFetch<{ id: string; tags: string[]; used: boolean }>(`/api/competitors/${id}/posts/${postId}`, { method: "PATCH", body: JSON.stringify(patch) });
+
+// === Competitor window insights (posting cadence + trend) =========
+export interface WindowInsights { window_days: number; reel_count: number; posts_per_week: number; summary: string | null; topics: string[]; what_works: string[]; best_angle: string | null; estimate: boolean; }
+export const getWindowInsights = (id: string, days: number) =>
+  apiFetch<WindowInsights>(`/api/competitors/${id}/window-insights`, { method: "POST", body: JSON.stringify({ days }) }, 180_000);
+export const scriptFromWindowTrend = (id: string, days: number, angle: string) =>
+  apiFetch<{ script: Script }>(`/api/competitors/${id}/window-insights`, { method: "POST", body: JSON.stringify({ days, angle }) }, 240_000);
 export const generateCompetitorReport = (id: string) => apiFetch<CompetitorReport>(`/api/competitors/${id}/report`, { method: "POST" }, 180_000);
 export const generateOverviewReport = () => apiFetch<CompetitorReport>("/api/competitors/report/overview", { method: "POST" }, 120_000);
 
 export interface CompetitorSyncResult {
   synced: true; username: string; followers_count: number | null; posts_imported: number;
-  views_enriched?: number; source?: "official+scraper" | "official" | "scraper"; warnings?: string[];
+  views_enriched?: number; videos_enqueued?: number; source?: "official+scraper" | "official" | "scraper"; warnings?: string[];
 }
 export const syncCompetitor = (id: string) =>
   apiFetch<CompetitorSyncResult>(`/api/competitors/${id}/sync`, { method: "POST" }, 180_000);
+
+// === Scriptwriter ================================================
+export interface ScriptResearch { angle: string | null; trend_note: string | null; similar_creators: string[]; hook_options: string[]; estimate: boolean; }
+export interface Script {
+  id: string; competitor_id: string | null; competitor_post_id: string | null; competitor_username: string | null;
+  title: string; status: string; source_reel: unknown; research: ScriptResearch | null;
+  hook: string | null; body: string; caption: string | null; hashtags: string[];
+  model: string | null; board_card_id: string | null; created_at: string; updated_at: string;
+}
+export type ScriptPatch = Partial<Pick<Script, "title" | "body" | "hook" | "caption" | "hashtags">>;
+
+export const generateScriptFromReel = (competitorId: string, postId: string) =>
+  apiFetch<Script>(`/api/competitors/${competitorId}/posts/${postId}/script`, { method: "POST" }, 240_000);
+export const listScripts = () => apiFetch<Script[]>("/api/scripts");
+export const getScript = (id: string) => apiFetch<Script>(`/api/scripts/${id}`);
+export const updateScript = (id: string, body: ScriptPatch) =>
+  apiFetch<Script>(`/api/scripts/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+export const deleteScript = (id: string) => apiFetch<void>(`/api/scripts/${id}`, { method: "DELETE" });
+export const rewriteScript = (id: string, instruction: string) =>
+  apiFetch<Script>(`/api/scripts/${id}/rewrite`, { method: "POST", body: JSON.stringify({ instruction }) }, 240_000);
+export const regenerateScript = (id: string) =>
+  apiFetch<Script>(`/api/scripts/${id}/regenerate`, { method: "POST" }, 240_000);
+export const approveScript = (id: string) =>
+  apiFetch<{ script: Script; card_id: string; column_id: string }>(`/api/scripts/${id}/approve`, { method: "POST" });
+
+// === Video analysis ("watch the reels") ==========================
+
+export interface VideoStatusResult {
+  counts: { PENDING: number; PROCESSING: number; DONE: number; FAILED: number; SKIPPED: number };
+  recent_errors: { source: string; error: string | null; at: string }[];
+}
+export const getVideoStatus = () => apiFetch<VideoStatusResult>("/api/videos/status");
+export const analyzeOwnReels = () =>
+  apiFetch<{ enqueued: number; already_done: number; accounts_checked: number; warnings: string[] }>(
+    "/api/reports/analyze-own", { method: "POST" }, 120_000);
 
 // === AI content strategy =========================================
 

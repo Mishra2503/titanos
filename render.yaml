@@ -64,3 +64,19 @@ services:
       # ── Anthropic ──────────────────────────────────────────────────
       - key: ANTHROPIC_API_KEY
         sync: false
+
+      # ── Competitor sync scraper (reel views + video URLs) ──────────
+      - key: APIFY_TOKEN
+        sync: false
+
+      # ── Video analysis ("watch the reels") ─────────────────────────
+      # GROQ_API_KEY: free key from console.groq.com — transcribes reel
+      # audio (whisper). Without it, analysis still runs frames-only.
+      - key: GROQ_API_KEY
+        sync: false
+      - key: VIDEO_ANALYSIS_MODEL
+        value: claude-sonnet-5
+
+      # ── External cron backstop for /api/schedule/tick ──────────────
+      - key: CRON_SECRET
+        sync: false

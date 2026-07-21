@@ -6,6 +6,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // ffmpeg-static resolves its binary path at runtime from node_modules —
+  // bundling it would break the computed path, so keep it external.
+  serverExternalPackages: ["ffmpeg-static"],
   webpack: (config) => {
     config.resolve.alias["@"] = __dirname;
     return config;

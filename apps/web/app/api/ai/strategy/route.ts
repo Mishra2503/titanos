@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { runClaude, aiErrorResponse } from "@/lib/server/ai";
+import { formatAnalysisForReport } from "@/lib/server/videoAnalysis";
 import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
 
 // AI content strategist: real post metrics + tracked competitors + live web
@@ -72,10 +73,43 @@ export async function POST(req: NextRequest) {
       return `- @${c.username}${s?.followersCount ? ` (${s.followersCount} followers, ${s.engagementRate ?? "?"}% er)` : ""}${tops ? ` — top posts: ${tops}` : ""}`;
     });
 
+    // Watched-reel intelligence: the server downloaded and analyzed the actual
+    // videos (frames + audio) — real hooks/formats/pacing for ours and theirs.
+    const [ownWatched, compWatched] = await Promise.all([
+      db.videoAnalysis.findMany({
+        where: { workspaceId: wsId, source: "OWN", status: "DONE" },
+        orderBy: { analyzedAt: "desc" },
+        take: 12,
+        select: { summary: true, analysis: true },
+      }),
+      db.videoAnalysis.findMany({
+        where: { workspaceId: wsId, source: "COMPETITOR", status: "DONE" },
+        include: { competitorPost: { select: { views: true, competitor: { select: { username: true } } } } },
+      }),
+    ]);
+    const ownWatchedLines = ownWatched.map((a) => formatAnalysisForReport(a)).filter(Boolean).map((l) => `- ${l}`);
+    const compWatchedLines = compWatched
+      .sort((x, y) => (y.competitorPost?.views ?? 0) - (x.competitorPost?.views ?? 0))
+      .slice(0, 5)
+      .map((a) => {
+        const line = formatAnalysisForReport(a);
+        return line ? `- @${a.competitorPost?.competitor?.username ?? "?"}: ${line}` : null;
+      })
+      .filter(Boolean) as string[];
+    const watchedBlock = ownWatchedLines.length || compWatchedLines.length
+      ? [
+          "WHAT THE ANALYZED REELS ACTUALLY LOOK LIKE (the server watched these videos — frames + audio transcript; treat hooks/formats/pacing below as ground truth):",
+          ...(ownWatchedLines.length ? ["Our reels:", ...ownWatchedLines] : []),
+          ...(compWatchedLines.length ? ["Competitor reels (by views):", ...compWatchedLines] : []),
+          "",
+        ]
+      : [];
+
     const prompt = [
       "OUR ACCOUNT NETWORK (distribution model: satellite accounts exist to push reach toward the MAIN account):",
       ...(accountLines.length ? accountLines : ["- (no accounts connected)"]),
       "",
+      ...watchedBlock,
       "OUR RECENT POSTS, BEST PERFORMERS FIRST (28-day window):",
       ...top.map(postLine),
       "",
@@ -85,9 +119,9 @@ export async function POST(req: NextRequest) {
       compLines.length ? "TRACKED COMPETITORS:\n" + compLines.join("\n") : "TRACKED COMPETITORS: none yet",
       "",
       "First, use web search (2-4 focused searches) to check what is currently trending in AI-niche Instagram reels and short-form content this week: formats, hooks, topics, and which AI creators are blowing up. Then produce this week's strategy with exactly these sections:",
-      "1. **What the data says** — 3-4 blunt observations comparing winners vs losers (hooks, format, topics, watch time).",
+      "1. **What the data says** — 3-4 blunt observations comparing winners vs losers (hooks, format, topics, watch time; use the watched-reel analysis where available instead of guessing from captions).",
       "2. **What's trending right now** — 3-4 findings from your web research relevant to our niche, with the source creator/format named.",
-      "3. **5 reel ideas for this week** — for each: working title, spoken hook (under 12 words), visual hook for the first 2 seconds, and why the data or trend supports it.",
+      "3. **5 reel ideas for this week** — for each: working title, spoken hook (under 12 words), visual hook for the first 2 seconds, and why the data or trend supports it (reference watched-reel hooks/formats that already proved out).",
       "4. **Posting plan** — which days/times to post based on the timestamps in the data and AI-niche best practices.",
       "5. **Steal from competitors** — 2-3 angles competitors are winning with that we can adapt (skip if no competitor data).",
       "6. **Distribution checklist** — 6 concrete actions to multiply reach across the satellite network and funnel followers to the MAIN account (cross-posting cadence, comment pods between own accounts, collab posts, trial reels, CTA patterns pointing to the main account, SEO captions).",

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
-import Anthropic from "@anthropic-ai/sdk";
+import { runClaude, aiErrorResponse } from "@/lib/server/ai";
 import { unauthorized, notFound, badRequest, serverError } from "@/lib/server/errors";
 
 const SYSTEM = "You are a senior short-form content strategist embedded inside Aifluencee Content Hub, helping Instagram Business/Creator accounts produce on-brand, high-performing Reels and posts. You write tight, punchy, conversational copy. You never use em dashes. You never fabricate metrics. Your suggestions must be ready to paste into Instagram without further editing.";
@@ -38,22 +38,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { action, instruction } = await req.json() as { action: AiAction; instruction?: string };
     if (!["hooks","caption","hashtags","refine"].includes(action)) return badRequest("unknown_action", "Unknown AI action");
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) return badRequest("ai_not_configured", "Add ANTHROPIC_API_KEY to enable AI features");
-
-    const client = new Anthropic({ apiKey });
-    const model = process.env.ANTHROPIC_MODEL ?? "claude-opus-4-8";
-    const msg = await client.messages.create({
-      model, max_tokens: 1024, system: SYSTEM,
-      messages: [{ role: "user", content: buildPrompt(action, card, instruction) }],
-    });
-    const text = msg.content.map((b) => ("text" in b ? b.text : "")).join("").trim();
+    // runClaude routes to Anthropic by default, or the OpenAI-compatible test
+    // provider (GitHub Models) when AI_PROVIDER=openai.
+    const { text } = await runClaude({ system: SYSTEM, prompt: buildPrompt(action, card, instruction), maxTokens: 1024 });
     return NextResponse.json({ action, text });
   } catch (e) {
     console.error("[ai]", e);
-    if (e instanceof Anthropic.APIError) {
-      return NextResponse.json({ error: { code: "ai_failed", message: `AI request failed: ${e.message}` } }, { status: 502 });
-    }
-    return serverError();
+    return aiErrorResponse(e) ?? serverError();
   }
 }

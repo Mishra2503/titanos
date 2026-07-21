@@ -1,9 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/Placeholder";
 import { Markdown } from "@/components/Markdown";
-import { ApiError, getWeeklyReport, type WeeklyReport, type WeeklyReportAccount } from "@/lib/api";
+import {
+  ApiError,
+  analyzeOwnReels,
+  getVideoStatus,
+  getWeeklyReport,
+  type VideoStatusResult,
+  type WeeklyReport,
+  type WeeklyReportAccount,
+} from "@/lib/api";
 
 const fmt = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString());
 
@@ -122,10 +130,52 @@ function AccountReport({ a }: { a: WeeklyReportAccount }) {
   );
 }
 
+// Small strip showing the "AI watched reels" queue for the workspace.
+function VideoQueueStrip({ status }: { status: VideoStatusResult | null }) {
+  if (!status) return null;
+  const c = status.counts;
+  const total = c.PENDING + c.PROCESSING + c.DONE + c.FAILED + c.SKIPPED;
+  if (total === 0) return null;
+  const bits = [
+    c.DONE > 0 && `${c.DONE} watched`,
+    c.PENDING + c.PROCESSING > 0 && `${c.PENDING + c.PROCESSING} in queue`,
+    c.FAILED > 0 && `${c.FAILED} failed`,
+    c.SKIPPED > 0 && `${c.SKIPPED} skipped`,
+  ].filter(Boolean);
+  return (
+    <p className="mb-4 font-mono text-[11px] text-ink-faint">
+      AI video analysis: {bits.join(" · ")}
+      {c.FAILED > 0 && status.recent_errors[0]?.error && (
+        <span className="text-amber-300"> — last error: {status.recent_errors[0].error}</span>
+      )}
+    </p>
+  );
+}
+
 export default function ReportsPage() {
   const [report, setReport] = useState<WeeklyReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [videoStatus, setVideoStatus] = useState<VideoStatusResult | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const refreshVideoStatus = useCallback(async () => {
+    try {
+      const s = await getVideoStatus();
+      setVideoStatus(s);
+      // Keep polling only while there's work in the queue.
+      const active = s.counts.PENDING + s.counts.PROCESSING > 0;
+      if (!active && pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      if (active && !pollRef.current) pollRef.current = setInterval(refreshVideoStatus, 30_000);
+    } catch { /* strip is cosmetic */ }
+  }, []);
+
+  useEffect(() => {
+    refreshVideoStatus();
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [refreshVideoStatus]);
 
   async function generate() {
     setLoading(true);
@@ -139,6 +189,27 @@ export default function ReportsPage() {
     }
   }
 
+  async function analyzeReels() {
+    setAnalyzing(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const r = await analyzeOwnReels();
+      setNotice(
+        r.enqueued > 0
+          ? `${r.enqueued} reel${r.enqueued === 1 ? "" : "s"} queued — the AI watches them in the background (a few minutes), then reports quote your real hooks.`
+          : r.already_done > 0
+            ? `All ${r.already_done} recent reels are already analyzed — reports will use them.`
+            : "No new reels found to analyze.",
+      );
+      await refreshVideoStatus();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not queue reels for analysis");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -146,16 +217,27 @@ export default function ReportsPage() {
           title="Weekly Report"
           subtitle="Every account, every post, last 7 days — with an AI summary of what worked and what to do next."
         />
-        <button
-          onClick={generate}
-          disabled={loading}
-          className="btn-primary press disabled:opacity-50"
-        >
-          {loading ? "Crunching the week…" : report ? "Refresh report" : "Get weekly report"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={analyzeReels}
+            disabled={analyzing}
+            className="press rounded-lg border border-charcoal-600 px-4 py-2 text-sm font-medium text-ink-muted hover:border-lime/50 hover:text-ink disabled:opacity-50"
+          >
+            {analyzing ? "Queuing reels…" : "Analyze my recent reels"}
+          </button>
+          <button
+            onClick={generate}
+            disabled={loading}
+            className="btn-primary press disabled:opacity-50"
+          >
+            {loading ? "Crunching the week…" : report ? "Refresh report" : "Get weekly report"}
+          </button>
+        </div>
       </div>
 
+      {notice && <p className="mb-4 text-sm font-medium text-lime">{notice}</p>}
       {error && <p className="mb-4 text-sm font-medium text-red-400">{error}</p>}
+      <VideoQueueStrip status={videoStatus} />
 
       {!report && !loading && (
         <div className="animate-reveal rounded-xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-16 text-center">
