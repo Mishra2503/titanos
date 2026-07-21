@@ -364,6 +364,77 @@ export const TOOLS: McpTool[] = [
     write: true,
     handler: (id) => call(id, "/api/reports/weekly", { method: "POST" }),
   },
+
+  // ── Generic search/fetch (ChatGPT-connector compatibility) ──────────────────────
+  {
+    name: "search",
+    description:
+      "Search across Titan OS scheduled posts, content-board cards, and competitors by keyword. Returns matching items with an id you can pass to `fetch`.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { query: { type: "string", description: "Keywords to match." } },
+      required: ["query"],
+    },
+    handler: async (id, a, origin) => {
+      const q = String(a.query ?? "").toLowerCase().trim();
+      const results: { id: string; title: string; url: string }[] = [];
+      const add = (id: string, title: string, url = "") => results.push({ id, title, url });
+      const [posts, board, comps] = await Promise.all([
+        call<Array<Record<string, unknown>>>(id, "/api/schedule", { origin }).catch(() => []),
+        call<{ columns?: Array<{ cards?: Array<Record<string, unknown>> }> }>(id, "/api/board", { origin }).catch(() => ({ columns: [] })),
+        call<Array<Record<string, unknown>>>(id, "/api/competitors", { origin }).catch(() => []),
+      ]);
+      for (const p of posts ?? []) {
+        const cap = String(p.caption ?? "");
+        if (!q || cap.toLowerCase().includes(q)) add(`scheduled:${p.id}`, `Scheduled post: ${cap.slice(0, 60) || "(no caption)"}`, String(p.permalink ?? ""));
+      }
+      for (const col of board?.columns ?? []) for (const c of col.cards ?? []) {
+        const t = `${c.title ?? ""} ${c.notes ?? ""}`;
+        if (!q || t.toLowerCase().includes(q)) add(`card:${c.id}`, `Board card: ${String(c.title ?? "(untitled)")}`);
+      }
+      for (const c of comps ?? []) {
+        const t = `${c.username ?? ""} ${c.display_name ?? ""}`;
+        if (!q || t.toLowerCase().includes(q)) add(`competitor:${c.id}`, `Competitor: @${String(c.username ?? "")}`, String(c.profile_url ?? ""));
+      }
+      return { results: results.slice(0, 20) };
+    },
+  },
+  {
+    name: "fetch",
+    description:
+      "Fetch the full content of one item returned by `search`, by its prefixed id (scheduled:… / card:… / competitor:…).",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { id: { type: "string", description: "Prefixed id from search results." } },
+      required: ["id"],
+    },
+    handler: async (identity, a, origin) => {
+      const raw = String(a.id ?? "");
+      const [kind, ...rest] = raw.split(":");
+      const realId = rest.join(":");
+      if (kind === "scheduled") {
+        const posts = await call<Array<Record<string, unknown>>>(identity, "/api/schedule", { origin });
+        const p = (posts ?? []).find((x) => String(x.id) === realId);
+        if (!p) throw new Error("Scheduled post not found");
+        return { id: raw, title: `Scheduled post`, text: JSON.stringify(p, null, 2), url: String(p.permalink ?? "") };
+      }
+      if (kind === "card") {
+        const board = await call<{ columns?: Array<{ cards?: Array<Record<string, unknown>> }> }>(identity, "/api/board", { origin });
+        for (const col of board?.columns ?? []) {
+          const c = (col.cards ?? []).find((x) => String(x.id) === realId);
+          if (c) return { id: raw, title: String(c.title ?? "Card"), text: JSON.stringify(c, null, 2), url: "" };
+        }
+        throw new Error("Board card not found");
+      }
+      if (kind === "competitor") {
+        const c = await call(identity, `/api/competitors/${enc(realId)}`, { origin });
+        return { id: raw, title: `Competitor`, text: JSON.stringify(c, null, 2), url: "" };
+      }
+      throw new Error(`Unknown id prefix: ${kind}`);
+    },
+  },
 ];
 
 export const TOOL_MAP: Record<string, McpTool> = Object.fromEntries(TOOLS.map((t) => [t.name, t]));

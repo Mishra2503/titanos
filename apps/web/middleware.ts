@@ -6,9 +6,11 @@ import {
   createAccessToken,
 } from "@/lib/server/jwt";
 
-// /api/mcp self-authenticates via Bearer PAT (see app/api/mcp/route.ts), so the
-// cookie middleware must not intercept it.
-const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/healthz", "/api/schedule/tick", "/api/mcp"];
+// /api/mcp self-authenticates via Bearer (PAT or OAuth). The OAuth endpoints and
+// /.well-known discovery docs are public / self-authenticating too (the authorize
+// route reads the session cookie itself), so the cookie middleware must not
+// intercept any of them.
+const PUBLIC_PATHS = ["/login", "/api/auth/login", "/api/auth/register", "/api/auth/refresh", "/api/healthz", "/api/schedule/tick", "/api/mcp", "/api/oauth", "/.well-known"];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
