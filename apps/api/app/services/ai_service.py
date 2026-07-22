@@ -1,7 +1,7 @@
 """Server-side Claude calls for content board AI features.
 
 Rail #2: the Anthropic key never leaves the server. Rail #1 alignment:
-prompts only suggest organic captions/hashtags — never any duplicate-evasion
+prompts only suggest organic captions/hashtags - never any duplicate-evasion
 or scraping behavior.
 """
 from __future__ import annotations

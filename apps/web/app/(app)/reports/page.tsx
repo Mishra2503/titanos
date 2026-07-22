@@ -13,7 +13,7 @@ import {
   type WeeklyReportAccount,
 } from "@/lib/api";
 
-const fmt = (n: number | null | undefined) => (n == null ? "—" : n.toLocaleString());
+const fmt = (n: number | null | undefined) => (n == null ? "-" : n.toLocaleString());
 
 function Delta({ now, prev }: { now: number; prev: number }) {
   if (prev === 0 && now === 0) return null;
@@ -117,7 +117,7 @@ function AccountReport({ a }: { a: WeeklyReportAccount }) {
                       <td className="px-3 py-2 text-right font-mono text-ink-muted">{fmt(p.views)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-muted">{fmt(p.likes)}</td>
                       <td className="px-3 py-2 text-right font-mono text-ink-muted">{fmt(p.comments)}</td>
-                      <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.engagement_rate != null ? `${p.engagement_rate}%` : "—"}</td>
+                      <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.engagement_rate != null ? `${p.engagement_rate}%` : "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -146,7 +146,7 @@ function VideoQueueStrip({ status }: { status: VideoStatusResult | null }) {
     <p className="mb-4 font-mono text-[11px] text-ink-faint">
       AI video analysis: {bits.join(" · ")}
       {c.FAILED > 0 && status.recent_errors[0]?.error && (
-        <span className="text-amber-300"> — last error: {status.recent_errors[0].error}</span>
+        <span className="text-amber-300"> - last error: {status.recent_errors[0].error}</span>
       )}
     </p>
   );
@@ -197,9 +197,9 @@ export default function ReportsPage() {
       const r = await analyzeOwnReels();
       setNotice(
         r.enqueued > 0
-          ? `${r.enqueued} reel${r.enqueued === 1 ? "" : "s"} queued — the AI watches them in the background (a few minutes), then reports quote your real hooks.`
+          ? `${r.enqueued} reel${r.enqueued === 1 ? "" : "s"} queued - the AI watches them in the background (a few minutes), then reports quote your real hooks.`
           : r.already_done > 0
-            ? `All ${r.already_done} recent reels are already analyzed — reports will use them.`
+            ? `All ${r.already_done} recent reels are already analyzed - reports will use them.`
             : "No new reels found to analyze.",
       );
       await refreshVideoStatus();
@@ -215,7 +215,7 @@ export default function ReportsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
           title="Weekly Report"
-          subtitle="Every account, every post, last 7 days — with an AI summary of what worked and what to do next."
+          subtitle="Every account, every post, last 7 days - with an AI summary of what worked and what to do next."
         />
         <div className="flex flex-wrap gap-2">
           <button
@@ -249,7 +249,7 @@ export default function ReportsPage() {
       )}
 
       {loading && !report && (
-        <p className="text-sm font-medium text-ink-faint">Fetching live data for all accounts and writing the report — this takes ~30 seconds…</p>
+        <p className="text-sm font-medium text-ink-faint">Fetching live data for all accounts and writing the report - this takes ~30 seconds…</p>
       )}
 
       {report && (

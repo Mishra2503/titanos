@@ -1,7 +1,7 @@
 "use client";
 
 // All API calls go to our own Next.js API routes (same origin).
-// No Bearer tokens — auth is via httpOnly cookies set by the server.
+// No Bearer tokens - auth is via httpOnly cookies set by the server.
 // Fixes: #3 (timeout), #6 (no localStorage), #7 (no Content-Type on GETs).
 
 import { SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
@@ -41,7 +41,7 @@ async function apiFetch<T>(path: string, init: RequestInit = {}, timeoutMs: numb
     return body as T;
   } catch (err) {
     if (err instanceof ApiError) throw err;
-    if ((err as Error).name === "AbortError") throw new ApiError(408, "timeout", "Request timed out — the server may be starting up. Please try again.");
+    if ((err as Error).name === "AbortError") throw new ApiError(408, "timeout", "Request timed out - the server may be starting up. Please try again.");
     throw err;
   } finally {
     clearTimeout(timer);
@@ -200,7 +200,7 @@ function putWithProgress(url: string, body: Blob, contentType: string, onProgres
 }
 
 // Direct browser→storage upload via presigned PUT (fast path). A single PUT
-// carries files up to ~5GB on R2/B2 — no chunking needed for reels — and the
+// carries files up to ~5GB on R2/B2 - no chunking needed for reels - and the
 // upload never touches our server, so Cloudflare's 100MB edge cap and Render's
 // bandwidth don't apply. Metadata + poster thumbnail are extracted locally
 // before upload since the store can't inspect media.
@@ -222,7 +222,7 @@ async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void)
       await putWithProgress(sig.thumbnail.upload_url, meta.thumbnail, "image/jpeg");
       thumbnailKey = sig.thumbnail.key;
     } catch {
-      // Thumbnail is a nice-to-have — never fail the upload over it.
+      // Thumbnail is a nice-to-have - never fail the upload over it.
     }
   }
 
@@ -241,12 +241,12 @@ async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void)
   });
 }
 
-// Server-side proxy upload — fallback when the direct storage upload is blocked
+// Server-side proxy upload - fallback when the direct storage upload is blocked
 // by the client's network (firewall, ad blocker, VPN, etc.).
 //
 // Sends the raw file as the request body (not multipart/form-data) so the server
 // can stream it straight into the store instead of buffering + parsing a strict
-// multipart frame — large reels were tripping the multipart parser's "Failed to
+// multipart frame - large reels were tripping the multipart parser's "Failed to
 // parse body as FormData" error when the body arrived incomplete.
 function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   return new Promise<MediaAsset>((resolve, reject) => {
@@ -263,14 +263,14 @@ function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): 
       if (xhr.status >= 200 && xhr.status < 300) resolve(body);
       else reject(new ApiError(xhr.status, body?.error?.code ?? "upload_failed", body?.error?.message ?? `Upload failed (HTTP ${xhr.status})`));
     };
-    xhr.onerror = () => reject(new ApiError(0, "upload_failed", "Upload failed — could not reach the server."));
+    xhr.onerror = () => reject(new ApiError(0, "upload_failed", "Upload failed - could not reach the server."));
     xhr.send(file);
   });
 }
 
 // Tries a direct browser→storage upload first (no server memory overhead).
 // If that fails due to a network-level error (firewall / ad blocker / VPN
-// blocking the storage host), retries via the server-side proxy route — but
+// blocking the storage host), retries via the server-side proxy route - but
 // only for files small enough to survive the trip: Cloudflare kills bodies
 // around 100MB at the edge before they ever reach our server, so proxying
 // bigger files can only produce an opaque 502.
@@ -344,6 +344,10 @@ export const analyzeReelIdea = (id: string, postId: string) => apiFetch<ContentA
 // Tag a competitor reel (manual tags + "used / don't reuse" toggle).
 export const tagCompetitorPost = (id: string, postId: string, patch: { tags?: string[]; used?: boolean }) =>
   apiFetch<{ id: string; tags: string[]; used: boolean }>(`/api/competitors/${id}/posts/${postId}`, { method: "PATCH", body: JSON.stringify(patch) });
+// Push a competitor reel straight to the Content Board as an idea-stage card.
+export const pushReelToBoard = (id: string, postId: string) =>
+  apiFetch<{ card: BoardCard; card_id: string; column_id: string; already: boolean }>(
+    `/api/competitors/${id}/posts/${postId}/board`, { method: "POST" });
 
 // === Competitor window insights (posting cadence + trend) =========
 export interface WindowInsights { window_days: number; reel_count: number; posts_per_week: number; summary: string | null; topics: string[]; what_works: string[]; best_angle: string | null; estimate: boolean; }
@@ -440,7 +444,7 @@ export interface AccessToken {
   expires_at: string | null;
   created_at: string;
 }
-// Returned only on create — includes the one-time plaintext `token`.
+// Returned only on create - includes the one-time plaintext `token`.
 export interface CreatedAccessToken extends AccessToken {
   token: string;
 }

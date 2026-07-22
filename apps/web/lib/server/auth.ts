@@ -1,4 +1,4 @@
-// Node.js API-route auth helpers (not for middleware — use lib/server/jwt.ts there).
+// Node.js API-route auth helpers (not for middleware - use lib/server/jwt.ts there).
 import { cookies } from "next/headers";
 import { hash, verify } from "@node-rs/argon2";
 

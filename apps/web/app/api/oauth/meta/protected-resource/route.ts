@@ -1,4 +1,4 @@
-// RFC 9728 — OAuth 2.0 Protected Resource Metadata.
+// RFC 9728 - OAuth 2.0 Protected Resource Metadata.
 // Served at /.well-known/oauth-protected-resource via a rewrite (next.config.mjs).
 // Tells MCP clients which authorization server guards the /api/mcp resource.
 import { NextResponse } from "next/server";

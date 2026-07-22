@@ -54,7 +54,7 @@ def main() -> None:
     """Run from CLI or as part of a build step.
 
     Reads --email/--password from args, falling back to BOOTSTRAP_OWNER_EMAIL /
-    BOOTSTRAP_OWNER_PASSWORD env vars. If neither is provided we exit silently —
+    BOOTSTRAP_OWNER_PASSWORD env vars. If neither is provided we exit silently -
     so this script is safe to keep in build commands on Render/Railway after the
     initial bootstrap (it becomes a no-op).
     """

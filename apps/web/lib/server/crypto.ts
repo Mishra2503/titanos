@@ -1,6 +1,6 @@
 /**
  * Fernet-compatible encryption for Instagram tokens at rest.
- * Compatible with Python's cryptography.fernet — same key, same ciphertext format.
+ * Compatible with Python's cryptography.fernet - same key, same ciphertext format.
  *
  * Fernet spec: https://github.com/fernet/spec/blob/master/Spec.md
  * Token = base64url(0x80 | ts[8] | iv[16] | ciphertext | hmac[32])

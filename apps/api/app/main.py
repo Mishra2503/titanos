@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     # the scheduler there or we'd double-tick.
     if os.environ.get("RUN_MAIN") != "false":
         # Self-healing schema: apply migrations on boot. Never let a migration error
-        # take down the whole API — log it and keep serving the rest of the app.
+        # take down the whole API - log it and keep serving the rest of the app.
         try:
             await asyncio.to_thread(run_upgrade_head)
         except Exception:
@@ -39,7 +39,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="Titan OS API",
         version="0.1.0",
-        description="Instagram creator-brand operations portal — official Graph API only.",
+        description="Instagram creator-brand operations portal - official Graph API only.",
         lifespan=lifespan,
     )
 

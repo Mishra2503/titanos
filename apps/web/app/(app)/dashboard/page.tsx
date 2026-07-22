@@ -152,7 +152,7 @@ export default function DashboardPage() {
     <div>
       <PageHeader
         title="Dashboard"
-        subtitle="Cross-account performance and per-video analytics — built to inform tomorrow's content."
+        subtitle="Cross-account performance and per-video analytics - built to inform tomorrow's content."
       />
 
       {error && <p className="mb-4 text-sm font-medium text-red-400">{error}</p>}
@@ -201,7 +201,7 @@ export default function DashboardPage() {
                 @{a.username}: {a.error}
               </p>
               <p className="mt-1 text-[10px] font-medium text-ink-faint">
-                Metrics for this account are unavailable — try reconnecting it on the Connect Instagram page.
+                Metrics for this account are unavailable - try reconnecting it on the Connect Instagram page.
               </p>
             </div>
           ))}
@@ -308,7 +308,7 @@ export default function DashboardPage() {
 
           <BestPostingTimes posts={filteredPosts} />
 
-          {/* Comments Hub — one account at a time, with reel thumbnails */}
+          {/* Comments Hub - one account at a time, with reel thumbnails */}
           {data && data.accounts.length > 0 && (() => {
             const account =
               data.accounts.find((a) => a.account_id === commentsAccountId) ?? data.accounts[0];

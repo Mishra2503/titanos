@@ -9,7 +9,7 @@ import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
 // from live Instagram data, plus an AI-written executive summary.
 
 const SYSTEM =
-  "You are the head of analytics at a short-form social media agency in the AI/tech niche. You write sharp weekly performance reports for the team. You never use em dashes. You never fabricate metrics — only reference numbers in the data. Output clean markdown with short sections.";
+  "You are the head of analytics at a short-form social media agency in the AI/tech niche. You write sharp weekly performance reports for the team. You never use em dashes. You never fabricate metrics - only reference numbers in the data. Output clean markdown with short sections.";
 
 const WEEK_MS = 7 * 86400000;
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Watched-reel analyses for this week's posts (server downloaded and
-    // analyzed the actual videos — real hooks/formats, not caption guesses).
+    // analyzed the actual videos - real hooks/formats, not caption guesses).
     const weekPostIds = perAccount.flatMap((a) => a.posts.map((p) => p.id));
     const watchedById = new Map<string, string>();
     if (weekPostIds.length) {
@@ -91,16 +91,16 @@ export async function POST(req: NextRequest) {
     const prompt = [
       "WEEKLY DATA FOR ALL ACCOUNTS (last 7 days, with prior week reach for comparison). The first account is the MAIN account; the rest are satellite/distribution accounts meant to funnel audience to the main one.",
       ...(watchedById.size > 0
-        ? ["Posts with a '· watched:' line were actually WATCHED by the server (video frames + audio transcript analyzed) — their visual hook, spoken hook, format and pacing are ground truth, not guesses from the caption."]
+        ? ["Posts with a '· watched:' line were actually WATCHED by the server (video frames + audio transcript analyzed) - their visual hook, spoken hook, format and pacing are ground truth, not guesses from the caption."]
         : []),
       "",
       ...dataLines,
       "",
       "Write this week's report with exactly these sections:",
-      "1. **Week in one paragraph** — the honest headline of the week across the network.",
-      "2. **Account by account** — for each account: 2-3 sentences on performance vs last week, what their best post did right (quote its real hook — for watched posts use the actual visual/spoken hook), and one fix for next week.",
-      "3. **What's trending in our content** — patterns across the network: topics, hooks, formats that pulled reach this week.",
-      "4. **Next week's focus** — 4 concrete priorities for the network, distribution-first (how the satellites feed the main account).",
+      "1. **Week in one paragraph** - the honest headline of the week across the network.",
+      "2. **Account by account** - for each account: 2-3 sentences on performance vs last week, what their best post did right (quote its real hook - for watched posts use the actual visual/spoken hook), and one fix for next week.",
+      "3. **What's trending in our content** - patterns across the network: topics, hooks, formats that pulled reach this week.",
+      "4. **Next week's focus** - 4 concrete priorities for the network, distribution-first (how the satellites feed the main account).",
     ].join("\n");
 
     const { text } = await runClaude({ system: SYSTEM, prompt, maxTokens: 3072 });
@@ -113,6 +113,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("[weekly report]", e);
-    return aiErrorResponse(e) ?? serverError("Weekly report failed — check server logs.");
+    return aiErrorResponse(e) ?? serverError("Weekly report failed - check server logs.");
   }
 }

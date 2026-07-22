@@ -1,6 +1,6 @@
 "use client";
 
-// Lightweight SVG charts — no external library, fully theme-controlled.
+// Lightweight SVG charts - no external library, fully theme-controlled.
 // Light-theme redesign: white bg, E8E8FF gridlines, blue-violet fills.
 
 export interface TrendPoint {

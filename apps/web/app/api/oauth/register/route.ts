@@ -1,4 +1,4 @@
-// RFC 7591 — OAuth 2.0 Dynamic Client Registration.
+// RFC 7591 - OAuth 2.0 Dynamic Client Registration.
 // Connectors (Claude Cowork, ChatGPT, Perplexity, MCP Inspector) call this to
 // self-register before the sign-in flow. Public clients (PKCE) are the norm;
 // we also support client_secret_post if a client asks for it.

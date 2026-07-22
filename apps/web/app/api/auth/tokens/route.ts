@@ -5,7 +5,7 @@ import { createToken } from "@/lib/server/pat";
 
 // Personal Access Tokens for the MCP connector. Each user manages their own
 // tokens (a token grants exactly that user's powers). Cookie-authenticated via
-// middleware — the plaintext secret is returned once, on create, and never again.
+// middleware - the plaintext secret is returned once, on create, and never again.
 
 export async function GET(req: NextRequest) {
   try {

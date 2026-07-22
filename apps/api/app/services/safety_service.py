@@ -8,7 +8,7 @@ What we protect against:
 - Stale-cached publishing during account warming / token issues (status guards).
 
 What this CANNOT do: stop Meta from flagging an account for content reasons. We do
-not moderate content here — that's the user's responsibility.
+not moderate content here - that's the user's responsibility.
 """
 from __future__ import annotations
 

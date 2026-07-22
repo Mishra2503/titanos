@@ -38,7 +38,7 @@ export interface ReelSeed {
 }
 
 const SYSTEM =
-  "You are a top short-form creator who writes reel scripts the way real people actually talk to camera — punchy, specific, and human. VOICE RULES: sound like a real person, never like a brand or an AI. Use short spoken sentences, contractions, and everyday words. Be concrete (real names, numbers, specifics) instead of vague hype. NEVER use AI/marketing clichés such as 'in today's video', 'let's dive in', 'game-changer', 'unlock', 'in this fast-paced world', 'revolutionize', 'the truth is', 'buckle up', or rhetorical 'ever wondered'. No em dashes. No emoji spam. Write for the ear, not the page. You never fabricate sources or cite URLs you cannot verify. Reply with ONLY a single minified JSON object, no markdown fences.";
+  "You are a top short-form creator who writes reel scripts the way real people actually talk to camera - punchy, specific, and human. VOICE RULES: sound like a real person, never like a brand or an AI. Use short spoken sentences, contractions, and everyday words. Be concrete (real names, numbers, specifics) instead of vague hype. NEVER use AI/marketing clichés such as 'in today's video', 'let's dive in', 'game-changer', 'unlock', 'in this fast-paced world', 'revolutionize', 'the truth is', 'buckle up', or rhetorical 'ever wondered'. No em dashes. No emoji spam. Write for the ear, not the page. You never fabricate sources or cite URLs you cannot verify. Reply with ONLY a single minified JSON object, no markdown fences.";
 
 function str(v: unknown): string | null {
   if (v == null) return null;
@@ -137,7 +137,7 @@ export async function regenerateScript(seed: ReelSeed, previousBody: string): Pr
 }
 
 // Instruction-driven rewrite of an existing script. Returns the new body text
-// (no web search — this is an edit, not research).
+// (no web search - this is an edit, not research).
 export async function rewriteScriptBody(currentBody: string, instruction: string): Promise<{ body: string; model: string | null }> {
   const system =
     "You are a short-form video script editor. Rewrite the given reel script following the user's instruction, keeping it shoot-ready with HOOK / BODY beats / CTA and [on-screen] cues. Keep it in a natural talking-to-camera voice: short spoken sentences, contractions, concrete specifics, and NO AI/marketing clichés ('let's dive in', 'game-changer', 'in today's video', 'buckle up'). You never use em dashes. Return ONLY the rewritten script text, no preamble, no markdown fences.";

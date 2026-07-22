@@ -1,5 +1,5 @@
 // Information architecture. ownerOnly items are hidden from EDITORs in UI;
-// the server independently enforces access — UI hiding is convenience only.
+// the server independently enforces access - UI hiding is convenience only.
 // `icon` keys map to Phosphor icons in the app shell.
 export interface NavItem {
   label: string;

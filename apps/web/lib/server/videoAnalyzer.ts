@@ -9,7 +9,7 @@ import {
 } from "@/lib/server/videoAnalysis";
 import { resolveInstagramVideoUrl } from "@/lib/server/instagram";
 
-// Background queue worker for VideoAnalysis rows — same pattern as
+// Background queue worker for VideoAnalysis rows - same pattern as
 // publisher.ts: atomic PENDING → PROCESSING claims, serial processing,
 // bounded attempts, stale-row recovery. One video at a time keeps ffmpeg
 // memory flat on the 512MB instance.
@@ -79,7 +79,7 @@ async function graphGet(path: string, token: string) {
   return json;
 }
 
-// OWN media_url is transient — always re-fetch a fresh one right before download.
+// OWN media_url is transient - always re-fetch a fresh one right before download.
 async function freshOwnMediaUrl(row: { igMediaId: string | null; igAccountId: string | null }): Promise<string | null> {
   if (!row.igMediaId || !row.igAccountId) return null;
   const account = await db.igAccount.findUnique({ where: { id: row.igAccountId } });
@@ -152,7 +152,7 @@ async function analyzeOne(rowId: string): Promise<void> {
       if (!videoUrl) {
         await db.videoAnalysis.update({
           where: { id: row.id },
-          data: { status: "FAILED", error: "No video URL stored — re-sync this competitor to refresh it" },
+          data: { status: "FAILED", error: "No video URL stored - re-sync this competitor to refresh it" },
         });
         return;
       }
@@ -200,7 +200,7 @@ async function analyzeOne(rowId: string): Promise<void> {
     } else if (e instanceof VideoUrlExpiredError) {
       data = { status: "FAILED", error: message }; // retries won't help; re-sync requeues
     } else if (row.attempts < MAX_ATTEMPTS) {
-      data = { status: "PENDING", error: message }; // transient — retry next tick
+      data = { status: "PENDING", error: message }; // transient - retry next tick
     } else {
       data = { status: "FAILED", error: message };
     }
@@ -231,7 +231,7 @@ export async function analyzePendingVideos(): Promise<{ claimed: number }> {
 
   let claimed = 0;
   for (const { id } of pending) {
-    // Atomic claim — only one worker transitions PENDING → PROCESSING
+    // Atomic claim - only one worker transitions PENDING → PROCESSING
     const res = await db.videoAnalysis.updateMany({
       where: { id, status: "PENDING" },
       data: { status: "PROCESSING", processingStartedAt: now, attempts: { increment: 1 } },
@@ -244,16 +244,16 @@ export async function analyzePendingVideos(): Promise<{ claimed: number }> {
   return { claimed };
 }
 
-// Singleton interval guard — instrumentation can run more than once in dev.
+// Singleton interval guard - instrumentation can run more than once in dev.
 const globalForAnalyzer = globalThis as unknown as { __titanVideoAnalyzerStarted?: boolean };
 
 export function startVideoAnalyzerLoop(intervalMs = 90_000): void {
   if (globalForAnalyzer.__titanVideoAnalyzerStarted) return;
   globalForAnalyzer.__titanVideoAnalyzerStarted = true;
-  console.log("[video-analyzer] loop started — watching for pending videos every", intervalMs / 1000, "s");
+  console.log("[video-analyzer] loop started - watching for pending videos every", intervalMs / 1000, "s");
   let running = false;
   setInterval(async () => {
-    if (running) return; // a batch can outlast the interval — never overlap
+    if (running) return; // a batch can outlast the interval - never overlap
     running = true;
     try {
       await analyzePendingVideos();

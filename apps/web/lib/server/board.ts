@@ -2,7 +2,7 @@ import { videoAnalysisOut } from "./videoAnalysis";
 
 // Shared Content Board card serialization (Prisma row → client shape). Kept in
 // one place so the board list, the card PATCH, and the analyze/script routes all
-// emit the same fields — including the new tags, scripted_at and the watched
+// emit the same fields - including the new tags, scripted_at and the watched
 // reference-reel analysis.
 
 interface VaRow {

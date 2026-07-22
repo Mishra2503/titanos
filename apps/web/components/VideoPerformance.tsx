@@ -1,11 +1,11 @@
 import type { RecentPost } from "@/lib/api";
 
 function fmt(n: number | null): string {
-  return n === null || n === undefined ? "—" : n.toLocaleString();
+  return n === null || n === undefined ? "-" : n.toLocaleString();
 }
 
 function fmtSec(s: number | null): string {
-  if (s === null || s === undefined) return "—";
+  if (s === null || s === undefined) return "-";
   if (s < 60) return `${s}s`;
   const m = Math.floor(s / 60);
   const rem = Math.round(s % 60);
@@ -79,7 +79,7 @@ export function VideoCard({ post, rank }: { post: RecentPost; rank: number }) {
         <Metric label="Avg watch" value={fmtSec(post.avg_watch_time_sec)} />
         <Metric
           label="Eng. rate"
-          value={post.engagement_rate === null ? "—" : `${post.engagement_rate}%`}
+          value={post.engagement_rate === null ? "-" : `${post.engagement_rate}%`}
         />
         <Metric label="Likes" value={fmt(post.likes)} />
         <Metric label="Comments" value={fmt(post.comments)} />

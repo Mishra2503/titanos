@@ -11,7 +11,7 @@ def _ensure_utc(v: Any) -> Any:
     """Coerce naive datetimes to UTC.
 
     SQLite drops tzinfo on round-trip; without this, Pydantic emits an ISO string
-    with no timezone marker and JavaScript interprets it as local time — making
+    with no timezone marker and JavaScript interprets it as local time - making
     every datetime in the UI off by the user's UTC offset.
     """
     if isinstance(v, datetime) and v.tzinfo is None:

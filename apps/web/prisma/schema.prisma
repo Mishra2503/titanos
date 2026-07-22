@@ -331,6 +331,10 @@ model CompetitorPost {
   tags   Json      @default("[]")
   usedAt DateTime? @map("used_at")
 
+  // Set when the reel is pushed to the Content Board as an idea card; drives the
+  // "On board" badge without needing a script in between.
+  boardCardId String? @map("board_card_id")
+
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

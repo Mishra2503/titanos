@@ -15,18 +15,18 @@ import path from "node:path";
 // Technique ported from github.com/bradautomates/claude-video (MIT).
 //
 // Deliberately serial and streaming so a single video never holds more than a
-// few MB in memory — this runs on a 512MB Render instance next to the app.
+// few MB in memory - this runs on a 512MB Render instance next to the app.
 
 const VIDEO_MODEL = process.env.VIDEO_ANALYSIS_MODEL ?? "claude-sonnet-5";
 const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
-const MAX_DURATION_S = 300; // longer than any reel — not our content type
+const MAX_DURATION_S = 300; // longer than any reel - not our content type
 const HOOK_TIMES = [0, 1, 2]; // always capture the first 3 seconds
 const UNIFORM_FRAMES = 8;
 const MAX_FRAMES = 11;
 const MIN_FRAMES = 3;
 
 export class VideoUrlExpiredError extends Error {
-  constructor() { super("Video URL expired or inaccessible — re-sync to refresh it."); }
+  constructor() { super("Video URL expired or inaccessible - re-sync to refresh it."); }
 }
 export class NotAVideoError extends Error {
   constructor(reason: string) { super(reason); }
@@ -55,7 +55,7 @@ function ffmpeg(args: string[], timeoutMs: number): Promise<{ code: number | nul
 }
 
 // ffmpeg-static ships no ffprobe; parse duration + audio presence from
-// `ffmpeg -i` stderr (exits non-zero without an output file — that's fine).
+// `ffmpeg -i` stderr (exits non-zero without an output file - that's fine).
 async function probe(videoPath: string): Promise<{ durationS: number | null; hasAudio: boolean }> {
   const { stderr } = await ffmpeg(["-i", videoPath], 15_000);
   const m = stderr.match(/Duration:\s*(\d+):(\d+):([\d.]+)/);
@@ -114,7 +114,7 @@ async function extractFrames(videoPath: string, tmpDir: string, durationS: numbe
     ).catch(() => ({ code: 1 }));
     if (code === 0) frames.push({ t, file });
   }
-  if (frames.length < MIN_FRAMES) throw new Error(`Could only extract ${frames.length} frames — video may be corrupt`);
+  if (frames.length < MIN_FRAMES) throw new Error(`Could only extract ${frames.length} frames - video may be corrupt`);
   return frames;
 }
 
@@ -186,13 +186,13 @@ function buildPromptText(
   return [
     caption ? `CAPTION: ${caption.replace(/\s+/g, " ").slice(0, 500)}` : "CAPTION: (none)",
     metricsLine ? `METRICS: ${metricsLine}` : null,
-    transcript ? `AUDIO TRANSCRIPT (timestamped):\n${transcript.slice(0, 6000)}` : "AUDIO TRANSCRIPT: none available — likely music-only or transcription unavailable.",
+    transcript ? `AUDIO TRANSCRIPT (timestamped):\n${transcript.slice(0, 6000)}` : "AUDIO TRANSCRIPT: none available - likely music-only or transcription unavailable.",
     "",
     ANALYSIS_INSTRUCTION,
   ].filter((l) => l != null).join("\n");
 }
 
-// OpenAI-compatible vision path (e.g. GitHub Models GPT-5) — same frames +
+// OpenAI-compatible vision path (e.g. GitHub Models GPT-5) - same frames +
 // transcript, OpenAI image_url content format.
 async function watchWithOpenAI(
   frames: { t: number; file: string }[],
@@ -278,7 +278,7 @@ export function buildSummary(analysis: Record<string, unknown>): string {
   return s.length > 380 ? s.slice(0, 377) + "…" : s;
 }
 
-// Compact client view of a watched video — used by the Content Board card and
+// Compact client view of a watched video - used by the Content Board card and
 // its analyze endpoint. Pulls the readable fields out of the analysis JSON.
 export function videoAnalysisOut(
   va: { status: string; summary: string | null; analysis: unknown; transcript: string | null; analyzedAt?: Date | null; error?: string | null } | null,
@@ -322,7 +322,7 @@ export async function analyzeVideo(opts: {
 
     const { durationS, hasAudio } = await probe(videoPath);
     if (durationS == null) throw new Error("Could not read video duration");
-    if (durationS > MAX_DURATION_S) throw new NotAVideoError(`Video is ${Math.round(durationS)}s — longer than a reel, skipping`);
+    if (durationS > MAX_DURATION_S) throw new NotAVideoError(`Video is ${Math.round(durationS)}s - longer than a reel, skipping`);
 
     const frames = await extractFrames(videoPath, tmpDir, durationS);
     const transcript = hasAudio ? await transcribe(videoPath, tmpDir) : null;
@@ -339,7 +339,7 @@ export interface TranscriptResult {
   durationS: number | null;
 }
 
-// Cheap path for competitor reels: Groq transcription ONLY — no frame extraction
+// Cheap path for competitor reels: Groq transcription ONLY - no frame extraction
 // and no Claude vision. Keeps competitor sync near-free at scale (50 reels each).
 export async function transcribeVideoOnly(opts: { videoUrl: string }): Promise<TranscriptResult> {
   const tmpDir = await mkdtemp(path.join(os.tmpdir(), "va-"));
@@ -349,7 +349,7 @@ export async function transcribeVideoOnly(opts: { videoUrl: string }): Promise<T
 
     const { durationS, hasAudio } = await probe(videoPath);
     if (durationS == null) throw new Error("Could not read video duration");
-    if (durationS > MAX_DURATION_S) throw new NotAVideoError(`Video is ${Math.round(durationS)}s — longer than a reel, skipping`);
+    if (durationS > MAX_DURATION_S) throw new NotAVideoError(`Video is ${Math.round(durationS)}s - longer than a reel, skipping`);
 
     const transcript = hasAudio ? await transcribe(videoPath, tmpDir) : null;
     return { transcript, durationS };

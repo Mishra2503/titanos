@@ -68,7 +68,7 @@ async function publishOne(postId: string): Promise<void> {
       await new Promise((r) => setTimeout(r, CONTAINER_POLL_MS));
     }
     if (status !== "FINISHED") {
-      throw new Error(status === "IN_PROGRESS" ? "Video is still processing on Instagram — will retry" : `Instagram could not process the video (status ${status})`);
+      throw new Error(status === "IN_PROGRESS" ? "Video is still processing on Instagram - will retry" : `Instagram could not process the video (status ${status})`);
     }
 
     // 3. Publish
@@ -114,7 +114,7 @@ export async function publishDuePosts(): Promise<{ claimed: number }> {
 
   let claimed = 0;
   for (const { id } of due) {
-    // Atomic claim — only one worker transitions SCHEDULED → PROCESSING
+    // Atomic claim - only one worker transitions SCHEDULED → PROCESSING
     const res = await db.scheduledPost.updateMany({
       where: { id, status: "SCHEDULED" },
       data: { status: "PROCESSING", processingStartedAt: now, attempts: { increment: 1 } },
@@ -127,13 +127,13 @@ export async function publishDuePosts(): Promise<{ claimed: number }> {
   return { claimed };
 }
 
-// Singleton interval guard — instrumentation can run more than once in dev.
+// Singleton interval guard - instrumentation can run more than once in dev.
 const globalForPublisher = globalThis as unknown as { __titanPublisherStarted?: boolean };
 
 export function startPublisherLoop(intervalMs = 60_000): void {
   if (globalForPublisher.__titanPublisherStarted) return;
   globalForPublisher.__titanPublisherStarted = true;
-  console.log("[publisher] loop started — checking for due posts every", intervalMs / 1000, "s");
+  console.log("[publisher] loop started - checking for due posts every", intervalMs / 1000, "s");
   setInterval(() => {
     publishDuePosts().catch((e) => console.error("[publisher] tick failed", e));
   }, intervalMs);

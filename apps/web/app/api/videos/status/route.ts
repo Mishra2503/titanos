@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { unauthorized, serverError } from "@/lib/server/errors";
 
-// Video-analysis queue status for the workspace — powers the small status
+// Video-analysis queue status for the workspace - powers the small status
 // strip on the reports/competitors pages.
 export async function GET(req: NextRequest) {
   try {

@@ -73,7 +73,7 @@ function mergeEntries(
   );
 
   const fromSchedule: CalEntry[] = schedule.map((p) => {
-    const matched = byMediaId.get(""); // placeholder — we'd need published_media_id on the list item to match exactly
+    const matched = byMediaId.get(""); // placeholder - we'd need published_media_id on the list item to match exactly
     return {
       id: `s:${p.id}`,
       at: new Date(p.scheduled_at),

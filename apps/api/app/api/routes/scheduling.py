@@ -26,7 +26,7 @@ async def upload_media(
     file: UploadFile = File(...),
     filename: str | None = Form(default=None),
 ) -> MediaAssetOut:
-    # No app-level size/duration/aspect cap — the Content Library accepts any video.
+    # No app-level size/duration/aspect cap - the Content Library accepts any video.
     # Cloudinary (per-plan) and Meta (at publish) enforce their own real limits.
     data = await file.read()
     if len(data) == 0:

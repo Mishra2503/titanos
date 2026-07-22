@@ -1,6 +1,6 @@
 "use client";
 
-// Minimal markdown rendering: headings, bold, bullets, numbered lists —
+// Minimal markdown rendering: headings, bold, bullets, numbered lists -
 // enough for AI output without pulling in a markdown library.
 export function Markdown({ text }: { text: string }) {
   return (

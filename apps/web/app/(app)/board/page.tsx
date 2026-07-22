@@ -152,7 +152,7 @@ export default function BoardPage() {
     <div className="flex h-full flex-col">
       <PageHeader
         title="Content Board"
-        subtitle="Move ideas from spark to scheduled — drag a card across the pipeline."
+        subtitle="Move ideas from spark to scheduled - drag a card across the pipeline."
       />
       {error && <p className="mb-4 font-mono text-sm text-red-400">{error}</p>}
 

@@ -8,7 +8,7 @@ import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
 // research → a concrete weekly distribution-first content plan.
 
 const SYSTEM =
-  "You are the head of strategy at a top short-form social media marketing agency specializing in the AI/tech niche on Instagram. You turn real performance data into ruthless, concrete content plans. You never use em dashes. You never fabricate metrics — only reference numbers that appear in the data. Format output in clean markdown with short sections and bullet points. Be specific and actionable, never generic. When you use web search, cite what you found briefly (creator names, formats, trends) instead of vague claims.";
+  "You are the head of strategy at a top short-form social media marketing agency specializing in the AI/tech niche on Instagram. You turn real performance data into ruthless, concrete content plans. You never use em dashes. You never fabricate metrics - only reference numbers that appear in the data. Format output in clean markdown with short sections and bullet points. Be specific and actionable, never generic. When you use web search, cite what you found briefly (creator names, formats, trends) instead of vague claims.";
 
 interface PostIn {
   caption: string | null; reach: number | null; views: number | null; likes: number | null;
@@ -70,11 +70,11 @@ export async function POST(req: NextRequest) {
       const tops = c.posts
         .map((p) => `"${(p.caption ?? "").replace(/#\w+/g, "").replace(/\s+/g, " ").trim().slice(0, 90)}" (${p.likes ?? "?"} likes, ${p.comments ?? "?"} comments${p.postedOn ? `, posted ${p.postedOn.toISOString().slice(0, 10)}` : ""})`)
         .join("; ");
-      return `- @${c.username}${s?.followersCount ? ` (${s.followersCount} followers, ${s.engagementRate ?? "?"}% er)` : ""}${tops ? ` — top posts: ${tops}` : ""}`;
+      return `- @${c.username}${s?.followersCount ? ` (${s.followersCount} followers, ${s.engagementRate ?? "?"}% er)` : ""}${tops ? ` - top posts: ${tops}` : ""}`;
     });
 
     // Watched-reel intelligence: the server downloaded and analyzed the actual
-    // videos (frames + audio) — real hooks/formats/pacing for ours and theirs.
+    // videos (frames + audio) - real hooks/formats/pacing for ours and theirs.
     const [ownWatched, compWatched] = await Promise.all([
       db.videoAnalysis.findMany({
         where: { workspaceId: wsId, source: "OWN", status: "DONE" },
@@ -98,7 +98,7 @@ export async function POST(req: NextRequest) {
       .filter(Boolean) as string[];
     const watchedBlock = ownWatchedLines.length || compWatchedLines.length
       ? [
-          "WHAT THE ANALYZED REELS ACTUALLY LOOK LIKE (the server watched these videos — frames + audio transcript; treat hooks/formats/pacing below as ground truth):",
+          "WHAT THE ANALYZED REELS ACTUALLY LOOK LIKE (the server watched these videos - frames + audio transcript; treat hooks/formats/pacing below as ground truth):",
           ...(ownWatchedLines.length ? ["Our reels:", ...ownWatchedLines] : []),
           ...(compWatchedLines.length ? ["Competitor reels (by views):", ...compWatchedLines] : []),
           "",
@@ -119,12 +119,12 @@ export async function POST(req: NextRequest) {
       compLines.length ? "TRACKED COMPETITORS:\n" + compLines.join("\n") : "TRACKED COMPETITORS: none yet",
       "",
       "First, use web search (2-4 focused searches) to check what is currently trending in AI-niche Instagram reels and short-form content this week: formats, hooks, topics, and which AI creators are blowing up. Then produce this week's strategy with exactly these sections:",
-      "1. **What the data says** — 3-4 blunt observations comparing winners vs losers (hooks, format, topics, watch time; use the watched-reel analysis where available instead of guessing from captions).",
-      "2. **What's trending right now** — 3-4 findings from your web research relevant to our niche, with the source creator/format named.",
-      "3. **5 reel ideas for this week** — for each: working title, spoken hook (under 12 words), visual hook for the first 2 seconds, and why the data or trend supports it (reference watched-reel hooks/formats that already proved out).",
-      "4. **Posting plan** — which days/times to post based on the timestamps in the data and AI-niche best practices.",
-      "5. **Steal from competitors** — 2-3 angles competitors are winning with that we can adapt (skip if no competitor data).",
-      "6. **Distribution checklist** — 6 concrete actions to multiply reach across the satellite network and funnel followers to the MAIN account (cross-posting cadence, comment pods between own accounts, collab posts, trial reels, CTA patterns pointing to the main account, SEO captions).",
+      "1. **What the data says** - 3-4 blunt observations comparing winners vs losers (hooks, format, topics, watch time; use the watched-reel analysis where available instead of guessing from captions).",
+      "2. **What's trending right now** - 3-4 findings from your web research relevant to our niche, with the source creator/format named.",
+      "3. **5 reel ideas for this week** - for each: working title, spoken hook (under 12 words), visual hook for the first 2 seconds, and why the data or trend supports it (reference watched-reel hooks/formats that already proved out).",
+      "4. **Posting plan** - which days/times to post based on the timestamps in the data and AI-niche best practices.",
+      "5. **Steal from competitors** - 2-3 angles competitors are winning with that we can adapt (skip if no competitor data).",
+      "6. **Distribution checklist** - 6 concrete actions to multiply reach across the satellite network and funnel followers to the MAIN account (cross-posting cadence, comment pods between own accounts, collab posts, trial reels, CTA patterns pointing to the main account, SEO captions).",
     ].join("\n");
 
     const { text } = await runClaude({
@@ -138,6 +138,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ text, generated_at: new Date().toISOString() });
   } catch (e) {
     console.error("[ai strategy]", e);
-    return aiErrorResponse(e) ?? serverError("Strategy generation failed — check server logs.");
+    return aiErrorResponse(e) ?? serverError("Strategy generation failed - check server logs.");
   }
 }

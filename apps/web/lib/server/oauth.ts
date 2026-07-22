@@ -104,7 +104,7 @@ export async function verifyAccessToken(bearer: string | null | undefined): Prom
 // ── Consent ticket (tamper-proof binding of the consent form) ─────────────────
 // The authorize GET signs the validated request into this ticket and embeds it as
 // a hidden field. The POST verifies it and checks it belongs to the current
-// session user — so hidden fields can't be tampered with and a cross-site forged
+// session user - so hidden fields can't be tampered with and a cross-site forged
 // POST can't succeed (it can't mint a valid ticket, and it's bound to `sub`).
 
 export interface ConsentTicket {

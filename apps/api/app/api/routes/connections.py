@@ -27,7 +27,7 @@ OwnerDep = Depends(require_role(Role.OWNER))
 @router.get("", response_model=list[ConnectionOut])
 async def list_connections(db: DbSession, owner: User = OwnerDep) -> list[ConnectionOut]:
     accounts = await connection_service.list_accounts(db, owner.workspace_id)
-    # Capacity is a live Graph API call per account — fetch concurrently (FR-CONN-5).
+    # Capacity is a live Graph API call per account - fetch concurrently (FR-CONN-5).
     capacities = await asyncio.gather(
         *(connection_service.get_capacity(a) for a in accounts), return_exceptions=True
     )
@@ -84,7 +84,7 @@ async def oauth_callback(
         log.exception("OAuth callback: Instagram API error")
         await db.rollback()
         return _redirect({"error": f"Instagram: {str(exc)[:200]}"})
-    except Exception as exc:  # noqa: BLE001 — surface a clean message, log server-side
+    except Exception as exc:  # noqa: BLE001 - surface a clean message, log server-side
         log.exception("OAuth callback: unexpected error")
         await db.rollback()
         detail = getattr(exc, "detail", None)

@@ -1,4 +1,4 @@
-// Edge-compatible JWT helpers — no native modules, safe for middleware.
+// Edge-compatible JWT helpers - no native modules, safe for middleware.
 import { SignJWT, jwtVerify } from "jose";
 import { NextRequest } from "next/server";
 

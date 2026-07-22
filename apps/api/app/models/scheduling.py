@@ -59,7 +59,7 @@ class Campaign(UUIDMixin, TimestampMixin, Base):
 
 
 class ScheduledPost(UUIDMixin, TimestampMixin, Base):
-    """One post in a campaign — a single (account × time × caption) row (PRD §9).
+    """One post in a campaign - a single (account × time × caption) row (PRD §9).
 
     `idempotency_key` guarantees the publisher worker can crash/restart mid-flight
     without double-posting (Rail #5 / FR-SCHED-12).

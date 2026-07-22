@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     if (!competitors.length) return badRequest("no_competitors", "Add at least one competitor first");
 
     // Top watched reels per competitor (the server downloaded and analyzed the
-    // actual videos) — gives the strategist real hooks/formats, not just counts.
+    // actual videos) - gives the strategist real hooks/formats, not just counts.
     const analyses = await db.videoAnalysis.findMany({
       where: { workspaceId: wsId, source: "COMPETITOR", status: "DONE", competitorPost: { competitorId: { in: competitors.map((c) => c.id) } } },
       include: { competitorPost: { select: { competitorId: true, views: true } } },
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
       return watched?.length ? `${head}\n${watched.map((w) => `    · watched reel: ${w}`).join("\n")}` : head;
     }).join("\n");
     const watchedNote = analyses.length
-      ? "\n\nLines marked 'watched reel' come from the server downloading and analyzing the actual videos (frames + audio) — treat those hooks/formats as ground truth."
+      ? "\n\nLines marked 'watched reel' come from the server downloading and analyzing the actual videos (frames + audio) - treat those hooks/formats as ground truth."
       : "";
     const prompt = `You are analysing the competitive landscape for an Instagram creator brand in the AI/tech niche. Here are the tracked competitors:\n\n${list}${watchedNote}\n\nProvide a cross-competitor strategic overview: market positioning, who is winning and why, key content patterns (use the watched reels' real hooks and formats where available), and the top 3 opportunities for differentiation. Be direct and actionable. Use clean markdown, no em dashes.`;
 
@@ -44,6 +44,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: report.id, competitor_id: null, title: report.title, content: report.content, model: report.model, generated_at: report.generatedAt }, { status: 201 });
   } catch (e) {
     console.error("[overview report]", e);
-    return aiErrorResponse(e) ?? serverError("Report generation failed — check server logs.");
+    return aiErrorResponse(e) ?? serverError("Report generation failed - check server logs.");
   }
 }

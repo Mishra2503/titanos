@@ -1,6 +1,6 @@
 /**
  * POST /api/auth/register
- * Bootstrap endpoint — creates the first OWNER and workspace.
+ * Bootstrap endpoint - creates the first OWNER and workspace.
  * Fails if any workspace already exists (one-time setup only).
  */
 import { NextRequest, NextResponse } from "next/server";
