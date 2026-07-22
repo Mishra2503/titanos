@@ -35,7 +35,7 @@ export async function runApify<T>(actor: string, input: unknown, token: string):
   return Array.isArray(body) ? (body as T[]) : [];
 }
 
-// One scraped Instagram item (loose — actors return slightly different shapes).
+// One scraped Instagram item (loose - actors return slightly different shapes).
 interface ScrapedItem {
   type?: string;
   shortCode?: string;
@@ -55,7 +55,7 @@ export async function resolveInstagramVideoUrl(
   url: string,
 ): Promise<{ videoUrl: string | null; caption: string | null }> {
   const token = apifyToken();
-  if (!token) throw new InstagramResolveError("APIFY_TOKEN is not set — cannot fetch the reel to watch it. Add it in Render.");
+  if (!token) throw new InstagramResolveError("APIFY_TOKEN is not set - cannot fetch the reel to watch it. Add it in Render.");
 
   const items = await runApify<ScrapedItem>(
     "apify~instagram-scraper",
@@ -63,7 +63,7 @@ export async function resolveInstagramVideoUrl(
     token,
   );
   const item = items[0];
-  if (!item) throw new InstagramResolveError("Could not fetch this Instagram post — check the URL is public and correct.");
+  if (!item) throw new InstagramResolveError("Could not fetch this Instagram post - check the URL is public and correct.");
 
   const videoUrl = item.videoUrl ?? item.videoUrlHd ?? null;
   return { videoUrl, caption: item.caption ?? null };

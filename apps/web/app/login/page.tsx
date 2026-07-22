@@ -24,7 +24,7 @@ export default function LoginPage() {
     try {
       await login(email, password);
       // A full navigation (not router.replace) ensures the freshly-set auth cookie
-      // is sent on the next request — important when returning to the OAuth flow.
+      // is sent on the next request - important when returning to the OAuth flow.
       const next = new URLSearchParams(window.location.search).get("next");
       window.location.href = safeNext(next);
     } catch (err) {
@@ -105,7 +105,7 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-xs text-ink-faint">
-            Invite-only workspace — contact your admin for access.
+            Invite-only workspace - contact your admin for access.
           </p>
         </div>
       </div>

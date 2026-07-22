@@ -1,4 +1,4 @@
-// S3-compatible object storage (Cloudflare R2 or Backblaze B2) — hosts master
+// S3-compatible object storage (Cloudflare R2 or Backblaze B2) - hosts master
 // reels at public URLs that Instagram's Graph API can download from.
 import { S3Client } from "@aws-sdk/client-s3";
 

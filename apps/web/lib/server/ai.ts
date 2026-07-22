@@ -8,7 +8,7 @@ import { NextResponse } from "next/server";
 // - pause_turn continuation (server tools can pause long loops)
 // - typed error mapping so the UI shows the real reason, never a bare 500
 
-// Default to Sonnet 5 — strong quality at ~40% of Opus cost. Override per-deploy
+// Default to Sonnet 5 - strong quality at ~40% of Opus cost. Override per-deploy
 // with ANTHROPIC_MODEL (e.g. claude-opus-4-8 for max quality, claude-haiku-4-5 for cheapest).
 const MODEL = process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
 // When set (e.g. "us.anthropic.claude-sonnet-4-5-20250929-v1:0"), Claude is
@@ -28,10 +28,22 @@ function useBedrock(): boolean {
 }
 
 // Anthropic's hosted web_search server tool is only available on the direct
-// Anthropic API — not on Bedrock and not on the OpenAI-compatible test path.
+// Anthropic API - not on Bedrock and not on the OpenAI-compatible test path.
 export function aiWebSearchAvailable(): boolean {
   return aiProvider() === "anthropic" && !useBedrock() && !!process.env.ANTHROPIC_API_KEY;
 }
+
+// Titan OS never shows em dashes. Strip them from every AI response as a
+// belt-and-braces guarantee (the system prompt also asks models to avoid them),
+// so no generated caption, script, report or idea can surface an em dash.
+export function stripEmDash(s: string): string {
+  return s
+    .replace(/\s+—\s+/g, " - ") // spaced em dash → spaced hyphen
+    .replace(/—/g, "-"); // any remaining em dash → hyphen
+}
+
+// Appended to every system prompt so models avoid em dashes at the source.
+const NO_EM_DASH = "Never use em dashes (-). Use a normal hyphen (-), a comma, or separate sentences instead.";
 
 export class AiError extends Error {
   constructor(
@@ -45,7 +57,7 @@ export class AiError extends Error {
 
 // ── Provider selection ────────────────────────────────────────────────────
 // Default is Anthropic. Set AI_PROVIDER=openai (local .env.local only) to route
-// every AI call through an OpenAI-compatible endpoint — e.g. GitHub Models for
+// every AI call through an OpenAI-compatible endpoint - e.g. GitHub Models for
 // free local testing. GitHub Models is rate-limited and dev-only; keep prod on
 // Anthropic. On this path Anthropic's server-side web_search is unavailable.
 export function aiProvider(): "anthropic" | "openai" {
@@ -89,13 +101,13 @@ export async function openAIChat(messages: OpenAIMessage[], maxTokens: number): 
   if (!res.ok) {
     const friendly =
       res.status === 401 ? "The OPENAI_API_KEY (GitHub Models token) is invalid or is missing the 'models' permission."
-      : res.status === 429 ? "GitHub Models rate limit hit — wait a bit and try again (it is heavily throttled)."
+      : res.status === 429 ? "GitHub Models rate limit hit - wait a bit and try again (it is heavily throttled)."
       : json?.error?.message ?? `AI request failed (HTTP ${res.status})`;
     throw new AiError(res.status === 401 ? 401 : 502, "ai_failed", friendly);
   }
   const text = (json?.choices?.[0]?.message?.content ?? "").trim();
-  if (!text) throw new AiError(502, "ai_empty", "The AI returned an empty response — GPT-5 reasoning may have used the whole token budget; try again.");
-  return { text, model: json?.model ?? model };
+  if (!text) throw new AiError(502, "ai_empty", "The AI returned an empty response - GPT-5 reasoning may have used the whole token budget; try again.");
+  return { text: stripEmDash(text), model: json?.model ?? model };
 }
 
 export function aiErrorResponse(e: unknown): NextResponse | null {
@@ -104,7 +116,7 @@ export function aiErrorResponse(e: unknown): NextResponse | null {
   }
   if (e instanceof Anthropic.APIError) {
     const status = typeof e.status === "number" ? e.status : 502;
-    // Billing/credit is not a gateway problem — surface it as 402 so the client
+    // Billing/credit is not a gateway problem - surface it as 402 so the client
     // can show a clear "add credit" message instead of a scary 502.
     if (status === 400 && /credit|billing/i.test(e.message)) {
       return NextResponse.json(
@@ -114,17 +126,17 @@ export function aiErrorResponse(e: unknown): NextResponse | null {
     }
     const friendly =
       status === 401 ? "The ANTHROPIC_API_KEY on the server is invalid. Update it in your Render environment."
-      : status === 429 ? "AI rate limit hit — wait a minute and try again."
+      : status === 429 ? "AI rate limit hit - wait a minute and try again."
       : `AI request failed: ${e.message}`;
     return NextResponse.json({ error: { code: "ai_failed", message: friendly } }, { status: 502 });
   }
   // AWS Bedrock / credential errors (thrown by the Bedrock SDK or AWS credential
-  // chain) are not Anthropic.APIError instances — map the common ones by shape.
+  // chain) are not Anthropic.APIError instances - map the common ones by shape.
   const err = e as { name?: string; message?: string; status?: number };
   const msg = err?.message ?? "";
   if (err?.name?.includes("Credential") || /security token|credential|Unable to locate credentials|Resolved credential|bearer|api key/i.test(msg)) {
     return NextResponse.json(
-      { error: { code: "ai_bedrock_auth", message: "AWS Bedrock credentials are missing or invalid. Set AWS_BEARER_TOKEN_BEDROCK (a Bedrock API key) and AWS_REGION in Render — or AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY instead." } },
+      { error: { code: "ai_bedrock_auth", message: "AWS Bedrock credentials are missing or invalid. Set AWS_BEARER_TOKEN_BEDROCK (a Bedrock API key) and AWS_REGION in Render - or AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY instead." } },
       { status: 402 },
     );
   }
@@ -149,10 +161,11 @@ export async function runClaude(opts: {
 }): Promise<{ text: string; model: string; searched: boolean }> {
   // OpenAI-compatible test provider (e.g. GitHub Models). Web search is not
   // available on this path, so it is silently ignored.
+  const system = `${opts.system}\n\n${NO_EM_DASH}`;
   if (aiProvider() === "openai") {
     const r = await openAIChat(
       [
-        { role: "system", content: opts.system },
+        { role: "system", content: system },
         { role: "user", content: opts.prompt },
       ],
       opts.maxTokens ?? 4096,
@@ -185,7 +198,7 @@ export async function runClaude(opts: {
   }
 
   // Web search runs only on the Anthropic API (not Bedrock). Keep max_uses small
-  // — each search fetches + re-processes page content that gets re-billed on every
+  // - each search fetches + re-processes page content that gets re-billed on every
   // pause_turn round, so this is the main lever on cost.
   const searched = !!opts.webSearch && !bedrock;
   const tools = searched
@@ -199,7 +212,7 @@ export async function runClaude(opts: {
   const baseParams = {
     model,
     max_tokens: opts.maxTokens ?? 4096,
-    system: opts.system,
+    system,
     thinking: { type: "disabled" as const },
     ...(tools ? { tools } : {}),
   };
@@ -207,7 +220,7 @@ export async function runClaude(opts: {
   let messages: Anthropic.MessageParam[] = [{ role: "user", content: opts.prompt }];
   let response = await client.messages.create({ ...baseParams, messages });
 
-  // Server-side tools can pause long loops — resume a bounded number of times.
+  // Server-side tools can pause long loops - resume a bounded number of times.
   // Capped low (2) because each resume re-sends and re-bills the growing context.
   for (let i = 0; i < 2 && response?.stop_reason === "pause_turn"; i++) {
     messages = [...messages, { role: "assistant", content: response.content }];
@@ -222,7 +235,7 @@ export async function runClaude(opts: {
     console.error("[runClaude] no text extracted from response:", raw?.slice(0, 2000));
     throw new AiError(502, "ai_bad_response", `The AI response could not be read. Raw start: ${raw?.slice(0, 200)}`);
   }
-  return { text, model: response?.model ?? model, searched };
+  return { text: stripEmDash(text), model: response?.model ?? model, searched };
 }
 
 // The text/content blocks of a message, tolerant of the Anthropic Message shape

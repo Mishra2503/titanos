@@ -89,7 +89,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       "You are a short-form content strategist. You never use em dashes. You never fabricate numbers or sources. Reply with ONLY a minified JSON object, no markdown fences.";
     const prompt = [
       `COMPETITOR: @${competitor.username} (niche: ${competitor.category ?? "AI/tech"})`,
-      `WINDOW: last ${days} days — ${reelCount} reels (${postsPerWeek}/week)`,
+      `WINDOW: last ${days} days - ${reelCount} reels (${postsPerWeek}/week)`,
       "REELS (newest first):",
       ...(lines.length ? lines : ["(no reels in this window)"]),
       "",

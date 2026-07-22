@@ -5,7 +5,7 @@ import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
 
 // Records a media asset after the browser finished a direct presigned upload
 // to the S3-compatible store. Clients send object KEYS (validated against the
-// key shape we mint in /api/media/sign) — public URLs are built server-side so
+// key shape we mint in /api/media/sign) - public URLs are built server-side so
 // arbitrary URLs can't be registered.
 export async function POST(req: NextRequest) {
   try {

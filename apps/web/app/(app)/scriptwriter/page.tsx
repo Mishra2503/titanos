@@ -306,7 +306,7 @@ function ScriptEditor({
         <div className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-lime">Strategy &amp; research</p>
           {research.estimate && (
-            <p className="mt-1 text-[11px] text-ink-faint">Trend read is an AI estimate (live web research is off) — not measured data.</p>
+            <p className="mt-1 text-[11px] text-ink-faint">Trend read is an AI estimate (live web research is off) - not measured data.</p>
           )}
           {research.angle && <p className="mt-2 text-sm text-ink-muted"><span className="font-semibold text-ink">Angle: </span>{research.angle}</p>}
           {research.trend_note && <p className="mt-1 text-sm text-ink-muted"><span className="font-semibold text-ink">Trend: </span>{research.trend_note}</p>}
@@ -354,7 +354,7 @@ function ScriptEditor({
           <input
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
-            placeholder="How to rewrite it — e.g. punchier hook, add a stat, shorten to 30s…"
+            placeholder="How to rewrite it - e.g. punchier hook, add a stat, shorten to 30s…"
             className={inputCls}
           />
           <div className="flex shrink-0 gap-2">

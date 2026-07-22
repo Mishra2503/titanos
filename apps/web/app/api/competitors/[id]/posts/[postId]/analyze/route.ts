@@ -8,7 +8,7 @@ import { unauthorized, notFound, serverError } from "@/lib/server/errors";
 //   2. derive the best content idea(s) for us,
 //   3. use live web search across social, blogs and articles to judge how hot /
 //      trending each idea is right now, returning a 0-100 score + tag + sources.
-// Never fabricates numbers — only what's in the data or found via search.
+// Never fabricates numbers - only what's in the data or found via search.
 
 const SYSTEM_SEARCH =
   "You are a viral short-form content strategist for an AI/tech Instagram brand. You dissect a competitor reel and turn it into a high-potential content idea for us, then judge how hot the topic is right now using web search. You never use em dashes. You never fabricate metrics or sources; every source must be a real URL you found via search. Reply with ONLY a single minified JSON object, no markdown fences.";
@@ -62,7 +62,7 @@ function parseAnalysis(raw: string, canSearch: boolean): Analysis {
       hot_score: num(o.hot_score),
       hot_tag: s(o.hot_tag),
       trend_summary: s(o.trend_summary ?? o.why_hot),
-      // Without live web search we cannot cite real sources — never surface
+      // Without live web search we cannot cite real sources - never surface
       // invented URLs.
       sources: canSearch ? sources(o.sources) : [],
     };
@@ -119,7 +119,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       "",
       "TASK:",
       "1. Dissect this reel into: hook (the first line / first 3 seconds), body (how the middle delivers), cta (the ask at the end).",
-      "2. Derive 2-3 content ideas WE could make inspired by this reel — each a distinct angle, not a copy.",
+      "2. Derive 2-3 content ideas WE could make inspired by this reel - each a distinct angle, not a copy.",
       trendStep,
       "",
       'Return ONLY this JSON: {"hook":"","body":"","cta":"","content_ideas":[{"idea":"","angle":"","suggested_hook":"","suggested_format":"","hot_score":0,"hot_tag":"","trend_summary":"","sources":[{"title":"","url":""}]}]}',

@@ -63,7 +63,7 @@ class CompetitorSnapshot(UUIDMixin, TimestampMixin, Base):
 
 
 class CompetitorPost(UUIDMixin, TimestampMixin, Base):
-    """A saved reference post (swipe file) from a competitor — the raw material for
+    """A saved reference post (swipe file) from a competitor - the raw material for
     hashtag-frequency, content-mix and top-post analysis."""
 
     __tablename__ = "competitor_post"
@@ -84,7 +84,7 @@ class CompetitorPost(UUIDMixin, TimestampMixin, Base):
     views: Mapped[int | None] = mapped_column(Integer, nullable=True)
     posted_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     thumbnail_url: Mapped[str | None] = mapped_column(nullable=True)
-    # Why this post worked — the strategic takeaway to replicate.
+    # Why this post worked - the strategic takeaway to replicate.
     what_works: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

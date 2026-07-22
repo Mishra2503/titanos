@@ -85,7 +85,7 @@ async def _publish_single(db: AsyncSession, post: ScheduledPost) -> None:
 
     token = decrypt_secret(account.access_token_enc)
 
-    # Rail #5 — capacity guard. Don't even attempt if we're at cap.
+    # Rail #5 - capacity guard. Don't even attempt if we're at cap.
     remaining, _ = await _check_capacity(account, token)
     if remaining is not None and remaining <= 0:
         raise InstagramApiError("Account at 24h publish capacity (0 remaining)")
@@ -210,7 +210,7 @@ async def tick() -> dict[str, int]:
                     },
                 )
                 published += 1
-            except Exception as exc:  # noqa: BLE001 — store full message for the user
+            except Exception as exc:  # noqa: BLE001 - store full message for the user
                 post.status = (
                     ScheduledPostStatus.FAILED
                     if post.attempts >= settings.publisher_max_attempts

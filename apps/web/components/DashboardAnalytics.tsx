@@ -74,7 +74,7 @@ interface Tile {
 }
 
 function fmtNum(n: number | null | undefined): string {
-  if (n === null || n === undefined) return "—";
+  if (n === null || n === undefined) return "-";
   return n >= 1000 ? n.toLocaleString() : String(n);
 }
 
@@ -104,7 +104,7 @@ export function KpiTiles({
     {
       key: "engagement",
       label: "Engagement rate",
-      value: k.engagement === null ? "—" : `${k.engagement}%`,
+      value: k.engagement === null ? "-" : `${k.engagement}%`,
       delta:
         kc?.engagement !== null && kp?.engagement !== null && kc && kp
           ? pct(kc.engagement!, kp.engagement!)
@@ -135,7 +135,7 @@ export function KpiTiles({
     {
       key: "watch",
       label: "Avg watch time",
-      value: k.avg_watch_sec === null ? "—" : `${k.avg_watch_sec}s`,
+      value: k.avg_watch_sec === null ? "-" : `${k.avg_watch_sec}s`,
       delta:
         kc?.avg_watch_sec !== null && kp?.avg_watch_sec !== null && kc && kp
           ? pct(kc.avg_watch_sec!, kp.avg_watch_sec!)
@@ -145,7 +145,7 @@ export function KpiTiles({
     {
       key: "dm",
       label: "DM leads",
-      value: dmLeads.value === null ? "—" : fmtNum(dmLeads.value),
+      value: dmLeads.value === null ? "-" : fmtNum(dmLeads.value),
       delta: null,
       note: dmLeads.note,
       unavailable: !dmLeads.available,
@@ -153,7 +153,7 @@ export function KpiTiles({
     {
       key: "calls",
       label: "Calls booked",
-      value: callsBooked.value === null ? "—" : fmtNum(callsBooked.value),
+      value: callsBooked.value === null ? "-" : fmtNum(callsBooked.value),
       delta: null,
       note: callsBooked.note,
       unavailable: !callsBooked.available,
@@ -353,7 +353,7 @@ export function BestPostingTimes({ posts }: { posts: RecentPost[] }) {
       <p className="mt-4 text-xs leading-relaxed text-ink-muted">
         Suggested times are the consensus windows for AI/tech audiences on Instagram (late-morning
         breaks and the 7&nbsp;PM post-work scroll){bestOwn && bestOwn.avgReach > 0 ? (
-          <> — and your own data says <strong className="text-ink">{bestOwn.day}</strong> is your strongest day, so prioritize it.</>
+          <> - and your own data says <strong className="text-ink">{bestOwn.day}</strong> is your strongest day, so prioritize it.</>
         ) : (
           <>. As your posts accumulate, your own reach-by-day data will sharpen these recommendations.</>
         )}
@@ -378,7 +378,7 @@ export function HookPatterns({ posts }: { posts: RecentPost[] }) {
   return (
     <Section
       title="Hooks that worked"
-      subtitle="Top caption openings — patterns to repeat in your next script"
+      subtitle="Top caption openings - patterns to repeat in your next script"
     >
       <ol className="space-y-3">
         {top.map((p, i) => (
@@ -388,8 +388,8 @@ export function HookPatterns({ posts }: { posts: RecentPost[] }) {
               <p className="text-sm text-ink">{hook(p)}</p>
               <p className="mt-0.5 font-mono text-[10px] text-ink-faint">
                 {(p.reach ?? 0).toLocaleString()} reach ·{" "}
-                {p.engagement_rate === null ? "—" : `${p.engagement_rate}%`} er ·{" "}
-                {p.avg_watch_time_sec === null ? "—" : `${p.avg_watch_time_sec}s avg`}
+                {p.engagement_rate === null ? "-" : `${p.engagement_rate}%`} er ·{" "}
+                {p.avg_watch_time_sec === null ? "-" : `${p.avg_watch_time_sec}s avg`}
               </p>
             </div>
           </li>
@@ -465,7 +465,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
     if (best.avgReach > 0 && avgOthers > 0) {
       const mult = (best.avgReach / avgOthers).toFixed(1);
       bullets.push(
-        `Post on **${best.day}** — averages ${best.avgReach.toLocaleString()} reach (${mult}× the other days).`,
+        `Post on **${best.day}** - averages ${best.avgReach.toLocaleString()} reach (${mult}× the other days).`,
       );
     }
   }
@@ -475,7 +475,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
   if (tags.length >= 1) {
     const t = tags[0];
     bullets.push(
-      `Your strongest hashtag is **${t.tag}** — ${t.avgReach.toLocaleString()} avg reach across ${t.count} posts. Use it on your next post.`,
+      `Your strongest hashtag is **${t.tag}** - ${t.avgReach.toLocaleString()} avg reach across ${t.count} posts. Use it on your next post.`,
     );
   }
 
@@ -486,7 +486,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
     if (top.avgReach > 0 && second.avgReach > 0) {
       const mult = (top.avgReach / second.avgReach).toFixed(1);
       bullets.push(
-        `**${top.format}** outperforms ${second.format} by ${mult}× — keep prioritizing this format.`,
+        `**${top.format}** outperforms ${second.format} by ${mult}× - keep prioritizing this format.`,
       );
     }
   }
@@ -498,7 +498,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
   if (top) {
     const h = hook(top);
     const short = h.length > 60 ? h.slice(0, 60) + "…" : h;
-    bullets.push(`Your best hook opened with: *"${short}"* — try a variation tomorrow.`);
+    bullets.push(`Your best hook opened with: *"${short}"* - try a variation tomorrow.`);
   }
 
   // Watch time anomaly (reels)
@@ -510,7 +510,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
     const best = [...watches].sort((a, b) => b.w - a.w)[0];
     if (best.w >= avg * 1.4) {
       bullets.push(
-        `**${best.w}s avg watch** on your best reel vs ${avg.toFixed(1)}s typical — study its opening 3 seconds.`,
+        `**${best.w}s avg watch** on your best reel vs ${avg.toFixed(1)}s typical - study its opening 3 seconds.`,
       );
     }
   }
@@ -519,7 +519,7 @@ function deriveBriefBullets(posts: RecentPost[]): string[] {
 }
 
 function renderBullet(text: string): React.ReactNode {
-  // bold **x** and italic *x* — every pushed element needs a stable key so React doesn't warn.
+  // bold **x** and italic *x* - every pushed element needs a stable key so React doesn't warn.
   const parts: React.ReactNode[] = [];
   const re = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
   let last = 0;

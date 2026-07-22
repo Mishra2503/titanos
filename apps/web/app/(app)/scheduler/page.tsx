@@ -81,7 +81,7 @@ export default function SchedulerPage() {
       const list = await apiFetch<ConnAccount[]>("/api/connections");
       setAccounts(list);
     } catch (err) {
-      // editors can't list connections; that's OK — they won't see selectable accounts.
+      // editors can't list connections; that's OK - they won't see selectable accounts.
       if (!(err instanceof ApiError && err.status === 403)) throw err;
     }
   }, []);

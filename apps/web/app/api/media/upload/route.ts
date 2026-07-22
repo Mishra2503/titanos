@@ -8,13 +8,13 @@ import { apiError, unauthorized, badRequest, serverError } from "@/lib/server/er
 import { SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
 
 const CAP_MB = Math.round(SERVER_UPLOAD_MAX_BYTES / 1024 / 1024);
-const TOO_LARGE_MSG = `the server upload fallback accepts at most ${CAP_MB}MB — larger files must upload directly to storage from the browser`;
+const TOO_LARGE_MSG = `the server upload fallback accepts at most ${CAP_MB}MB - larger files must upload directly to storage from the browser`;
 
 // Server-side proxy fallback for when the browser can't reach the storage host
 // directly (ad blocker / firewall / VPN). Streams the raw request body into the
 // S3-compatible store without buffering the whole file. Capped at 90MB because
 // Cloudflare kills larger bodies at the edge before they reach this route.
-// No thumbnail on this path (the browser extractor never ran) — the library UI
+// No thumbnail on this path (the browser extractor never ran) - the library UI
 // falls back to a placeholder.
 export async function POST(req: NextRequest) {
   try {
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
     const contentLength = Number(req.headers.get("content-length"));
     if (Number.isFinite(contentLength) && contentLength > SERVER_UPLOAD_MAX_BYTES) {
-      return apiError(413, "payload_too_large", `File is ${Math.round(contentLength / 1024 / 1024)}MB — ${TOO_LARGE_MSG}.`);
+      return apiError(413, "payload_too_large", `File is ${Math.round(contentLength / 1024 / 1024)}MB - ${TOO_LARGE_MSG}.`);
     }
 
     let s3;
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ id: asset.id, filename: asset.filename, public_url: asset.publicUrl, thumbnail_url: asset.thumbnailUrl, width: asset.width, height: asset.height, duration_s: asset.durationS, format: asset.format, size_bytes: asset.sizeBytes }, { status: 201 });
   } catch (e) {
     if ((e as Error)?.message === "payload_too_large") {
-      return apiError(413, "payload_too_large", `Upload exceeds the ${CAP_MB}MB server limit — ${TOO_LARGE_MSG}.`);
+      return apiError(413, "payload_too_large", `Upload exceeds the ${CAP_MB}MB server limit - ${TOO_LARGE_MSG}.`);
     }
     console.error("[media upload]", e);
     // Surface the real storage error so the UI shows something actionable

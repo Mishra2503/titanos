@@ -396,7 +396,7 @@ export default function SettingsPage() {
               {inviteToken && (
                 <div className="mt-3 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3">
                   <p className="font-mono text-[10px] uppercase tracking-wider text-amber-300">
-                    Single-use invite token — shown once. Share it securely with the invitee.
+                    Single-use invite token - shown once. Share it securely with the invitee.
                   </p>
                   <div className="mt-2 flex items-center gap-2">
                     <code className="min-w-0 flex-1 truncate rounded bg-charcoal px-2 py-1 font-mono text-xs text-ink">

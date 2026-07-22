@@ -2,7 +2,7 @@
 // as one explicit log line at startup, instead of an opaque ECONNREFUSED 60s later
 // when the publisher loop first touches the DB.
 //
-// NOTE: variable names are UNDERSCORED (DATABASE_URL, JWT_SECRET, FERNET_KEY) —
+// NOTE: variable names are UNDERSCORED (DATABASE_URL, JWT_SECRET, FERNET_KEY) -
 // matching what the code actually reads. A common mistake is dropping the
 // underscores in .env.local, which leaves every var undefined at runtime.
 
@@ -22,7 +22,7 @@ export function assertEnv(): void {
   if (missing.length) {
     console.error(
       `[env] Missing required vars: ${missing.join(", ")}. ` +
-        `Check apps/web/.env.local — names are UNDERSCORED (DATABASE_URL, not DATABASEURL).`,
+        `Check apps/web/.env.local - names are UNDERSCORED (DATABASE_URL, not DATABASEURL).`,
     );
   }
   console.log(

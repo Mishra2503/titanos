@@ -7,7 +7,7 @@ import { shortcodeOf, runApify, apifyToken } from "@/lib/server/instagram";
 
 // Competitor sync, two sources merged:
 //  1. Official Business Discovery API (followers, captions, likes/comments,
-//     timestamps) — needs the Meta app to have Advanced Access.
+//     timestamps) - needs the Meta app to have Advanced Access.
 //  2. Apify Instagram scrapers (adds REEL VIEW COUNTS, and acts as a full
 //     fallback when Business Discovery is blocked). Token: APIFY_TOKEN.
 
@@ -37,7 +37,7 @@ interface ApifyReel {
   commentsCount?: number; likesCount?: number;
   videoViewCount?: number; videoPlayCount?: number;
   timestamp?: string; displayUrl?: string; type?: string;
-  videoUrl?: string; // direct .mp4 CDN link (transient) — feeds video analysis
+  videoUrl?: string; // direct .mp4 CDN link (transient) - feeds video analysis
 }
 
 interface ApifyProfile {
@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!bd && reels.length === 0) {
       return badRequest(
         "sync_failed",
-        `Both data sources failed. Official API: ${bdError ?? "?"} | Scraper: ${apifyError ?? "?"} — if the scraper message mentions a missing token, add APIFY_TOKEN in Render.`,
+        `Both data sources failed. Official API: ${bdError ?? "?"} | Scraper: ${apifyError ?? "?"} - if the scraper message mentions a missing token, add APIFY_TOKEN in Render.`,
       );
     }
 
@@ -246,7 +246,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       };
       const existingId = storedBySc.get(p.shortcode);
       if (existingId) {
-        // Never wipe a stored video URL with null — a fresh one only helps.
+        // Never wipe a stored video URL with null - a fresh one only helps.
         await db.competitorPost.update({ where: { id: existingId }, data: { ...data, videoUrl: p.videoUrl ?? undefined } });
       } else {
         await db.competitorPost.create({ data: { workspaceId: wsId, competitorId: id, permalink: p.permalink, videoUrl: p.videoUrl, ...data } });

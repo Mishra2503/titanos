@@ -14,7 +14,7 @@ from app.models.user import User
 
 async def list_assets(db: AsyncSession, workspace_id: str) -> list[dict[str, Any]]:
     """All master videos for a workspace, newest first, each annotated with how many
-    campaigns / scheduled posts / published posts reference it. Counts are real — no
+    campaigns / scheduled posts / published posts reference it. Counts are real - no
     fabricated numbers (Rail: honest analytics)."""
     assets = list(
         await db.scalars(
@@ -74,7 +74,7 @@ async def list_assets(db: AsyncSession, workspace_id: str) -> list[dict[str, Any
 async def delete_asset(db: AsyncSession, workspace_id: str, asset_id: str) -> str | None:
     """Delete an unused asset. Returns the Cloudinary public_id to clean up after commit.
 
-    Blocked (409) when a campaign still references it — the DB FK is RESTRICT, and a
+    Blocked (409) when a campaign still references it - the DB FK is RESTRICT, and a
     silent failure would be worse than an explicit message."""
     asset = await db.scalar(
         select(MediaAsset).where(

@@ -1,9 +1,9 @@
-// Titan OS MCP endpoint — remote, Streamable-HTTP, Bearer-authenticated.
+// Titan OS MCP endpoint - remote, Streamable-HTTP, Bearer-authenticated.
 //
 // Speaks MCP over JSON-RPC 2.0 (initialize / tools/list / tools/call / ping).
 // Responses are returned as a single application/json body (the spec permits this
-// in place of an SSE stream), which every current MCP client — Claude Code/Desktop,
-// Claude & ChatGPT remote connectors, and the MCP Inspector — accepts.
+// in place of an SSE stream), which every current MCP client - Claude Code/Desktop,
+// Claude & ChatGPT remote connectors, and the MCP Inspector - accepts.
 //
 // Auth: every request must carry `Authorization: Bearer tos_...`. The token is
 // verified by lib/server/pat.ts and resolves to a real user+workspace+role, so
@@ -53,12 +53,12 @@ async function handleOne(req: RpcRequest, identity: TokenIdentity, origin: strin
         capabilities: { tools: { listChanged: false } },
         serverInfo: SERVER_INFO,
         instructions:
-          "Titan OS: multi-account Instagram content ops. Analytics come only from the Instagram Graph API — never invent metrics. Scheduling honors per-account rate-limit safety.",
+          "Titan OS: multi-account Instagram content ops. Analytics come only from the Instagram Graph API - never invent metrics. Scheduling honors per-account rate-limit safety.",
       });
 
     case "notifications/initialized":
     case "notifications/cancelled":
-      return null; // notification — no response
+      return null; // notification - no response
 
     case "ping":
       return rpcResult(req.id, {});

@@ -1,7 +1,7 @@
 // OAuth 2.1 authorization endpoint.
-//   GET  — validate the request, require a Titan OS session (bounce to /login if
+//   GET  - validate the request, require a Titan OS session (bounce to /login if
 //          not), then render a consent screen.
-//   POST — on approve, mint a single-use, PKCE-bound auth code and redirect back
+//   POST - on approve, mint a single-use, PKCE-bound auth code and redirect back
 //          to the client's redirect_uri with ?code=…&state=…
 //
 // Identity comes from the existing Titan OS session cookie, so "sign in" reuses
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
   <p style="color:#9ca3af;font-size:.9rem;margin:0 0 1.25rem"><b style="color:#e5e7eb">${appName}</b> wants to access your Titan OS workspace.</p>
   <ul style="color:#c9c9d1;font-size:.85rem;line-height:1.5;padding-left:1.1rem;margin:0 0 1.25rem">
     <li>Read your scheduled posts, board, competitors and insights</li>
-    <li>${readOnly ? "Read-only — cannot make changes" : "Create/edit content and run AI actions (limited by your role)"}</li>
+    <li>${readOnly ? "Read-only - cannot make changes" : "Create/edit content and run AI actions (limited by your role)"}</li>
   </ul>
   <form method="POST" action="/api/oauth/authorize" style="display:flex;gap:.6rem">
     <input type="hidden" name="ticket" value="${esc(ticket)}"/>

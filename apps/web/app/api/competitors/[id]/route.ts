@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     if (!c) return notFound("Competitor not found");
 
-    // Which reels already became scripts / board cards — powers the per-reel
+    // Which reels already became scripts / board cards - powers the per-reel
     // "Scripted" / "On board" tags so the same reel isn't reworked twice.
     const postIds = c.posts.map((p) => p.id);
     const scripts = postIds.length
@@ -101,7 +101,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // ── Outlier detection ────────────────────────────────────────────────────
     // A video is an "outlier" when it beats the account's own median by >=2x.
     // Uses views where the scraper provided them, else engagement (likes+comments).
-    // Pure math on public/scraped numbers — never fabricated.
+    // Pure math on public/scraped numbers - never fabricated.
     const median = (nums: number[]): number => {
       if (nums.length === 0) return 0;
       const s = [...nums].sort((a, b) => a - b);
@@ -193,7 +193,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         tags: (p.tags as string[]) ?? [],
         used: p.usedAt != null,
         scripted: scriptByPost.has(p.id),
-        board_card_id: scriptByPost.get(p.id)?.board_card_id ?? null,
+        board_card_id: p.boardCardId ?? scriptByPost.get(p.id)?.board_card_id ?? null,
       };
     });
 

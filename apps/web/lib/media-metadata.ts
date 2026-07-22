@@ -1,7 +1,7 @@
 "use client";
 
 // Extracts video dimensions/duration and a poster-frame thumbnail locally in
-// the browser before upload — the S3-compatible store (unlike Cloudinary)
+// the browser before upload - the S3-compatible store (unlike Cloudinary)
 // doesn't inspect or transform media, so the client is the only place this
 // metadata can come from. Every failure path degrades to nulls; this must
 // never block an upload.

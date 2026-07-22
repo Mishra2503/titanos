@@ -88,7 +88,7 @@ export default function ConnectorsPage() {
       setName("");
       setReadonly(false);
       setTokens(await listAccessTokens());
-      setBanner({ kind: "ok", msg: "Token created — copy it now, it won't be shown again." });
+      setBanner({ kind: "ok", msg: "Token created - copy it now, it won't be shown again." });
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Create failed" });
     } finally {
@@ -177,7 +177,7 @@ export default function ConnectorsPage() {
           {newToken && (
             <div className="mt-4 rounded-lg border border-amber-400/40 bg-amber-400/10 p-3">
               <p className="font-mono text-[10px] uppercase tracking-wider text-amber-300">
-                Copy this token now — it is shown once and cannot be retrieved again.
+                Copy this token now - it is shown once and cannot be retrieved again.
               </p>
               <div className="mt-2">
                 <CopyBox value={newToken} onCopy={() => setBanner({ kind: "ok", msg: "Token copied" })} />

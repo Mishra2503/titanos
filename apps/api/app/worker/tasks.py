@@ -33,7 +33,7 @@ async def _refresh_expiring() -> dict[str, int]:
                     db, workspace_id=account.workspace_id, account_id=account.id
                 )
                 refreshed += 1
-            except Exception:  # noqa: BLE001 — flagged NEEDS_REAUTH inside service
+            except Exception:  # noqa: BLE001 - flagged NEEDS_REAUTH inside service
                 failed += 1
         await db.commit()
     return {"refreshed": refreshed, "failed": failed}

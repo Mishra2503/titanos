@@ -1,4 +1,4 @@
-// RFC 8414 — OAuth 2.0 Authorization Server Metadata.
+// RFC 8414 - OAuth 2.0 Authorization Server Metadata.
 // Served at /.well-known/oauth-authorization-server via a rewrite (next.config.mjs).
 import { NextResponse } from "next/server";
 import { issuer, SUPPORTED_SCOPES } from "@/lib/server/oauth";

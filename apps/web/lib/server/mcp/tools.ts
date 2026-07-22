@@ -4,12 +4,12 @@
 // so all validation, RBAC, safety (min-gap / future-time / account-connected), and
 // the "Instagram Graph API only, never fabricate metrics" rails are enforced by the
 // same code the web UI uses. Tools marked `write: true` require a token that
-// `canWrite()` — the MCP route rejects them for read-only tokens / VIEWER users.
+// `canWrite()` - the MCP route rejects them for read-only tokens / VIEWER users.
 
 import type { TokenIdentity } from "@/lib/server/pat";
 import { internalFetch, errorMessage } from "@/lib/server/mcp/internal-fetch";
 
-// JSON Schema (draft-07-ish) — enough for MCP clients to render/validate inputs.
+// JSON Schema (draft-07-ish) - enough for MCP clients to render/validate inputs.
 type JsonSchema = {
   type: "object";
   properties: Record<string, unknown>;
@@ -66,7 +66,7 @@ export const TOOLS: McpTool[] = [
   {
     name: "schedule_posts",
     description:
-      "Schedule one media asset to one or more connected Instagram accounts. Publishing happens automatically on the scheduler at the scheduled time — this does NOT publish immediately. Safety rails apply: times must be in the future and at least the workspace minimum-gap apart per account, or the call is rejected.",
+      "Schedule one media asset to one or more connected Instagram accounts. Publishing happens automatically on the scheduler at the scheduled time - this does NOT publish immediately. Safety rails apply: times must be in the future and at least the workspace minimum-gap apart per account, or the call is rejected.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -334,7 +334,7 @@ export const TOOLS: McpTool[] = [
   {
     name: "get_insights_summary",
     description:
-      "Get the workspace insights summary per connected account (followers, reach, recent post metrics). Data comes only from the Instagram Graph API — never fabricate or extrapolate metrics beyond what this returns.",
+      "Get the workspace insights summary per connected account (followers, reach, recent post metrics). Data comes only from the Instagram Graph API - never fabricate or extrapolate metrics beyond what this returns.",
     inputSchema: NO_ARGS,
     handler: (id) => call(id, "/api/insights/summary"),
   },

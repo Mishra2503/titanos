@@ -3,7 +3,7 @@ import { db } from "@/lib/server/db";
 import { unauthorized, notFound, serverError } from "@/lib/server/errors";
 
 // Revoke a Personal Access Token (soft delete via revoked_at). Takes effect
-// immediately — verifyToken() rejects any token with revoked_at set.
+// immediately - verifyToken() rejects any token with revoked_at set.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId = req.headers.get("x-user-id");

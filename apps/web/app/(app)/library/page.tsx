@@ -14,7 +14,7 @@ type Banner = { kind: "ok" | "err"; msg: string } | null;
 type SortKey = "recent" | "name" | "size" | "duration";
 
 function formatBytes(n: number | null): string {
-  if (!n) return "—";
+  if (!n) return "-";
   const units = ["B", "KB", "MB", "GB"];
   let v = n;
   let i = 0;
@@ -26,7 +26,7 @@ function formatBytes(n: number | null): string {
 }
 
 function formatDuration(s: number | null): string {
-  if (s == null) return "—";
+  if (s == null) return "-";
   const m = Math.floor(s / 60);
   const sec = Math.round(s % 60);
   return m > 0 ? `${m}:${sec.toString().padStart(2, "0")}` : `0:${sec.toString().padStart(2, "0")}`;
@@ -40,7 +40,7 @@ function formatDate(iso: string): string {
       year: "numeric",
     });
   } catch {
-    return "—";
+    return "-";
   }
 }
 
@@ -91,7 +91,7 @@ export default function LibraryPage() {
           setBanner({
             kind: "err",
             msg: isCredentialError
-              ? `Upload disabled — add the S3_* storage variables (S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_BASE_URL) to your environment.`
+              ? `Upload disabled - add the S3_* storage variables (S3_ENDPOINT, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_BUCKET, S3_PUBLIC_BASE_URL) to your environment.`
               : `${file.name}: ${msg}`,
           });
         }
@@ -169,7 +169,7 @@ export default function LibraryPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <PageHeader
           title="Content Library"
-          subtitle="Your master Reels — upload once, schedule across every account."
+          subtitle="Your master Reels - upload once, schedule across every account."
         />
         <button
           onClick={() => fileInput.current?.click()}
@@ -242,7 +242,7 @@ export default function LibraryPage() {
             className="rounded-lg border border-charcoal-600 bg-charcoal px-3 py-2 text-sm text-ink outline-none focus:border-lime/50"
           >
             <option value="recent">Newest first</option>
-            <option value="name">Name A–Z</option>
+            <option value="name">Name A-Z</option>
             <option value="size">Largest</option>
             <option value="duration">Longest</option>
           </select>
@@ -277,7 +277,7 @@ export default function LibraryPage() {
           </div>
           <p className="mt-4 text-sm text-ink">Drop a video here, or click to upload</p>
           <p className="mt-1 font-mono text-xs text-ink-faint">
-            Any video — Reels, Shorts, horizontal or long-form · any size or aspect ratio
+            Any video - Reels, Shorts, horizontal or long-form · any size or aspect ratio
           </p>
         </div>
       )}
@@ -335,8 +335,8 @@ export default function LibraryPage() {
                     {a.filename}
                   </p>
                   <p className="mt-1 font-mono text-[10px] text-ink-faint">
-                    {a.width && a.height ? `${a.width}×${a.height}` : "—"} ·{" "}
-                    {a.format?.toUpperCase() ?? "—"} · {formatBytes(a.size_bytes)}
+                    {a.width && a.height ? `${a.width}×${a.height}` : "-"} ·{" "}
+                    {a.format?.toUpperCase() ?? "-"} · {formatBytes(a.size_bytes)}
                   </p>
 
                   <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -372,7 +372,7 @@ export default function LibraryPage() {
                     <button
                       onClick={() => remove(a)}
                       disabled={busyId === a.id || a.in_use}
-                      title={a.in_use ? "Used by a campaign — can't delete" : "Delete"}
+                      title={a.in_use ? "Used by a campaign - can't delete" : "Delete"}
                       className="press rounded-lg border border-red-400/30 px-2 py-1.5 text-xs text-red-400 hover:bg-red-400/10 disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       Delete
@@ -426,7 +426,7 @@ export default function LibraryPage() {
             />
             <div className="flex items-center justify-between gap-2 px-4 py-3">
               <span className="font-mono text-[11px] text-ink-faint">
-                {preview.width && preview.height ? `${preview.width}×${preview.height}` : "—"} ·{" "}
+                {preview.width && preview.height ? `${preview.width}×${preview.height}` : "-"} ·{" "}
                 {formatDuration(preview.duration_s)} · {formatBytes(preview.size_bytes)}
               </span>
               <button

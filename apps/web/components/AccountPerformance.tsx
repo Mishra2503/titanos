@@ -112,7 +112,7 @@ export function AccountPerformance({ accounts, sinceMs }: { accounts: AccountIns
 
       {bars.every((b) => b.value === 0) ? (
         <p className="rounded-lg border border-dashed border-charcoal-600 px-4 py-8 text-center text-sm text-ink-muted">
-          No data in this range yet — metrics appear as posts accumulate.
+          No data in this range yet - metrics appear as posts accumulate.
         </p>
       ) : (
         <BarChart bars={bars} height={170} />

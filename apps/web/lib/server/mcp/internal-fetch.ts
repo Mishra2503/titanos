@@ -1,4 +1,4 @@
-// internalFetch — the bridge that lets MCP tools reuse the existing REST routes
+// internalFetch - the bridge that lets MCP tools reuse the existing REST routes
 // (and therefore all their validation, RBAC, and rate-limit-safety logic) without
 // duplicating any of it.
 //
@@ -32,7 +32,7 @@ export async function internalFetch<T = unknown>(
   path: string,
   init: { method?: string; body?: unknown; origin?: string } = {},
 ): Promise<InternalResponse<T>> {
-  // 5-minute token — long enough for one tool call, short enough to be disposable.
+  // 5-minute token - long enough for one tool call, short enough to be disposable.
   const access = await createAccessToken({
     sub: identity.userId,
     ws: identity.workspaceId,

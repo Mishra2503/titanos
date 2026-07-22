@@ -255,7 +255,7 @@ export function CardDetail({ card, onClose, onSave, onDelete, onCardChanged }: P
 
         {/* Two-pane body */}
         <div className="grid grid-cols-1 gap-0 lg:grid-cols-5">
-          {/* LEFT — the record surface (script / teleprompter) */}
+          {/* LEFT - the record surface (script / teleprompter) */}
           <div className="space-y-4 border-b border-charcoal-700 px-6 py-5 lg:col-span-3 lg:border-b-0 lg:border-r">
             {/* AI assist */}
             <div>
@@ -317,13 +317,13 @@ export function CardDetail({ card, onClose, onSave, onDelete, onCardChanged }: P
                   value={draft.hook ?? ""}
                   onChange={(e) => set("hook", e.target.value || null)}
                   rows={2}
-                  placeholder="The first 7 seconds — make them stop scrolling."
+                  placeholder="The first 7 seconds - make them stop scrolling."
                   className={`mt-1 resize-none ${inputCls}`}
                 />
               </div>
             </div>
 
-            {/* The teleprompter — big and readable */}
+            {/* The teleprompter - big and readable */}
             <div>
               <div className="flex items-center justify-between">
                 <p className={labelCls}>Script / Teleprompter</p>
@@ -333,13 +333,13 @@ export function CardDetail({ card, onClose, onSave, onDelete, onCardChanged }: P
                 value={draft.notes ?? ""}
                 onChange={(e) => set("notes", e.target.value || null)}
                 rows={18}
-                placeholder="HOOK (0-3s): …&#10;BODY beat 1: …&#10;BODY beat 2: …&#10;CTA: …&#10;&#10;Write or generate the full script here — this is what you read on camera."
+                placeholder="HOOK (0-3s): …&#10;BODY beat 1: …&#10;BODY beat 2: …&#10;CTA: …&#10;&#10;Write or generate the full script here - this is what you read on camera."
                 className="mt-1 w-full resize-y rounded-lg border border-charcoal-600 bg-charcoal-700 px-4 py-3 text-[15px] leading-relaxed text-ink outline-none focus:border-lime placeholder:text-ink-faint"
               />
             </div>
           </div>
 
-          {/* RIGHT — meta + actions */}
+          {/* RIGHT - meta + actions */}
           <div className="space-y-4 px-6 py-5 lg:col-span-2">
             {/* Primary actions */}
             <div className="space-y-2 rounded-xl border border-charcoal-700 bg-charcoal-900/40 p-3">
@@ -354,7 +354,7 @@ export function CardDetail({ card, onClose, onSave, onDelete, onCardChanged }: P
               <button
                 onClick={scriptIt}
                 disabled={anyBusy || !hasContext}
-                title={analyzed ? "Turn the watched reel into a shoot-ready script" : "Best after Analyze — will still use the card's context"}
+                title={analyzed ? "Turn the watched reel into a shoot-ready script" : "Best after Analyze - will still use the card's context"}
                 className="btn-primary press flex w-full items-center justify-center gap-2 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {busy === "script" ? "Scripting…" : scriptedAt ? "📝 Re-script it" : "📝 Script it"}
@@ -555,7 +555,7 @@ function AnalysisPanel({ analysis, onUseScript }: { analysis: PostVideoAnalysis;
       <div className="rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-3">
         <p className="flex items-center gap-2 text-xs font-semibold text-sky-300">
           <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-sky-400" />
-          Watching the reel — extracting frames + transcript…
+          Watching the reel - extracting frames + transcript…
         </p>
         <p className="mt-1 text-[11px] text-ink-faint">This runs in the background; results appear here automatically.</p>
       </div>

@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     for (const account of accounts) {
       let token: string;
       try { token = decryptSecret(account.accessTokenEnc); } catch {
-        warnings.push(`@${account.username}: stored token unreadable — reconnect the account`);
+        warnings.push(`@${account.username}: stored token unreadable - reconnect the account`);
         continue;
       }
       const url = `${GRAPH}/${account.igUserId}/media?fields=id,media_type,media_product_type,timestamp&limit=${MEDIA_LIMIT}&access_token=${token}`;
@@ -67,6 +67,6 @@ export async function POST(req: NextRequest) {
     });
   } catch (e) {
     console.error("[analyze-own]", e);
-    return serverError("Could not queue your reels for analysis — check server logs.");
+    return serverError("Could not queue your reels for analysis - check server logs.");
   }
 }

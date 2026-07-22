@@ -1,6 +1,6 @@
 // OAuth 2.1 token endpoint.
-//   grant_type=authorization_code — exchange a PKCE-bound code for tokens
-//   grant_type=refresh_token       — rotate a refresh token for a fresh access token
+//   grant_type=authorization_code - exchange a PKCE-bound code for tokens
+//   grant_type=refresh_token       - rotate a refresh token for a fresh access token
 // Returns { access_token (JWT), token_type, expires_in, refresh_token, scope }.
 
 import { NextRequest, NextResponse } from "next/server";

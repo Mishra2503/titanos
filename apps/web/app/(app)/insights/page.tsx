@@ -17,7 +17,7 @@ function Stat({ label, value }: { label: string; value: string | number | null }
     <div>
       <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
       <p className="mt-1 text-xl font-bold tracking-tight text-ink">
-        {value === null || value === undefined ? "—" : value.toLocaleString()}
+        {value === null || value === undefined ? "-" : value.toLocaleString()}
       </p>
     </div>
   );
@@ -63,16 +63,16 @@ function PostTable({ posts }: { posts: RecentPost[] }) {
                   {p.media_product_type ?? "post"}
                 </span>
               </td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.reach?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.views?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.likes?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.comments?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.shares?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.saved?.toLocaleString() ?? "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.engagement_rate != null ? `${p.engagement_rate}%` : "—"}</td>
-              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.avg_watch_time_sec != null ? `${p.avg_watch_time_sec}s` : "—"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.reach?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.views?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.likes?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.comments?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.shares?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.saved?.toLocaleString() ?? "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.engagement_rate != null ? `${p.engagement_rate}%` : "-"}</td>
+              <td className="px-3 py-2 text-right font-mono text-ink-muted">{p.avg_watch_time_sec != null ? `${p.avg_watch_time_sec}s` : "-"}</td>
               <td className="px-3 py-2 text-right font-mono text-ink-faint whitespace-nowrap">
-                {p.timestamp ? new Date(p.timestamp).toLocaleDateString() : "—"}
+                {p.timestamp ? new Date(p.timestamp).toLocaleDateString() : "-"}
               </td>
             </tr>
           ))}
@@ -92,7 +92,7 @@ function AccountCard({ a }: { a: AccountInsights }) {
       <div className="flex items-center justify-between">
         <h2 className="text-lg text-ink">@{a.username}</h2>
         <span className="font-mono text-xs text-ink-faint">
-          {a.followers?.toLocaleString() ?? "—"} followers
+          {a.followers?.toLocaleString() ?? "-"} followers
           {a.profile_views != null && ` · ${a.profile_views.toLocaleString()} profile views (28d)`}
         </span>
       </div>

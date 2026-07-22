@@ -1,6 +1,6 @@
 """Cloudinary upload for master videos (PRD §5).
 
-The Content Library accepts any video — vertical Reels, Shorts, horizontal/long-form,
+The Content Library accepts any video - vertical Reels, Shorts, horizontal/long-form,
 large 4K masters. We deliberately do NOT gate uploads on duration / aspect ratio / size /
 format here. Instagram's own Reel requirements are enforced at publish time (where Meta
 returns the authoritative error), not at library upload time.

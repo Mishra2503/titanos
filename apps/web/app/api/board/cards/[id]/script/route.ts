@@ -9,7 +9,7 @@ const VA_SELECT = { status: true, summary: true, analysis: true, transcript: tru
 
 // "Script it" for a Content Board card. Turns the card (and, when present, the
 // watched reference reel: transcript + detected hook/format) into a shoot-ready
-// script and writes it straight into the card — hook, visual hook, caption,
+// script and writes it straight into the card - hook, visual hook, caption,
 // hashtags, and the full teleprompter body in `notes`. Reuses generateScript().
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       detectedHook: str(a.hookSpoken) ?? str(a.hookVisual) ?? card.hook ?? null,
       detectedFormat: str(a.format),
       // The card's own title/notes are the angle we build the script around.
-      angleFromAnalysis: [card.title, card.notes].filter(Boolean).join(" — ").slice(0, 600) || null,
+      angleFromAnalysis: [card.title, card.notes].filter(Boolean).join(" - ").slice(0, 600) || null,
     };
 
     const gen = await generateScript(seed);

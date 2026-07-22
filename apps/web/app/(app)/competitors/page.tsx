@@ -19,6 +19,7 @@ import {
   generateOverviewReport,
   getCompetitor,
   listCompetitors,
+  pushReelToBoard,
   syncCompetitor,
   tagCompetitorPost,
   updateCompetitor,
@@ -37,6 +38,7 @@ import {
   ChatCircle,
   Eye,
   Heart,
+  Kanban,
   Lightning,
   Play,
   Sparkle,
@@ -49,7 +51,7 @@ const inputCls =
   "w-full rounded-lg border border-charcoal-600 bg-charcoal px-3 py-2 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-lime/50";
 
 const fmt = (n: number | null | undefined) =>
-  n == null ? "—" : n.toLocaleString();
+  n == null ? "-" : n.toLocaleString();
 
 // Reel date + time, e.g. "Jul 15, 2:30 PM". Falls back to the date-only string.
 const fmtDateTime = (p: CompetitorPost): string => {
@@ -82,7 +84,7 @@ const RANGE_OPTIONS: [number, string][] = [
 
 // Compact number for tight card chips: 203680 → "203.7K", 1_600_000 → "1.6M".
 const compact = (n: number | null | undefined) => {
-  if (n == null) return "—";
+  if (n == null) return "-";
   if (n < 1000) return String(n);
   if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}K`;
   return `${(n / 1_000_000).toFixed(1)}M`;
@@ -102,7 +104,7 @@ const byScore = (items: CompetitorPost[]) =>
   });
 
 // The AI-watch intelligence panel: watch progress, format mix, outliers, and a
-// hook bank — all built from reels the server actually downloaded and watched.
+// hook bank - all built from reels the server actually downloaded and watched.
 function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
   const reels = detail.posts.filter((p) => (p.post_type ?? "").toUpperCase() === "REEL" || p.video_analysis != null);
   const watched = detail.posts.filter((p) => p.video_analysis?.status === "DONE");
@@ -110,31 +112,44 @@ function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
   const failed = detail.posts.filter((p) => p.video_analysis?.status === "FAILED").length;
   if (watched.length === 0 && pending === 0) return null;
 
-  // Format mix from watched reels
+  // Format mix from watched reels. Reels often have highly specific format
+  // strings, so collapse the long tail into a single "Other" bucket - otherwise
+  // this becomes an unreadable wall of one-off labels.
   const fmtCounts = new Map<string, number>();
   for (const p of watched) {
     const f = p.video_analysis?.format?.trim();
     if (f) fmtCounts.set(f, (fmtCounts.get(f) ?? 0) + 1);
   }
-  const formats = [...fmtCounts.entries()].sort((a, b) => b[1] - a[1]);
-  const fmtTotal = formats.reduce((s, [, n]) => s + n, 0);
+  const allFormats = [...fmtCounts.entries()].sort((a, b) => b[1] - a[1]);
+  const fmtTotal = allFormats.reduce((s, [, n]) => s + n, 0);
+  const TOP_FORMATS = 5;
+  const topFormats = allFormats.slice(0, TOP_FORMATS);
+  const otherCount = allFormats.slice(TOP_FORMATS).reduce((s, [, n]) => s + n, 0);
+  const formats: [string, number][] = otherCount > 0 ? [...topFormats, ["Other", otherCount] as [string, number]] : topFormats;
 
-  // Hook bank — real hooks from watched reels
+  // Hook bank - real hooks from watched reels
   const hooks = Array.from(
     new Set(
       watched
         .map((p) => p.video_analysis?.hook_spoken?.trim() || p.video_analysis?.hook_visual?.trim())
         .filter((h): h is string => !!h && h.toLowerCase() !== "none (music only)"),
     ),
-  ).slice(0, 10);
+  ).slice(0, 6);
 
   const outliers = detail.analytics.outliers ?? [];
   const metric = detail.analytics.outlier_metric ?? "views";
 
+  const dotColor = ["bg-lime", "bg-lime-dim", "bg-sky-400", "bg-ink-faint", "bg-charcoal-500", "bg-charcoal-600"];
+  const shownOutliers = outliers.slice(0, 4);
+  const moreOutliers = outliers.length - shownOutliers.length;
+
   return (
-    <div className="space-y-4 rounded-lg border border-lime/20 bg-lime/[0.03] p-4">
+    <div className="space-y-5 rounded-xl border border-lime/20 bg-lime/[0.03] p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="font-mono text-[10px] uppercase tracking-wider text-lime">AI video analysis — watched the reels</p>
+        <div className="flex items-center gap-2">
+          <Sparkle size={16} weight="fill" className="text-lime" />
+          <h3 className="text-sm font-semibold text-ink">AI video analysis</h3>
+        </div>
         <p className="font-mono text-[10px] text-ink-faint">
           {watched.length} watched{pending > 0 ? ` · ${pending} in queue` : ""}{failed > 0 ? ` · ${failed} failed` : ""}
           {reels.length > 0 ? ` of ${reels.length} reels` : ""}
@@ -142,20 +157,26 @@ function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
       </div>
 
       {pending > 0 && (
-        <p className="font-mono text-[10px] text-sky-400">Watching {pending} more reel{pending === 1 ? "" : "s"}… results appear here automatically.</p>
+        <p className="font-mono text-[10px] text-sky-400">Watching {pending} more reel{pending === 1 ? "" : "s"}. Results appear here automatically.</p>
       )}
 
       {formats.length > 0 && (
         <div>
-          <p className="mb-1.5 font-mono text-[9px] uppercase tracking-wider text-ink-faint">Format mix (watched reels)</p>
-          <div className="flex h-3 overflow-hidden rounded-full bg-charcoal-700">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Format mix</p>
+          <div className="flex h-2.5 overflow-hidden rounded-full bg-charcoal-700">
             {formats.map(([f, n], i) => (
-              <div key={f} title={`${f}: ${n}`} className={["bg-lime", "bg-lime-dim", "bg-sky-400", "bg-ink-faint", "bg-charcoal-600"][i % 5]} style={{ width: `${(n / fmtTotal) * 100}%` }} />
+              <div key={f} title={`${f}: ${n}`} className={dotColor[i % dotColor.length]} style={{ width: `${(n / fmtTotal) * 100}%` }} />
             ))}
           </div>
-          <div className="mt-2 flex flex-wrap gap-2 font-mono text-[10px] text-ink-muted">
-            {formats.map(([f, n]) => (
-              <span key={f}>{f} <span className="text-ink-faint">×{n}</span></span>
+          <div className="mt-2.5 grid grid-cols-1 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+            {formats.map(([f, n], i) => (
+              <div key={f} className="flex items-center justify-between gap-2 text-xs">
+                <span className="flex min-w-0 items-center gap-1.5 text-ink-muted">
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor[i % dotColor.length]}`} />
+                  <span className="truncate" title={f}>{f}</span>
+                </span>
+                <span className="shrink-0 font-mono text-[11px] text-ink-faint">{Math.round((n / fmtTotal) * 100)}%</span>
+              </div>
             ))}
           </div>
         </div>
@@ -163,40 +184,45 @@ function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
 
       {outliers.length > 0 && (
         <div>
-          <p className="mb-1.5 font-mono text-[9px] uppercase tracking-wider text-ink-faint">
-            Outliers — beat their median {metric} by 2x+
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">
+            Outliers <span className="text-ink-faint/70">· beat their median {metric} by 2x+</span>
           </p>
-          <div className="space-y-1.5">
-            {outliers.map((p) => (
-              <div key={p.id} className="rounded-md bg-charcoal/60 px-2 py-1.5">
-                <div className="flex items-center justify-between gap-2 font-mono text-[10px]">
-                  <span className="font-bold text-lime">{p.outlier_multiple}× median</span>
-                  <span className="text-ink-faint">
-                    {p.views != null && metric === "views" ? `${fmt(p.views)} views` : `${fmt(p.engagement)} eng.`}
+          <div className="space-y-2">
+            {shownOutliers.map((p) => (
+              <div key={p.id} className="rounded-lg border border-charcoal-700 bg-charcoal/60 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-lime">
+                    <Lightning size={13} weight="fill" /> {p.outlier_multiple}× median
+                  </span>
+                  <span className="font-mono text-[11px] text-ink-faint">
+                    {p.views != null && metric === "views" ? `${compact(p.views)} views` : `${compact(p.engagement)} eng`}
                     {p.permalink && (
                       <> · <a href={p.permalink} target="_blank" rel="noreferrer" className="hover:text-lime">open ↗</a></>
                     )}
                   </span>
                 </div>
                 {p.video_analysis?.status === "DONE" && (p.video_analysis.hook_spoken || p.video_analysis.hook_visual) && (
-                  <p className="mt-0.5 text-xs text-ink-muted"><span className="text-ink-faint">Hook:</span> {p.video_analysis.hook_spoken || p.video_analysis.hook_visual}</p>
+                  <p className="mt-1 line-clamp-2 text-xs text-ink-muted"><span className="text-ink-faint">Hook: </span>{p.video_analysis.hook_spoken || p.video_analysis.hook_visual}</p>
                 )}
-                {p.video_analysis?.why_it_works && (
-                  <p className="mt-0.5 text-xs text-ink-muted"><span className="text-ink-faint">Why:</span> {p.video_analysis.why_it_works}</p>
-                )}
-                {!p.video_analysis && p.caption && <p className="mt-0.5 line-clamp-1 text-xs text-ink-muted">{p.caption}</p>}
+                {!p.video_analysis && p.caption && <p className="mt-1 line-clamp-1 text-xs text-ink-muted">{p.caption}</p>}
               </div>
             ))}
           </div>
+          {moreOutliers > 0 && (
+            <p className="mt-2 font-mono text-[10px] text-ink-faint">+{moreOutliers} more outlier{moreOutliers === 1 ? "" : "s"} in the Reels tab</p>
+          )}
         </div>
       )}
 
       {hooks.length > 0 && (
         <div>
-          <p className="mb-1.5 font-mono text-[9px] uppercase tracking-wider text-ink-faint">Hook bank (real hooks from watched reels)</p>
-          <ul className="space-y-1">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-ink-faint">Hook bank</p>
+          <ul className="space-y-1.5">
             {hooks.map((h, i) => (
-              <li key={i} className="text-xs text-ink-muted">• {h}</li>
+              <li key={i} className="flex gap-2 text-xs text-ink-muted">
+                <span className="text-lime">•</span>
+                <span className="line-clamp-2">{h}</span>
+              </li>
             ))}
           </ul>
         </div>
@@ -206,7 +232,7 @@ function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
 }
 
 function Delta({ value, pct }: { value: number | null; pct: number | null }) {
-  if (value == null) return <span className="text-ink-faint">—</span>;
+  if (value == null) return <span className="text-ink-faint">-</span>;
   const up = value >= 0;
   return (
     <span className={up ? "text-lime" : "text-red-400"}>
@@ -299,7 +325,7 @@ export default function CompetitorsPage() {
         r.views_enriched ? `view counts on ${r.views_enriched} reels` : null,
         r.videos_enqueued ? `${r.videos_enqueued} reel${r.videos_enqueued === 1 ? "" : "s"} queued for AI watching` : null,
       ].filter(Boolean);
-      setBanner({ kind: "ok", msg: `Synced @${r.username} — ${bits.join(", ")}` });
+      setBanner({ kind: "ok", msg: `Synced @${r.username} - ${bits.join(", ")}` });
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Sync failed" });
     } finally {
@@ -419,7 +445,7 @@ export default function CompetitorsPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm text-ink">@{c.username}</p>
                       <p className="truncate font-mono text-[10px] text-ink-faint">
-                        {c.category || "—"}
+                        {c.category || "-"}
                       </p>
                     </div>
                   </div>
@@ -477,7 +503,7 @@ export default function CompetitorsPage() {
             setShowAdd(false);
             await loadList();
             await select(id);
-            setBanner({ kind: "ok", msg: "Competitor added — pulling live data from Instagram…" });
+            setBanner({ kind: "ok", msg: "Competitor added - pulling live data from Instagram…" });
             // Best-effort auto-sync right after adding, so stats appear without
             // any manual data entry.
             await doSync(id);
@@ -510,26 +536,6 @@ function SectionTitle({ children, hint }: { children: React.ReactNode; hint?: st
     <div className="mb-3 flex items-baseline justify-between">
       <h3 className="text-sm font-semibold text-ink">{children}</h3>
       {hint && <span className="text-[11px] text-ink-faint">{hint}</span>}
-    </div>
-  );
-}
-
-function ReelMetric({
-  icon: Icon,
-  value,
-  label,
-  accent,
-}: {
-  icon: typeof Eye;
-  value: string;
-  label: string;
-  accent?: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <Icon size={16} weight="fill" className={accent ? "text-lime" : "text-ink-muted"} />
-      <span className="text-sm font-semibold text-ink">{value}</span>
-      <span className="text-xs text-ink-muted">{label}</span>
     </div>
   );
 }
@@ -628,35 +634,43 @@ function ReelCard({
 
         {/* Footer pinned to the bottom so every card in a row is the same height. */}
         <div className="mt-auto">
-          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-            <ReelMetric icon={Eye} value={compact(post.views)} label="views" accent={post.views != null} />
-            <ReelMetric icon={TrendUp} value={er != null ? `${er}%` : "—"} label="eng rate" />
-            <ReelMetric icon={Heart} value={compact(post.likes)} label="likes" />
-            <ReelMetric icon={ChatCircle} value={compact(post.comments)} label="comments" />
+          {/* One calm stats line instead of a 2x2 grid - far less visual noise. */}
+          <div className="mt-3 flex items-center gap-3 border-t border-charcoal-700/60 pt-2.5 text-xs text-ink-muted">
+            <span className="flex items-center gap-1" title="Views">
+              <Eye size={14} weight="fill" className={post.views != null ? "text-lime" : "text-ink-faint"} />
+              <span className="font-semibold text-ink">{compact(post.views)}</span>
+            </span>
+            <span className="flex items-center gap-1" title="Engagement rate">
+              <TrendUp size={14} weight="fill" className="text-ink-faint" />
+              <span className="font-semibold text-ink">{er != null ? `${er}%` : "-"}</span>
+            </span>
+            <span className="flex items-center gap-1" title="Likes">
+              <Heart size={14} weight="fill" className="text-ink-faint" />
+              {compact(post.likes)}
+            </span>
+            <span className="flex items-center gap-1" title="Comments">
+              <ChatCircle size={14} weight="fill" className="text-ink-faint" />
+              {compact(post.comments)}
+            </span>
           </div>
 
           {/* Hashtag row is always rendered (min height reserved) so presence/absence
               never changes card height. */}
-          <div className="mt-3 flex min-h-[1.5rem] flex-wrap items-center gap-1">
-            {post.hashtags.slice(0, 3).map((h) => (
+          <div className="mt-2.5 flex min-h-[1.5rem] flex-wrap items-center gap-1">
+            {post.hashtags.slice(0, 2).map((h) => (
               <span key={h} className="rounded bg-charcoal-700 px-1.5 py-0.5 text-[11px] text-ink-muted">
                 {h}
               </span>
             ))}
-            {post.hashtags.length > 3 && (
-              <span className="px-1 py-0.5 text-[11px] text-ink-faint">+{post.hashtags.length - 3}</span>
+            {post.hashtags.length > 2 && (
+              <span className="px-1 py-0.5 text-[11px] text-ink-faint">+{post.hashtags.length - 2}</span>
             )}
+            {(post.tags?.length ?? 0) > 0 && post.tags!.slice(0, 2).map((t) => (
+              <span key={t} className="rounded-full border border-charcoal-600 px-1.5 py-0.5 text-[10px] text-ink-muted">
+                {t}
+              </span>
+            ))}
           </div>
-
-          {(post.tags?.length ?? 0) > 0 && (
-            <div className="mt-2 flex flex-wrap items-center gap-1">
-              {post.tags!.slice(0, 4).map((t) => (
-                <span key={t} className="rounded-full border border-charcoal-600 px-1.5 py-0.5 text-[10px] text-ink-muted">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
 
           <div className="mt-3 flex gap-2">
             <button
@@ -674,7 +688,7 @@ function ReelCard({
             <button
               onClick={(e) => { e.stopPropagation(); onTag(post, { used: !post.used }); }}
               disabled={tagging}
-              title={post.used ? "Marked used — click to unmark" : "Mark as used so it drops out of Hide-used"}
+              title={post.used ? "Marked used - click to unmark" : "Mark as used so it drops out of Hide-used"}
               className={`press flex items-center justify-center gap-1 rounded-lg border px-2.5 py-2 text-xs font-semibold transition-studio disabled:opacity-60 ${
                 post.used
                   ? "border-charcoal-500 bg-charcoal-600/60 text-ink"
@@ -780,7 +794,7 @@ function ContentOpportunity({
           <Sparkle size={16} weight="fill" className="text-lime" /> Turn this reel into a content idea
         </p>
         <p className="mt-1 text-xs text-ink-muted">
-          Deep-research this reel — hook, body and CTA — then find a high-potential idea for you and score how
+          Deep-research this reel - hook, body and CTA - then find a high-potential idea for you and score how
           hot the topic is.
         </p>
         {error && (
@@ -869,7 +883,7 @@ function ContentOpportunity({
   );
 }
 
-// Official Instagram embed — plays the real reel, never expires, free.
+// Official Instagram embed - plays the real reel, never expires, free.
 function IgEmbed({ post }: { post: CompetitorPost }) {
   const base = post.permalink?.trim();
   const src = base ? `${base.replace(/\/+$/, "")}/embed/` : null;
@@ -898,6 +912,8 @@ function ReelModal({
   scripting,
   onTag,
   tagging,
+  onSendToBoard,
+  boarding,
 }: {
   post: CompetitorPost;
   onClose: () => void;
@@ -908,11 +924,14 @@ function ReelModal({
   scripting: boolean;
   onTag: (p: CompetitorPost, patch: { tags?: string[]; used?: boolean }) => void;
   tagging: boolean;
+  onSendToBoard: (p: CompetitorPost) => void;
+  boarding: boolean;
 }) {
   const va = post.video_analysis;
   const watched = va?.status === "DONE";
   const watching = va?.status === "PENDING" || va?.status === "PROCESSING";
   const er = reelEngRate(post);
+  const onBoard = !!post.board_card_id;
   const [tagText, setTagText] = useState("");
   const tags = post.tags ?? [];
   const addTag = () => {
@@ -927,18 +946,33 @@ function ReelModal({
         onClick={(e) => e.stopPropagation()}
         className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-charcoal-700 bg-charcoal-800 shadow-pop"
       >
-        <div className="flex items-center justify-between border-b border-charcoal-700 px-5 py-3">
-          <p className="text-sm font-semibold text-ink">
-            {post.post_type || "REEL"}
-            {post.posted_on ? ` · ${String(post.posted_on).slice(0, 10)}` : ""}
+        <div className="flex items-center justify-between gap-3 border-b border-charcoal-700 px-5 py-3">
+          <p className="flex items-center gap-2 text-sm font-semibold text-ink">
+            <span className="rounded-md bg-charcoal-700 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+              {post.post_type || "REEL"}
+            </span>
+            {post.posted_on ? <span className="text-ink-faint">{String(post.posted_on).slice(0, 10)}</span> : null}
           </p>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => onSendToBoard(post)}
+              disabled={boarding}
+              title={onBoard ? "Open the Content Board" : "Add this reel to your Content Board as an idea"}
+              className={`press flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60 ${
+                onBoard
+                  ? "border border-lime/40 bg-lime/10 text-lime"
+                  : "btn-primary"
+              }`}
+            >
+              <Kanban size={14} weight="fill" />
+              {boarding ? "Adding…" : onBoard ? "On board ✓" : "Send to board"}
+            </button>
             {post.permalink && (
               <a
                 href={post.permalink}
                 target="_blank"
                 rel="noreferrer"
-                className="press rounded-lg border border-charcoal-600 px-2.5 py-1 text-xs text-ink-muted hover:text-ink"
+                className="press rounded-lg border border-charcoal-600 px-2.5 py-1.5 text-xs text-ink-muted hover:text-ink"
               >
                 Open on Instagram ↗
               </a>
@@ -960,7 +994,7 @@ function ReelModal({
               </div>
               <div className="rounded-lg border border-charcoal-700 bg-charcoal p-2.5">
                 <p className="text-[10px] uppercase tracking-wider text-ink-faint">Eng rate</p>
-                <p className="text-lg font-semibold text-ink">{er != null ? `${er}%` : "—"}</p>
+                <p className="text-lg font-semibold text-ink">{er != null ? `${er}%` : "-"}</p>
               </div>
               <div className="rounded-lg border border-charcoal-700 bg-charcoal p-2.5">
                 <p className="text-[10px] uppercase tracking-wider text-ink-faint">Likes</p>
@@ -980,7 +1014,7 @@ function ReelModal({
             <div className="mt-2 rounded-lg border border-charcoal-700 bg-charcoal/60 p-2.5">
               <p className="text-[10px] uppercase tracking-wider text-ink-faint">Shares · Saves · Reach</p>
               <p className="mt-0.5 text-[11px] text-ink-faint">
-                Private — Instagram doesn&apos;t expose these for accounts you don&apos;t own, so Titan
+                Private - Instagram doesn&apos;t expose these for accounts you don&apos;t own, so Titan
                 OS never shows or invents them.
               </p>
             </div>
@@ -997,7 +1031,7 @@ function ReelModal({
               scripting={scripting}
             />
 
-            {/* Transcript (Groq) — the "watch the reel" payload */}
+            {/* Transcript (Groq) - the "watch the reel" payload */}
             {va?.transcript ? (
               <details className="rounded-lg border border-charcoal-700 bg-charcoal p-3" open>
                 <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-lime">Transcript</summary>
@@ -1005,7 +1039,7 @@ function ReelModal({
               </details>
             ) : watching ? (
               <div className="rounded-lg border border-sky-400/30 bg-sky-400/5 p-3 text-sm text-sky-400">
-                Transcribing this reel now — the transcript appears here automatically.
+                Transcribing this reel now - the transcript appears here automatically.
               </div>
             ) : watched ? (
               <div className="rounded-lg border border-dashed border-charcoal-600 bg-charcoal p-3 text-sm text-ink-faint">
@@ -1044,7 +1078,7 @@ function ReelModal({
               </div>
             )}
 
-            {/* Tags + used marker — so this reel isn't re-worked twice */}
+            {/* Tags + used marker - so this reel isn't re-worked twice */}
             <div className="rounded-lg border border-charcoal-700 bg-charcoal p-3">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] uppercase tracking-wider text-ink-faint">Tags</p>
@@ -1111,6 +1145,7 @@ function CompetitorDetailView({
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
   const [scriptingId, setScriptingId] = useState<string | null>(null);
   const [taggingId, setTaggingId] = useState<string | null>(null);
+  const [boardingId, setBoardingId] = useState<string | null>(null);
   const [hideUsed, setHideUsed] = useState(false);
   const [rangeDays, setRangeDays] = useState<number>(28); // 0 = all time
   const [insights, setInsights] = useState<WindowInsights | null>(null);
@@ -1166,7 +1201,7 @@ function CompetitorDetailView({
   const analyzeReel = useCallback(
     async (post: CompetitorPost) => {
       setOpenPost(post); // open the modal so progress + results are visible
-      if (post.content_analysis) return; // already researched — just view it
+      if (post.content_analysis) return; // already researched - just view it
       setAnalyzeError(null);
       setAnalyzingId(post.id);
       try {
@@ -1175,7 +1210,7 @@ function CompetitorDetailView({
         await onChanged();
         setBanner({ kind: "ok", msg: "Content opportunity ready" });
       } catch (e) {
-        const msg = e instanceof ApiError ? e.message : "Analysis failed — try again";
+        const msg = e instanceof ApiError ? e.message : "Analysis failed - try again";
         setAnalyzeError(msg);
         setBanner({ kind: "err", msg });
       } finally {
@@ -1183,6 +1218,26 @@ function CompetitorDetailView({
       }
     },
     [detail.id, onChanged, setBanner],
+  );
+
+  // One-click: push this reel to the Content Board as an idea-stage card.
+  const sendReelToBoard = useCallback(
+    async (post: CompetitorPost) => {
+      if (post.board_card_id) { router.push("/board"); return; }
+      setBoardingId(post.id);
+      try {
+        const res = await pushReelToBoard(detail.id, post.id);
+        // Reflect the link immediately so the button flips to "On board".
+        setOpenPost((cur) => (cur && cur.id === post.id ? { ...cur, board_card_id: res.card_id } : cur));
+        await onChanged();
+        setBanner({ kind: "ok", msg: res.already ? "Already on your Content Board" : "Added to Content Board as an idea" });
+      } catch (e) {
+        err(e, "Could not add to board");
+      } finally {
+        setBoardingId(null);
+      }
+    },
+    [detail.id, onChanged, router],
   );
 
   // Tag a reel (manual tags + "used" toggle) so it isn't re-worked twice.
@@ -1266,7 +1321,7 @@ function CompetitorDetailView({
             className="btn-primary press px-3 py-1.5 text-xs disabled:opacity-50"
             title={
               detail.posts.some((p) => p.video_analysis?.status === "PENDING" || p.video_analysis?.status === "PROCESSING")
-                ? "Videos are still being watched — the report gets sharper once they finish, but you can run it now."
+                ? "Videos are still being watched - the report gets sharper once they finish, but you can run it now."
                 : "Full strategy: niche, formats, outliers and why, hook bank, and our scripting playbook"
             }
           >
@@ -1308,16 +1363,16 @@ function CompetitorDetailView({
             <Stat label="Followers" value={fmt(a.latest_followers)} />
             <Stat
               label="Growth"
-              value={a.follower_delta != null ? `${a.follower_delta >= 0 ? "+" : ""}${a.follower_delta.toLocaleString()}` : "—"}
+              value={a.follower_delta != null ? `${a.follower_delta >= 0 ? "+" : ""}${a.follower_delta.toLocaleString()}` : "-"}
               sub={a.growth_since ? `since ${a.growth_since}` : "add 2+ snapshots"}
             />
             <Stat
               label="Engagement"
-              value={a.avg_engagement_rate != null ? `${a.avg_engagement_rate}%` : "—"}
+              value={a.avg_engagement_rate != null ? `${a.avg_engagement_rate}%` : "-"}
             />
             <Stat
               label="Cadence"
-              value={a.posts_per_week != null ? `${a.posts_per_week}/wk` : "—"}
+              value={a.posts_per_week != null ? `${a.posts_per_week}/wk` : "-"}
               sub={a.posts_per_week == null ? "add dated posts" : undefined}
             />
           </div>
@@ -1390,10 +1445,10 @@ function CompetitorDetailView({
             </div>
           )}
 
-          {/* AI video analysis — format mix, outliers, hook bank */}
+          {/* AI video analysis - format mix, outliers, hook bank */}
           <AiVideoAnalysis detail={detail} />
 
-          {/* Viral reels — clean card grid, click for the full watch view */}
+          {/* Viral reels - clean card grid, click for the full watch view */}
           {detail.posts.length > 0 && (
             <div>
               <SectionTitle hint="top by views & engagement">Viral reels</SectionTitle>
@@ -1472,11 +1527,11 @@ function CompetitorDetailView({
                 <tbody className="text-ink-muted">
                   {[...detail.snapshots].reverse().map((s) => (
                     <tr key={s.id} className="border-b border-charcoal-700 last:border-0">
-                      <td className="px-3 py-2 font-mono">{s.captured_on ? String(s.captured_on).slice(0, 10) : "—"}</td>
+                      <td className="px-3 py-2 font-mono">{s.captured_on ? String(s.captured_on).slice(0, 10) : "-"}</td>
                       <td className="px-3 py-2">{fmt(s.followers_count)}</td>
                       <td className="px-3 py-2">{fmt(s.posts_count)}</td>
                       <td className="px-3 py-2">{fmt(s.avg_likes)}</td>
-                      <td className="px-3 py-2">{s.engagement_rate != null ? `${s.engagement_rate}%` : "—"}</td>
+                      <td className="px-3 py-2">{s.engagement_rate != null ? `${s.engagement_rate}%` : "-"}</td>
                       <td className="px-3 py-2 text-right">
                         <button
                           onClick={async () => {
@@ -1640,22 +1695,25 @@ function CompetitorDetailView({
           {visibleReels.length === 0 ? (
             <p className="font-mono text-sm text-ink-faint">
               {hideUsed && reels.length > 0
-                ? "Every reel here is marked used — turn off Hide used to see them."
+                ? "Every reel here is marked used - turn off Hide used to see them."
                 : reelView === "recent"
-                  ? `No reels in ${rangeLabel.toLowerCase()} — widen the range or Sync.`
+                  ? `No reels in ${rangeLabel.toLowerCase()} - widen the range or Sync.`
                   : reelView === "trending"
-                    ? "No reels in the last 30 days yet — Sync to pull recent posts."
+                    ? "No reels in the last 30 days yet - Sync to pull recent posts."
                     : "No reels yet. Hit Sync live data to pull them automatically."}
             </p>
           ) : reelView === "recent" ? (
             // Newest-first, grouped by day
-            <div className="space-y-5">
+            <div className="space-y-6">
               {groupByDay(visibleReels).map(([day, dayReels]) => (
                 <div key={day}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-ink-faint">
-                    {day === "undated" ? "Undated" : fmtDayHeader(day)}
-                    <span className="ml-2 text-ink-muted">· {dayReels.length} reel{dayReels.length === 1 ? "" : "s"}</span>
-                  </p>
+                  <div className="mb-3 flex items-center gap-3">
+                    <p className="shrink-0 text-xs font-semibold uppercase tracking-wider text-ink">
+                      {day === "undated" ? "Undated" : fmtDayHeader(day)}
+                      <span className="ml-2 font-normal text-ink-faint">{dayReels.length} reel{dayReels.length === 1 ? "" : "s"}</span>
+                    </p>
+                    <span className="h-px flex-1 bg-charcoal-700" />
+                  </div>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 auto-rows-fr">
                     {dayReels.map(reelCell)}
                   </div>
@@ -1704,6 +1762,8 @@ function CompetitorDetailView({
           scripting={scriptingId === openPost.id}
           onTag={tagReel}
           tagging={taggingId === openPost.id}
+          onSendToBoard={sendReelToBoard}
+          boarding={boardingId === openPost.id}
         />
       )}
     </div>
@@ -1777,13 +1837,13 @@ function PostForm({ onSubmit }: { onSubmit: (b: PostInput) => Promise<void> }) {
       <input placeholder="Reel / post URL (permalink)" className={`${inputCls} mt-2`} value={f.permalink} onChange={(e) => setF({ ...f, permalink: e.target.value })} />
       <textarea placeholder="Caption (hashtags auto-extracted)" rows={2} className={`${inputCls} mt-2`} value={f.caption} onChange={(e) => setF({ ...f, caption: e.target.value })} />
       <input
-        placeholder="Hook — the opening line / first 3 seconds that grab attention"
+        placeholder="Hook - the opening line / first 3 seconds that grab attention"
         className={`${inputCls} mt-2`}
         value={f.hook}
         onChange={(e) => setF({ ...f, hook: e.target.value })}
       />
       <textarea
-        placeholder="Why it's going viral — main reason (editing, topic, trend, emotion, CTA…)"
+        placeholder="Why it's going viral - main reason (editing, topic, trend, emotion, CTA…)"
         rows={2}
         className={`${inputCls} mt-2`}
         value={f.viral_reason}

@@ -1,8 +1,8 @@
-// Personal Access Tokens (PAT) — machine-to-machine auth for the MCP endpoint.
+// Personal Access Tokens (PAT) - machine-to-machine auth for the MCP endpoint.
 //
 // Token format: `tos_<id>_<secret>`
 //   - <id>     the PersonalAccessToken row id (O(1) DB lookup, not secret)
-//   - <secret> 32 random bytes, base64url — shown to the user exactly once
+//   - <secret> 32 random bytes, base64url - shown to the user exactly once
 //
 // Only sha256(<secret>) is persisted in `token_hash`. Verification is a
 // constant-time compare, so a leaked hash cannot be replayed and there is no
@@ -27,7 +27,7 @@ function sha256(input: string): string {
 }
 
 /**
- * Create a new PAT. Returns the plaintext token ONCE — it is never stored and
+ * Create a new PAT. Returns the plaintext token ONCE - it is never stored and
  * cannot be retrieved again. Caller must be an authenticated user in `workspaceId`.
  */
 export async function createToken(opts: {
@@ -66,7 +66,7 @@ export async function verifyToken(bearer: string | null | undefined): Promise<To
   if (!bearer) return null;
   const raw = bearer.startsWith("Bearer ") ? bearer.slice(7).trim() : bearer.trim();
   const parts = raw.split("_");
-  // `tos` + id + secret — id is a uuid (contains no underscores); secret is the rest.
+  // `tos` + id + secret - id is a uuid (contains no underscores); secret is the rest.
   if (parts.length < 3 || parts[0] !== TOKEN_PREFIX) return null;
   const id = parts[1];
   const secret = parts.slice(2).join("_");

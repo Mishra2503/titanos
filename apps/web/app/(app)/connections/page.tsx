@@ -213,7 +213,7 @@ export default function ConnectionsPage() {
                   <p className="font-mono text-xs text-ink-faint">
                     {a.followers_count != null
                       ? `${a.followers_count.toLocaleString()} followers`
-                      : "—"}
+                      : "-"}
                   </p>
                 </div>
                 <span
@@ -229,7 +229,7 @@ export default function ConnectionsPage() {
                   <span>
                     {cap && cap.used != null && cap.total != null
                       ? `${cap.used}/${cap.total}`
-                      : "—"}
+                      : "-"}
                   </span>
                 </div>
                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-charcoal-600">
