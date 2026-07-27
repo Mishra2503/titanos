@@ -27,6 +27,7 @@ model Workspace {
   accessTokens   PersonalAccessToken[]
   videoAnalyses  VideoAnalysis[]
   scripts        Script[]
+  mcpJobs        McpJob[]
 
   @@map("workspace")
 }
@@ -421,4 +422,29 @@ model Script {
 
   @@index([workspaceId, status])
   @@map("script")
+}
+
+// Async work started by an MCP tool. Long AI operations (reports, reel analysis,
+// script generation) run 30-120s, well past the 30-60s timeout most MCP clients
+// enforce — so those tools return a job id immediately and the LLM polls
+// get_job_status instead of holding the connection open.
+model McpJob {
+  id          String    @id @default(uuid())
+  workspaceId String    @map("workspace_id")
+  userId      String    @map("user_id")
+  tool        String
+  args        Json      @default("{}")
+  status      String    @default("PENDING") // PENDING | RUNNING | DONE | FAILED
+  result      Json?
+  error       String?
+  startedAt   DateTime? @map("started_at")
+  finishedAt  DateTime? @map("finished_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([status, createdAt])
+  @@map("mcp_job")
 }

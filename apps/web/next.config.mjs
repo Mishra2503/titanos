@@ -23,6 +23,10 @@ const nextConfig = {
       { source: "/.well-known/oauth-authorization-server/api/mcp", destination: "/api/oauth/meta/authorization-server" },
       { source: "/.well-known/oauth-protected-resource", destination: "/api/oauth/meta/protected-resource" },
       { source: "/.well-known/oauth-protected-resource/api/mcp", destination: "/api/oauth/meta/protected-resource" },
+      // Some connectors probe the OIDC path first and give up if it 404s with
+      // an HTML body. Our metadata is a superset of what they read there.
+      { source: "/.well-known/openid-configuration", destination: "/api/oauth/meta/authorization-server" },
+      { source: "/.well-known/openid-configuration/api/mcp", destination: "/api/oauth/meta/authorization-server" },
     ];
   },
   experimental: {

@@ -19,5 +19,12 @@ export async function register() {
       const { startVideoAnalyzerLoop } = await import("@/lib/server/videoAnalyzer");
       startVideoAnalyzerLoop();
     }
+
+    // MCP jobs run in-process, so a restart strands anything mid-flight.
+    // Fail those rows now rather than leaving an LLM polling them forever.
+    if (process.env.DATABASE_URL) {
+      const { sweepStaleJobs } = await import("@/lib/server/mcp/jobs");
+      void sweepStaleJobs();
+    }
   }
 }

@@ -14,6 +14,7 @@
 import { SignJWT, jwtVerify } from "jose";
 import { createHash, randomBytes, timingSafeEqual } from "crypto";
 import { db } from "@/lib/server/db";
+import { configuredOrigin } from "@/lib/server/mcp/origin";
 import type { TokenIdentity } from "@/lib/server/pat";
 
 const ALG = "HS256";
@@ -36,7 +37,7 @@ function refreshTtlMs(): number {
 }
 
 export function issuer(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+  return configuredOrigin();
 }
 /** The protected resource these tokens are scoped to (the MCP endpoint). */
 export function resource(): string {

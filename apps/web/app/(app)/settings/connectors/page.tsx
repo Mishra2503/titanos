@@ -147,12 +147,26 @@ export default function ConnectorsPage() {
           </div>
           <label className="mb-1.5 block font-mono text-xs uppercase tracking-wider text-ink-faint">Add to Claude Code</label>
           <CopyBox
-            value={`claude mcp add --transport http titan-os ${mcpUrl} --header "Authorization: Bearer <your-token>"`}
+            value={`claude mcp add --scope user --transport http titan-os ${mcpUrl} --header "Authorization: Bearer <your-token>"`}
             onCopy={() => setBanner({ kind: "ok", msg: "Command copied" })}
           />
+          <p className="mt-2 text-xs text-ink-muted">
+            Keep <code className="rounded bg-charcoal px-1 py-0.5 font-mono text-[11px]">--scope user</code> and restart Claude Code
+            afterwards, otherwise it reports &ldquo;no server named titan-os&rdquo;.
+          </p>
+
+          <label className="mb-1.5 mt-5 block font-mono text-xs uppercase tracking-wider text-ink-faint">
+            Claude Cowork, ChatGPT, Perplexity
+          </label>
+          <p className="text-xs text-ink-muted">
+            These connector UIs have no header field, so they sign in instead. Add a custom connector, paste the MCP endpoint URL
+            above, choose <b className="text-ink">Sign in</b>, log in with your Titan OS account and approve the consent screen. No
+            token needed.
+          </p>
           <p className="mt-3 text-xs text-ink-muted">
-            For Claude web or ChatGPT, add a custom/remote connector with the URL above and header{" "}
-            <code className="rounded bg-charcoal px-1 py-0.5 font-mono text-[11px]">Authorization: Bearer &lt;your-token&gt;</code>.
+            Tools that call Claude (reports, reel analysis, script writing) return a <code className="rounded bg-charcoal px-1 py-0.5 font-mono text-[11px]">job_id</code>{" "}
+            straight away. Ask the model to poll <code className="rounded bg-charcoal px-1 py-0.5 font-mono text-[11px]">get_job_status</code>{" "}
+            for the result.
           </p>
         </Section>
 
