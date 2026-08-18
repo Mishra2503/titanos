@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "prisma migrate deploy && next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:mcp": "node scripts/mcp-contract/run.mjs",
+    "test:mcp:live": "node scripts/mcp-smoke.mjs"
   },
   "engines": {
     "node": ">=20.0.0 <21.0.0"
