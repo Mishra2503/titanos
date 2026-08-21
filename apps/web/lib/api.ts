@@ -323,6 +323,19 @@ export interface ContentIdeaSource { title: string; url: string; }
 export interface ContentIdea { idea: string; angle: string | null; suggested_hook: string | null; suggested_format: string | null; hot_score: number | null; hot_tag: string | null; trend_summary: string | null; sources: ContentIdeaSource[]; }
 export interface ContentAnalysis { hook: string | null; body: string | null; cta: string | null; content_ideas: ContentIdea[]; estimate?: boolean; generated_at?: string | null; }
 export interface CompetitorPost { id: string; permalink: string | null; post_type: string | null; caption: string | null; hashtags: string[]; likes: number | null; comments: number | null; views: number | null; posted_on: string | null; posted_at?: string | null; thumbnail_url: string | null; video_url?: string | null; what_works: string | null; engagement: number | null; outlier_multiple?: number | null; is_outlier?: boolean; video_analysis?: PostVideoAnalysis | null; content_analysis?: ContentAnalysis | null; tags?: string[]; used?: boolean; scripted?: boolean; board_card_id?: string | null; }
+export interface CompetitorFeedPost extends CompetitorPost {
+  competitor_id: string;
+  competitor_username: string;
+  competitor_display_name: string | null;
+  competitor_category: string | null;
+  competitor_avatar_url: string | null;
+  outlier_metric: "views" | "engagement";
+}
+export interface CompetitorFeed {
+  generated_at: string;
+  posts: CompetitorFeedPost[];
+  totals: { posts: number; winners: number; watched: number; competitors: number };
+}
 export interface HashtagStat { tag: string; count: number; avg_engagement: number | null; }
 export interface CompetitorAnalytics { latest_followers: number | null; follower_delta: number | null; follower_delta_pct: number | null; growth_since: string | null; avg_engagement_rate: number | null; posts_per_week: number | null; content_mix: Record<string, number>; top_hashtags: HashtagStat[]; top_posts: CompetitorPost[]; median_views?: number | null; outlier_metric?: "views" | "engagement"; outliers?: CompetitorPost[]; }
 export interface CompetitorReport { id: string; competitor_id: string | null; title: string; content: string; model: string | null; generated_at: string; }
@@ -332,6 +345,7 @@ export interface SnapshotInput { captured_on?: string | null; followers_count?: 
 export interface PostInput { permalink?: string | null; post_type?: string | null; caption?: string | null; hashtags?: string[] | null; likes?: number | null; comments?: number | null; views?: number | null; posted_on?: string | null; thumbnail_url?: string | null; what_works?: string | null; }
 
 export const listCompetitors = () => apiFetch<CompetitorListItem[]>("/api/competitors");
+export const getCompetitorFeed = () => apiFetch<CompetitorFeed>("/api/competitors/feed");
 export const createCompetitor = (body: CompetitorInput) => apiFetch<CompetitorListItem>("/api/competitors", { method: "POST", body: JSON.stringify(body) });
 export const getCompetitor = (id: string) => apiFetch<CompetitorDetail>(`/api/competitors/${id}`);
 export const updateCompetitor = (id: string, body: Partial<CompetitorInput> & { avatar_url?: string | null }) => apiFetch<CompetitorDetail>(`/api/competitors/${id}`, { method: "PATCH", body: JSON.stringify(body) });

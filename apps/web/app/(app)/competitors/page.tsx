@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/Placeholder";
+import { CompetitorWatchlist } from "@/components/competitors/CompetitorWatchlist";
+import { WinnerRadar } from "@/components/competitors/WinnerRadar";
 import {
   ApiError,
   addCompetitorPost,
@@ -18,11 +19,13 @@ import {
   generateCompetitorReport,
   generateOverviewReport,
   getCompetitor,
+  getCompetitorFeed,
   listCompetitors,
   pushReelToBoard,
   syncCompetitor,
   tagCompetitorPost,
-  updateCompetitor,
+  type CompetitorFeed,
+  type CompetitorFeedPost,
   type CompetitorDetail,
   type CompetitorListItem,
   type CompetitorPost,
@@ -34,7 +37,6 @@ import {
 } from "@/lib/api";
 import { TrendChart } from "@/components/Charts";
 import {
-  Binoculars,
   ChatCircle,
   Eye,
   Heart,
@@ -231,20 +233,13 @@ function AiVideoAnalysis({ detail }: { detail: CompetitorDetail }) {
   );
 }
 
-function Delta({ value, pct }: { value: number | null; pct: number | null }) {
-  if (value == null) return <span className="text-ink-faint">-</span>;
-  const up = value >= 0;
-  return (
-    <span className={up ? "text-lime" : "text-red-400"}>
-      {up ? "▲" : "▼"} {Math.abs(value).toLocaleString()}
-      {pct != null ? ` (${up ? "+" : ""}${pct}%)` : ""}
-    </span>
-  );
-}
-
 export default function CompetitorsPage() {
   const [list, setList] = useState<CompetitorListItem[] | null>(null);
+  const [feed, setFeed] = useState<CompetitorFeed | null>(null);
+  const [feedLoading, setFeedLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [initialPostId, setInitialPostId] = useState<string | null>(null);
+  const [workspaceView, setWorkspaceView] = useState<"radar" | "profile">("radar");
   const [detail, setDetail] = useState<CompetitorDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [banner, setBanner] = useState<Banner>(null);
@@ -260,9 +255,21 @@ export default function CompetitorsPage() {
     }
   }, []);
 
+  const loadFeed = useCallback(async () => {
+    setFeedLoading(true);
+    try {
+      setFeed(await getCompetitorFeed());
+    } catch (err) {
+      setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Failed to load the Winner Radar" });
+    } finally {
+      setFeedLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadList();
-  }, [loadList]);
+    void loadFeed();
+  }, [loadFeed, loadList]);
 
   useEffect(() => {
     if (!banner) return;
@@ -270,8 +277,10 @@ export default function CompetitorsPage() {
     return () => clearTimeout(t);
   }, [banner]);
 
-  const select = useCallback(async (id: string) => {
+  const select = useCallback(async (id: string, postId: string | null = null) => {
+    setWorkspaceView("profile");
     setSelectedId(id);
+    setInitialPostId(postId);
     setDetail(null);
     try {
       setDetail(await getCompetitor(id));
@@ -283,11 +292,15 @@ export default function CompetitorsPage() {
   const refreshDetail = useCallback(async () => {
     try {
       if (selectedId) setDetail(await getCompetitor(selectedId));
-      await loadList();
+      await Promise.all([loadList(), loadFeed()]);
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Refresh failed" });
     }
-  }, [selectedId, loadList]);
+  }, [selectedId, loadFeed, loadList]);
+
+  const openWinner = useCallback((post: CompetitorFeedPost) => {
+    void select(post.competitor_id, post.id);
+  }, [select]);
 
   // While the AI is still watching this competitor's reels, poll so the
   // watched cards, format mix, and outliers stream in without a manual refresh.
@@ -352,8 +365,9 @@ export default function CompetitorsPage() {
       if (selectedId === id) {
         setSelectedId(null);
         setDetail(null);
+        setWorkspaceView("radar");
       }
-      await loadList();
+      await Promise.all([loadList(), loadFeed()]);
       setBanner({ kind: "ok", msg: `Removed @${username}` });
     } catch (err) {
       setBanner({ kind: "err", msg: err instanceof ApiError ? err.message : "Delete failed" });
@@ -361,43 +375,36 @@ export default function CompetitorsPage() {
   }
 
   return (
-    <div>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <PageHeader
-          title="Competitors"
-          subtitle="Track rivals, watch every reel, and turn what's working for them into your next post."
-        />
-        <div className="flex gap-2">
+    <div className="mx-auto max-w-[1800px] animate-reveal">
+      <header className="mb-6 flex flex-col gap-5 border-b border-charcoal-700 pb-6 xl:flex-row xl:items-end xl:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-lime">Competitive intelligence</p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-ink sm:text-4xl">Competitor Radar</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-muted">
+            Spot the Reels breaking each creator&apos;s baseline. Keep the evidence, study the hook, and move the best signal into your content pipeline.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={genOverview}
             disabled={busy === "overview" || !list || list.length === 0}
-            className="press rounded-lg border border-charcoal-600 px-4 py-2 text-sm text-ink-muted hover:text-ink disabled:opacity-50"
+            className="press rounded-full border border-charcoal-600 bg-charcoal-800 px-4 py-2.5 text-sm font-semibold text-ink-muted shadow-sm hover:border-lime/40 hover:text-lime disabled:opacity-50"
           >
             {busy === "overview" ? "Analyzing…" : "Landscape report"}
           </button>
           <button
             onClick={() => setShowAdd(true)}
-            className="btn-primary press"
+            className="btn-primary press px-5"
           >
             Add competitor
           </button>
         </div>
-      </div>
-
-      {/* Data provenance */}
-      <div className="mb-5 rounded-lg border border-charcoal-700 bg-charcoal-800 px-4 py-2 text-xs text-ink-muted">
-        <span className="font-mono uppercase tracking-wider text-lime">Live intelligence</span>
-        <span className="ml-2">
-          Sync pulls followers, captions, likes, comments and posting times from the official
-          Business Discovery API, reel view counts from the scraper, and a transcript + format
-          breakdown from watching each reel. Private metrics (shares, saves, reach) aren&apos;t
-          exposed for other accounts, so they&apos;re never shown or invented.
-        </span>
-      </div>
+      </header>
 
       {banner && (
         <div
-          className={`mb-6 animate-reveal rounded-lg border px-4 py-2.5 text-sm ${
+          role="status"
+          className={`mb-5 animate-reveal rounded-xl border px-4 py-3 text-sm ${
             banner.kind === "ok"
               ? "border-lime/40 bg-lime/10 text-lime"
               : "border-red-400/40 bg-red-400/10 text-red-400"
@@ -406,75 +413,84 @@ export default function CompetitorsPage() {
           {banner.msg}
         </div>
       )}
-      {error && <p className="font-mono text-sm text-red-400">{error}</p>}
+      {error && <p role="alert" className="mb-5 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-400">{error}</p>}
 
       {list && list.length === 0 && (
-        <div
-          onClick={() => setShowAdd(true)}
-          className="cursor-pointer rounded-xl border-2 border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-16 text-center hover:border-charcoal-500"
-        >
+        <div className="rounded-2xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 py-20 text-center shadow-card">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-lime/10 text-lime">
-            <Binoculars size={26} />
+            <Lightning size={25} weight="fill" />
           </div>
-          <p className="mt-4 text-sm text-ink">Add your first competitor to start tracking</p>
-          <p className="mt-1 font-mono text-xs text-ink-faint">
-            Their handle, niche, follower count, top posts and hashtags
+          <h2 className="mt-4 text-lg font-bold text-ink">Build your first watchlist</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
+            Add an Instagram creator. Titan will pull their public Reels, establish their normal baseline, and surface the posts that break it.
           </p>
+          <button type="button" onClick={() => setShowAdd(true)} className="btn-primary press mt-5">Add competitor</button>
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-        {/* List / leaderboard */}
-        {list && list.length > 0 && (
-          <div className="lg:col-span-4">
-            <div className="space-y-2">
-              {list.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => select(c.id)}
-                  className={`press lift block w-full rounded-xl border p-4 text-left transition-studio duration-studio ease-studio-out ${
-                    selectedId === c.id
-                      ? "border-lime/50 bg-charcoal-700"
-                      : "border-charcoal-700 bg-charcoal-800 hover:border-charcoal-600"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-charcoal-600 font-mono text-xs text-lime">
-                      {c.username.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-ink">@{c.username}</p>
-                      <p className="truncate font-mono text-[10px] text-ink-faint">
-                        {c.category || "-"}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between font-mono text-[11px]">
-                    <span className="text-ink-muted">{fmt(c.latest_followers)} followers</span>
-                    <Delta value={c.follower_delta} pct={c.follower_delta_pct} />
-                  </div>
-                  <div className="mt-1 flex items-center justify-between font-mono text-[10px] text-ink-faint">
-                    <span>
-                      {c.avg_engagement_rate != null ? `${c.avg_engagement_rate}% eng` : "no eng data"}
-                    </span>
-                    <span>
-                      {c.post_count} posts · {c.snapshot_count} snaps
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      {(!list || list.length > 0) && (
+        <div className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,1fr)] xl:gap-6">
+          <CompetitorWatchlist
+            competitors={list ?? []}
+            activeId={workspaceView === "profile" ? selectedId : null}
+            loading={list == null}
+            onSelect={(id) => { void select(id); }}
+            onAdd={() => setShowAdd(true)}
+          />
 
-        {/* Detail */}
-        {selectedId && (
-          <div className="lg:col-span-8">
-            {!detail ? (
-              <p className="font-mono text-sm text-ink-faint">Loading…</p>
+          <div className="min-w-0">
+            <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-charcoal-700 bg-charcoal-800 p-2 shadow-card sm:flex-row sm:items-center sm:justify-between">
+              <div className="grid grid-cols-2 rounded-xl bg-charcoal p-1">
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceView("radar")}
+                  className={`press rounded-lg px-4 py-2 text-sm font-semibold ${workspaceView === "radar" ? "bg-white text-lime shadow-sm" : "text-ink-muted hover:text-ink"}`}
+                >
+                  Winner Radar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWorkspaceView("profile")}
+                  disabled={!selectedId}
+                  className={`press rounded-lg px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 ${workspaceView === "profile" ? "bg-white text-lime shadow-sm" : "text-ink-muted hover:text-ink"}`}
+                >
+                  Creator profile
+                </button>
+              </div>
+              <details className="group px-2 text-xs text-ink-faint">
+                <summary className="cursor-pointer font-semibold text-ink-muted hover:text-ink">How Titan scores winners</summary>
+                <p className="mt-2 max-w-xl leading-relaxed">
+                  Public views, likes, comments and posting times come from Instagram Business Discovery plus the configured public-data scraper. A winner beats that creator&apos;s own median by at least 2×. Shares, saves and reach stay hidden because Instagram does not expose them for competitor accounts.
+                </p>
+              </details>
+            </div>
+
+            {workspaceView === "radar" ? (
+              <WinnerRadar
+                feed={feed}
+                competitors={list ?? []}
+                loading={feedLoading}
+                onOpen={openWinner}
+              />
+            ) : !selectedId ? (
+              <div className="flex min-h-[420px] items-center justify-center rounded-2xl border border-dashed border-charcoal-600 bg-charcoal-800 px-6 text-center">
+                <div>
+                  <h2 className="text-lg font-bold text-ink">Choose a creator from the watchlist</h2>
+                  <p className="mt-1 text-sm text-ink-muted">Their winners, growth history, AI analysis and reports will appear here.</p>
+                </div>
+              </div>
+            ) : !detail ? (
+              <div className="rounded-2xl border border-charcoal-700 bg-charcoal-800 p-6" aria-busy="true" aria-label="Loading competitor profile">
+                <div className="skeleton h-24 w-full" />
+                <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {Array.from({ length: 4 }).map((_, index) => <div key={index} className="skeleton h-20" />)}
+                </div>
+              </div>
             ) : (
               <CompetitorDetailView
+                key={`${detail.id}:${initialPostId ?? "profile"}`}
                 detail={detail}
+                initialPostId={initialPostId}
                 busy={busy}
                 onSync={() => doSync(detail.id)}
                 onGenReport={() => genReport(detail.id)}
@@ -485,16 +501,8 @@ export default function CompetitorsPage() {
               />
             )}
           </div>
-        )}
-
-        {list && list.length > 0 && !selectedId && (
-          <div className="hidden lg:col-span-8 lg:block">
-            <div className="flex h-full min-h-[300px] items-center justify-center rounded-xl border border-dashed border-charcoal-700 bg-charcoal-800 text-center">
-              <p className="text-sm text-ink-faint">Select a competitor to see the full breakdown</p>
-            </div>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {showAdd && (
         <AddCompetitorModal
@@ -523,10 +531,10 @@ export default function CompetitorsPage() {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-charcoal-700 bg-charcoal-800 p-4">
-      <p className="font-mono text-[10px] uppercase tracking-wider text-ink-faint">{label}</p>
-      <p className="mt-1 text-xl font-semibold text-ink">{value}</p>
-      {sub && <p className="mt-0.5 font-mono text-[10px] text-ink-faint">{sub}</p>}
+    <div className="rounded-xl border border-charcoal-700 bg-charcoal p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-ink-faint">{label}</p>
+      <p className="mt-1 text-2xl font-bold tracking-tight text-ink">{value}</p>
+      {sub && <p className="mt-0.5 text-[10px] text-ink-faint">{sub}</p>}
     </div>
   );
 }
@@ -567,7 +575,7 @@ function ReelThumb({ post, rounded }: { post: CompetitorPost; rounded: string })
       )}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
       {outlier && post.outlier_multiple != null && (
-        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-lime px-1.5 py-0.5 text-[10px] font-bold text-black shadow-pop">
+        <span className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-amber-300 px-1.5 py-0.5 text-[10px] font-bold text-[#3B2500] shadow-pop">
           <Lightning size={11} weight="fill" /> {post.outlier_multiple}× median
         </span>
       )}
@@ -584,10 +592,10 @@ function ReelThumb({ post, rounded }: { post: CompetitorPost; rounded: string })
       {(onBoard || scripted || used) && (
         <div className="absolute bottom-2 left-2 flex flex-wrap items-center gap-1">
           {onBoard && (
-            <span className="rounded-md bg-lime px-1.5 py-0.5 text-[10px] font-bold text-black shadow-pop">On board</span>
+            <span className="rounded-md bg-lime px-1.5 py-0.5 text-[10px] font-bold text-white shadow-pop">On board</span>
           )}
           {scripted && (
-            <span className="rounded-md bg-lime/85 px-1.5 py-0.5 text-[10px] font-bold text-black shadow-pop">Scripted</span>
+            <span className="rounded-md bg-lime/85 px-1.5 py-0.5 text-[10px] font-bold text-white shadow-pop">Scripted</span>
           )}
           {used && (
             <span className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">Used</span>
@@ -1119,6 +1127,7 @@ function ReelModal({
 
 function CompetitorDetailView({
   detail,
+  initialPostId,
   busy,
   onSync,
   onGenReport,
@@ -1128,6 +1137,7 @@ function CompetitorDetailView({
   setBanner,
 }: {
   detail: CompetitorDetail;
+  initialPostId: string | null;
   busy: string | null;
   onSync: () => void;
   onGenReport: () => void;
@@ -1137,9 +1147,11 @@ function CompetitorDetailView({
   setBanner: (b: Banner) => void;
 }) {
   const a = detail.analytics;
-  const [tab, setTab] = useState<"overview" | "snapshots" | "reels" | "reports">("overview");
-  const [reelView, setReelView] = useState<"recent" | "top" | "trending">("recent");
-  const [openPost, setOpenPost] = useState<CompetitorPost | null>(null);
+  const [tab, setTab] = useState<"overview" | "snapshots" | "reels" | "reports">("reels");
+  const [reelView, setReelView] = useState<"recent" | "top" | "trending">("top");
+  const [openPost, setOpenPost] = useState<CompetitorPost | null>(
+    () => detail.posts.find((post) => post.id === initialPostId) ?? null,
+  );
   const [showLog, setShowLog] = useState(false);
   const [analyzingId, setAnalyzingId] = useState<string | null>(null);
   const [analyzeError, setAnalyzeError] = useState<string | null>(null);
@@ -1281,13 +1293,22 @@ function CompetitorDetailView({
   const postsPerWeek = rangeDays > 0 && recentReels.length ? Math.round((recentReels.length / rangeDays) * 7 * 10) / 10 : null;
 
   return (
-    <div className="animate-reveal rounded-xl border border-charcoal-700 bg-charcoal-800 p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <h2 className="truncate text-lg font-semibold text-ink">@{detail.username}</h2>
+    <div className="animate-reveal rounded-2xl border border-charcoal-700 bg-charcoal-800 p-5 shadow-card lg:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3.5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-charcoal-700 bg-charcoal text-sm font-bold text-lime shadow-sm">
+            {detail.avatar_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={detail.avatar_url} alt="" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+            ) : (
+              detail.username.slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+            <h2 className="truncate text-xl font-bold tracking-tight text-ink">@{detail.username}</h2>
             {detail.category && (
-              <span className="rounded-full border border-charcoal-600 px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
+              <span className="rounded-full border border-charcoal-600 bg-charcoal px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-ink-muted">
                 {detail.category}
               </span>
             )}
@@ -1295,7 +1316,7 @@ function CompetitorDetailView({
           {detail.display_name && (
             <p className="text-sm text-ink-muted">{detail.display_name}</p>
           )}
-          <div className="mt-1 flex gap-3 font-mono text-[11px] text-ink-faint">
+          <div className="mt-1 flex gap-3 text-[11px] font-medium text-ink-faint">
             <a
               href={detail.profile_url || `https://instagram.com/${detail.username}`}
               target="_blank"
@@ -1305,12 +1326,13 @@ function CompetitorDetailView({
               Open profile ↗
             </a>
           </div>
+          </div>
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-wrap gap-2 sm:justify-end">
           <button
             onClick={onSync}
             disabled={busy === "sync"}
-            className="press rounded-lg border border-lime/40 bg-lime/10 px-3 py-1.5 text-xs font-semibold text-lime disabled:opacity-50"
+            className="press rounded-full border border-lime/40 bg-lime/10 px-3.5 py-2 text-xs font-semibold text-lime disabled:opacity-50"
             title="Pull followers, engagement and recent posts via the official Business Discovery API"
           >
             {busy === "sync" ? "Syncing…" : "Sync live data"}
@@ -1318,7 +1340,7 @@ function CompetitorDetailView({
           <button
             onClick={onGenReport}
             disabled={busy === "report"}
-            className="btn-primary press px-3 py-1.5 text-xs disabled:opacity-50"
+            className="btn-primary press px-4 py-2 text-xs disabled:opacity-50"
             title={
               detail.posts.some((p) => p.video_analysis?.status === "PENDING" || p.video_analysis?.status === "PROCESSING")
                 ? "Videos are still being watched - the report gets sharper once they finish, but you can run it now."
@@ -1329,7 +1351,7 @@ function CompetitorDetailView({
           </button>
           <button
             onClick={onRemove}
-            className="press rounded-lg border border-red-400/30 px-3 py-1.5 text-xs text-red-400 hover:bg-red-400/10"
+            className="press rounded-full border border-charcoal-700 px-3.5 py-2 text-xs font-semibold text-ink-faint hover:border-red-400/30 hover:bg-red-400/10 hover:text-red-400"
           >
             Remove
           </button>
@@ -1337,18 +1359,18 @@ function CompetitorDetailView({
       </div>
 
       {/* Tabs */}
-      <div className="mt-4 flex gap-1 border-b border-charcoal-700">
-        {(["overview", "reels", "snapshots", "reports"] as const).map((t) => (
+      <div className="mt-5 flex gap-1 overflow-x-auto border-b border-charcoal-700">
+        {(["reels", "overview", "snapshots", "reports"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`press -mb-px border-b-2 px-3 py-2 text-xs capitalize ${
+            className={`press -mb-px whitespace-nowrap border-b-2 px-3 py-2.5 text-xs font-semibold ${
               tab === t
                 ? "border-lime text-ink"
                 : "border-transparent text-ink-muted hover:text-ink"
             }`}
           >
-            {t}
+            {t === "reels" ? "Winning Reels" : t === "overview" ? "Intelligence" : t}
             {t === "reels" && ` (${detail.posts.length})`}
             {t === "snapshots" && ` (${detail.snapshots.length})`}
             {t === "reports" && ` (${detail.reports.length})`}
