@@ -1,5 +1,6 @@
 import { db } from "@/lib/server/db";
 import { decryptSecret } from "@/lib/server/crypto";
+import { prepareInstagramMedia } from "@/lib/server/instagramMedia";
 
 // Publishes due ScheduledPosts via the official Instagram content-publishing
 // API (Instagram Login tokens → graph.instagram.com).
@@ -44,15 +45,18 @@ async function publishOne(postId: string): Promise<void> {
   try {
     const token = decryptSecret(post.igAccount.accessTokenEnc);
     const igUserId = post.igAccount.igUserId;
-    const videoUrl = post.campaign.mediaAsset.publicUrl;
     const caption = buildCaption(post.caption, post.hashtags);
 
     // 1. Container (reuse one from a previous failed publish attempt if present)
     let containerId = post.containerId;
     if (!containerId) {
+      // Keep the user's master untouched. A deterministic, cached delivery
+      // object is remuxed losslessly when possible and transcoded only when a
+      // source stream falls outside Meta's documented Reels requirements.
+      const delivery = await prepareInstagramMedia(post.campaign.mediaAsset);
       const container = await graphPost(`/${igUserId}/media`, {
         media_type: "REELS",
-        video_url: videoUrl,
+        video_url: delivery.url,
         caption,
       }, token);
       containerId = container.id as string;

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { db } from "@/lib/server/db";
-import { getS3, s3Bucket, keyForPublicUrl } from "@/lib/server/s3";
+import { getS3, s3Bucket, keyForPublicUrl, instagramDeliveryKey } from "@/lib/server/s3";
 import { unauthorized, notFound, serverError } from "@/lib/server/errors";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +21,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: asset.storageKey })).catch(console.warn);
         const thumbKey = asset.thumbnailUrl ? keyForPublicUrl(asset.thumbnailUrl) : null;
         if (thumbKey) await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: thumbKey })).catch(console.warn);
+        await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: instagramDeliveryKey(asset.id) })).catch(console.warn);
       } catch (e) {
         console.warn("[media DELETE] storage cleanup skipped:", (e as Error).message);
       }

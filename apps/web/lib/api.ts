@@ -6,6 +6,7 @@
 
 import { SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
 import { extractVideoMetadata } from "@/lib/media-metadata";
+import { assessInstagramReelBasics } from "@/lib/instagram-reel-quality";
 
 const TIMEOUT_MS = 15_000;
 
@@ -206,6 +207,16 @@ function putWithProgress(url: string, body: Blob, contentType: string, onProgres
 // before upload since the store can't inspect media.
 async function uploadMediaDirect(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   const meta = await extractVideoMetadata(file); // never throws; nulls on failure
+  const quality = assessInstagramReelBasics({
+    filename: file.name,
+    sizeBytes: file.size,
+    durationS: meta.durationS,
+    width: meta.width,
+    height: meta.height,
+  });
+  if (quality.level === "blocked") {
+    throw new ApiError(400, "invalid_reel_media", `${quality.headline}. ${quality.details.join(" ")}`);
+  }
 
   const contentType = file.type || "video/mp4";
   const sig = await apiFetch<PresignResponse>("/api/media/sign", {

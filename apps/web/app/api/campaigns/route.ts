@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { unauthorized, badRequest, conflict, serverError } from "@/lib/server/errors";
 import { randomUUID } from "crypto";
+import { assessInstagramReelBasics } from "@/lib/instagram-reel-quality";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,6 +15,14 @@ export async function POST(req: NextRequest) {
 
     const media = await db.mediaAsset.findFirst({ where: { id: media_asset_id, workspaceId: wsId } });
     if (!media) return badRequest("invalid_asset", "Media asset not found");
+    const quality = assessInstagramReelBasics({
+      filename: media.filename,
+      sizeBytes: media.sizeBytes,
+      durationS: media.durationS,
+      width: media.width,
+      height: media.height,
+    });
+    if (quality.level === "blocked") return badRequest("invalid_reel_media", quality.headline);
 
     const accountIds = [...new Set(posts.map((p) => p.ig_account_id))];
     const accounts = await db.igAccount.findMany({ where: { workspaceId: wsId, id: { in: accountIds } } });

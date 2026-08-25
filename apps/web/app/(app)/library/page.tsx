@@ -277,7 +277,10 @@ export default function LibraryPage() {
           </div>
           <p className="mt-4 text-sm text-ink">Drop a video here, or click to upload</p>
           <p className="mt-1 font-mono text-xs text-ink-faint">
-            Any video - Reels, Shorts, horizontal or long-form · any size or aspect ratio
+            Best quality: MP4/MOV · 9:16 · 1080×1920 · 23–60 FPS · max 1 GB
+          </p>
+          <p className="mt-2 max-w-xl text-xs leading-relaxed text-ink-muted">
+            Titan preserves the master file and prepares an Instagram-safe delivery copy only when the source needs it.
           </p>
         </div>
       )}

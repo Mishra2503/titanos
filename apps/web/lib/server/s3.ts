@@ -49,6 +49,10 @@ export function publicUrlForKey(key: string): string {
   return `${publicBase()}/${key}`;
 }
 
+export function instagramDeliveryKey(assetId: string): string {
+  return `titan-os/instagram/${assetId}.mp4`;
+}
+
 // Inverse of publicUrlForKey; null for URLs not under our base (legacy Cloudinary rows).
 export function keyForPublicUrl(url: string): string | null {
   const base = publicBase();

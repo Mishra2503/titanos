@@ -18,6 +18,7 @@ import {
   type ScheduledPostRowIn,
   type ScheduledPostStatus,
 } from "@/lib/api";
+import { assessInstagramReelBasics } from "@/lib/instagram-reel-quality";
 
 interface ConnAccount {
   id: string;
@@ -231,6 +232,13 @@ export default function SchedulerPage() {
   }
 
   const composeReady = !!media && selected.length > 0;
+  const quality = useMemo(() => file ? assessInstagramReelBasics({
+    filename: file.name,
+    sizeBytes: file.size,
+    durationS: localSpecs?.duration,
+    width: localSpecs?.width,
+    height: localSpecs?.height,
+  }) : null, [file, localSpecs]);
 
   const grouped = useMemo(() => {
     const upcoming: ScheduleListItem[] = [];
@@ -298,7 +306,7 @@ export default function SchedulerPage() {
                   <p className="font-mono text-xs uppercase tracking-wider text-lime">Master reel</p>
                   <p className="mt-2 text-sm text-ink-muted">Drop a video, or click to pick</p>
                   <p className="mt-1 font-mono text-[10px] text-ink-faint">
-                    MP4 or MOV · any size
+                    Best: MP4/MOV · 9:16 · 1080×1920 · max 1 GB
                   </p>
                 </>
               ) : (
@@ -314,13 +322,32 @@ export default function SchedulerPage() {
               </div>
             )}
 
+            {quality && (
+              <div className={`animate-reveal rounded-lg border px-3 py-2.5 ${
+                quality.level === "ready"
+                  ? "border-lime/35 bg-lime/[0.05]"
+                  : quality.level === "blocked"
+                    ? "border-red-400/40 bg-red-400/10"
+                    : "border-amber-400/35 bg-amber-400/[0.06]"
+              }`}>
+                <p className={`text-xs font-medium ${
+                  quality.level === "ready" ? "text-lime" : quality.level === "blocked" ? "text-red-400" : "text-amber-300"
+                }`}>
+                  {quality.level === "ready" ? "✓" : quality.level === "blocked" ? "×" : "△"} {quality.headline}
+                </p>
+                <ul className="mt-1.5 space-y-1 font-mono text-[10px] leading-relaxed text-ink-muted">
+                  {quality.details.map((detail) => <li key={detail}>• {detail}</li>)}
+                </ul>
+              </div>
+            )}
+
             {file && !media && (
               <button
                 onClick={startUpload}
-                disabled={uploading}
+                disabled={uploading || quality?.level === "blocked"}
                 className="btn-primary press w-full py-2 disabled:opacity-60"
               >
-                {uploading ? `Uploading… ${uploadPct}%` : "Upload video"}
+                {uploading ? `Uploading master… ${uploadPct}%` : quality?.level === "blocked" ? "Fix video before upload" : "Upload master video"}
               </button>
             )}
             {uploading && (
@@ -346,7 +373,10 @@ export default function SchedulerPage() {
             )}
             {media && (
               <div className="rounded-lg border border-lime/30 bg-lime/[0.04] p-3 font-mono text-xs text-lime">
-                ✓ Uploaded · {media.duration_s?.toFixed(1)}s · {media.format?.toUpperCase()} · {media.size_bytes ? (media.size_bytes / 1024 / 1024).toFixed(1) : "?"} MB
+                ✓ Master preserved · {media.duration_s?.toFixed(1)}s · {media.format?.toUpperCase()} · {media.size_bytes ? (media.size_bytes / 1024 / 1024).toFixed(1) : "?"} MB
+                <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
+                  Before publishing, Titan creates a cached Instagram delivery copy: lossless remux when compatible, high-quality conversion only when required.
+                </p>
               </div>
             )}
           </div>
