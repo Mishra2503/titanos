@@ -8,6 +8,7 @@
     "start": "prisma migrate deploy && next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "test:upload": "node scripts/upload-contract/run.mjs",
     "test:mcp": "node scripts/mcp-contract/run.mjs",
     "test:mcp:live": "node scripts/mcp-smoke.mjs"
   },

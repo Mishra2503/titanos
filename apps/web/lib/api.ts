@@ -4,7 +4,8 @@
 // No Bearer tokens - auth is via httpOnly cookies set by the server.
 // Fixes: #3 (timeout), #6 (no localStorage), #7 (no Content-Type on GETs).
 
-import { SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
+import { planMultipartParts, SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
+import type { CompletedMultipartPart } from "@/lib/upload-limits";
 import { extractVideoMetadata } from "@/lib/media-metadata";
 import { assessInstagramReelBasics } from "@/lib/instagram-reel-quality";
 
@@ -279,29 +280,123 @@ function uploadMediaServerSide(file: File, onProgress?: (pct: number) => void): 
   });
 }
 
+interface MultipartStartResponse {
+  upload_token: string;
+  part_size: number;
+}
+
+interface MultipartCompleteResponse {
+  key: string;
+  filename: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  format?: string;
+  bytes: number;
+}
+
+function uploadMultipartPart(
+  body: Blob,
+  token: string,
+  partNumber: number,
+  onProgress?: (loadedBytes: number) => void,
+): Promise<CompletedMultipartPart> {
+  return new Promise<CompletedMultipartPart>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `/api/media/upload/multipart?part_number=${partNumber}`);
+    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+    xhr.setRequestHeader("X-Upload-Token", token);
+    xhr.upload.onprogress = (event) => onProgress?.(event.loaded);
+    xhr.onload = () => {
+      let response: CompletedMultipartPart & { error?: { code?: string; message?: string } };
+      try {
+        response = JSON.parse(xhr.responseText) as typeof response;
+      } catch {
+        response = {} as typeof response;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(response);
+      else reject(new ApiError(
+        xhr.status,
+        response.error?.code ?? "multipart_upload_failed",
+        response.error?.message ?? `Upload part ${partNumber} failed (HTTP ${xhr.status})`,
+      ));
+    };
+    xhr.onerror = () => reject(new ApiError(0, "multipart_network_error", `Network error while uploading part ${partNumber}`));
+    xhr.send(body);
+  });
+}
+
+// Same-origin multipart relay used when a browser, VPN, extension, or bucket
+// CORS policy blocks the direct presigned PUT. Only one 8MB part passes through
+// the server at a time, so large master videos never hit the legacy 90MB body
+// limit and server memory stays bounded.
+async function uploadMediaMultipart(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
+  const meta = await extractVideoMetadata(file);
+  const format = file.name.match(/\.([^.]+)$/)?.[1]?.toLowerCase();
+  const started = await apiFetch<MultipartStartResponse>("/api/media/upload/multipart?action=start", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type || "video/mp4",
+      bytes: file.size,
+      width: meta.width ?? undefined,
+      height: meta.height ?? undefined,
+      duration: meta.durationS ?? undefined,
+      format,
+    }),
+  }, 60_000);
+
+  let completed = false;
+  try {
+    const plan = planMultipartParts(file.size, started.part_size);
+    const parts: CompletedMultipartPart[] = [];
+    let uploadedBytes = 0;
+    for (const item of plan) {
+      const blob = file.slice(item.start, item.end);
+      const result = await uploadMultipartPart(
+        blob,
+        started.upload_token,
+        item.partNumber,
+        (partBytes) => onProgress?.(Math.round(((uploadedBytes + partBytes) / file.size) * 100)),
+      );
+      parts.push(result);
+      uploadedBytes += blob.size;
+    }
+
+    const result = await apiFetch<MultipartCompleteResponse>("/api/media/upload/multipart?action=complete", {
+      method: "POST",
+      headers: { "X-Upload-Token": started.upload_token },
+      body: JSON.stringify({ parts }),
+    }, 60_000);
+    completed = true;
+
+    return await apiFetch<MediaAsset>("/api/media/register", {
+      method: "POST",
+      body: JSON.stringify(result),
+    });
+  } finally {
+    if (!completed) {
+      void apiFetch<void>("/api/media/upload/multipart?action=abort", {
+        method: "POST",
+        headers: { "X-Upload-Token": started.upload_token },
+      }, 60_000).catch(() => undefined);
+    }
+  }
+}
+
 // Tries a direct browser→storage upload first (no server memory overhead).
-// If that fails due to a network-level error (firewall / ad blocker / VPN
-// blocking the storage host), retries via the server-side proxy route - but
-// only for files small enough to survive the trip: Cloudflare kills bodies
-// around 100MB at the edge before they ever reach our server, so proxying
-// bigger files can only produce an opaque 502.
+// If that fails due to a network-level error (firewall / ad blocker / VPN or
+// missing storage CORS), retry small files through the legacy streaming proxy
+// and large files through the bounded same-origin multipart relay.
 export async function uploadMedia(file: File, onProgress?: (pct: number) => void): Promise<MediaAsset> {
   try {
     return await uploadMediaDirect(file, onProgress);
   } catch (err) {
     if (!(err instanceof ApiError) || err.code !== "network_error") throw err;
-    if (file.size > SERVER_UPLOAD_MAX_BYTES) {
-      const mb = Math.round(file.size / 1024 / 1024);
-      const capMb = Math.round(SERVER_UPLOAD_MAX_BYTES / 1024 / 1024);
-      throw new ApiError(
-        0,
-        "direct_upload_blocked",
-        `Direct upload to storage was blocked by your browser or network (ad blocker, firewall, or VPN?). ` +
-          `This file (${mb}MB) is too large for the server fallback (max ${capMb}MB). ` +
-          `Try disabling blocking extensions for this site or switching networks. [${err.message}]`,
-      );
-    }
     if (onProgress) onProgress(0);
+    if (file.size > SERVER_UPLOAD_MAX_BYTES) {
+      return await uploadMediaMultipart(file, onProgress);
+    }
     return await uploadMediaServerSide(file, onProgress);
   }
 }
