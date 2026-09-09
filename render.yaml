@@ -77,6 +77,6 @@ services:
       - key: VIDEO_ANALYSIS_MODEL
         value: claude-sonnet-5
 
-      # ── External cron backstop for /api/schedule/tick ──────────────
+      # ── External publisher clock for /api/schedule/tick ──────────────
       - key: CRON_SECRET
         sync: false

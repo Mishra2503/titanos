@@ -14,6 +14,11 @@ const CONTAINER_POLL_MS = 10_000;
 const CONTAINER_POLL_TRIES = 24; // up to ~4 min of video processing
 const STALE_PROCESSING_MS = 30 * 60 * 1000;
 
+type PublishDuePostsOptions = {
+  /** Bound work for request-driven schedulers. Defaults to the internal batch size. */
+  maxPosts?: number;
+};
+
 async function graphPost(path: string, params: Record<string, string>, token: string) {
   const body = new URLSearchParams({ ...params, access_token: token });
   const r = await fetch(`${GRAPH}${path}`, { method: "POST", body, signal: AbortSignal.timeout(30000) });
@@ -100,8 +105,10 @@ async function publishOne(postId: string): Promise<void> {
   }
 }
 
-export async function publishDuePosts(): Promise<{ claimed: number }> {
+export async function publishDuePosts(options: PublishDuePostsOptions = {}): Promise<{ claimed: number }> {
   const now = new Date();
+  const requestedMax = Math.trunc(options.maxPosts ?? BATCH_SIZE);
+  const maxPosts = Math.min(BATCH_SIZE, Math.max(1, requestedMax));
 
   // Recover posts stuck in PROCESSING (e.g. server restarted mid-publish)
   await db.scheduledPost.updateMany({
@@ -112,7 +119,7 @@ export async function publishDuePosts(): Promise<{ claimed: number }> {
   const due = await db.scheduledPost.findMany({
     where: { status: "SCHEDULED", scheduledAt: { lte: now } },
     orderBy: { scheduledAt: "asc" },
-    take: BATCH_SIZE,
+    take: maxPosts,
     select: { id: true },
   });
 
@@ -138,7 +145,20 @@ export function startPublisherLoop(intervalMs = 60_000): void {
   if (globalForPublisher.__titanPublisherStarted) return;
   globalForPublisher.__titanPublisherStarted = true;
   console.log("[publisher] loop started - checking for due posts every", intervalMs / 1000, "s");
-  setInterval(() => {
-    publishDuePosts().catch((e) => console.error("[publisher] tick failed", e));
-  }, intervalMs);
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      await publishDuePosts();
+    } catch (e) {
+      console.error("[publisher] tick failed", e);
+    } finally {
+      running = false;
+    }
+  };
+
+  // Catch up immediately after a cold start/restart instead of waiting one minute.
+  void tick();
+  setInterval(() => void tick(), intervalMs);
 }

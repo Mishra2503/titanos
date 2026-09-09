@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { publishDuePosts } from "@/lib/server/publisher";
-import { analyzePendingVideos } from "@/lib/server/videoAnalyzer";
 import { unauthorized, serverError } from "@/lib/server/errors";
 
-// Manual/external trigger for the background work (publisher + video
-// analyzer). Useful for debugging and as a backstop for external cron
-// services (send x-cron-secret: $CRON_SECRET). Note: analyzing videos can
-// take minutes - cron callers should fire-and-forget.
+// Authenticated publisher-only trigger for an external scheduler. Keep this
+// endpoint independent from video analysis so a slow analysis job cannot block
+// the clock that wakes Render and publishes due posts.
 export async function POST(req: NextRequest) {
   try {
     // This path is public in the middleware, so headers like x-workspace-id
@@ -14,12 +12,13 @@ export async function POST(req: NextRequest) {
     const cronSecret = process.env.CRON_SECRET;
     if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) return unauthorized();
 
-    const publisher = await publishDuePosts();
-    const analyzer = await analyzePendingVideos().catch((e) => {
-      console.error("[schedule tick] analyzer failed", e);
-      return { claimed: 0 };
-    });
-    return NextResponse.json({ ok: true, ...publisher, publisher, analyzer });
+    // One Reel can spend several minutes processing at Meta. Limit request-led
+    // work to one post; the next minute tick safely claims the next due row.
+    const publisher = await publishDuePosts({ maxPosts: 1 });
+    return NextResponse.json(
+      { ok: true, ...publisher, publisher },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (e) {
     console.error("[schedule tick]", e);
     return serverError();

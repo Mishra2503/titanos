@@ -1,0 +1,9 @@
+name = "titan-os-scheduler"
+main = "src/index.js"
+compatibility_date = "2026-09-09"
+
+[triggers]
+crons = ["* * * * *"]
+
+[vars]
+TITAN_TICK_URL = "https://titanos-dwh6.onrender.com/api/schedule/tick"
