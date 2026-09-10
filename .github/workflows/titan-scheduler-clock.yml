@@ -5,7 +5,7 @@ on:
     # Stay away from the top of the hour, when GitHub reports the most delay.
     # Five-minute traffic keeps Render inside its 15-minute idle window; Titan's
     # own non-overlapping one-minute loop handles minute-level due checks.
-    - cron: "2-57/5 * * * *"
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
   workflow_dispatch:
 
 permissions:

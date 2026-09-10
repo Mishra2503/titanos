@@ -25,7 +25,7 @@ assert.match(publisher, /if \(running\) return/, "internal publisher ticks must 
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");
 assert.match(worker, /"x-cron-secret": env\.TITAN_CRON_SECRET/, "Worker must authenticate to Titan");
 assert.match(wrangler, /crons = \["\* \* \* \* \*"\]/, "Worker must run once per minute");
-assert.match(githubClock, /cron: "2-57\/5 \* \* \* \*"/, "GitHub backstop must run every five minutes");
+assert.match(githubClock, /cron: "2,7,12,17,22,27,32,37,42,47,52,57 \* \* \* \*"/, "GitHub backstop must run every five minutes");
 assert.match(githubClock, /id-token: write/, "GitHub backstop must request a short-lived OIDC identity");
 assert.match(githubClock, /audience=titan-os-scheduler/, "GitHub OIDC audience must be Titan-specific");
 assert.doesNotMatch(githubClock, /secrets\./, "GitHub clock must not require a copied long-lived secret");
