@@ -23,6 +23,8 @@ assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick
 assert.match(route, /x-cron-secret/, "external tick must require the cron secret");
 assert.match(route, /jwtVerify/, "GitHub clock must use verified OIDC identity");
 assert.match(route, /payload\.workflow_ref === GITHUB_WORKFLOW_REF/, "OIDC identity must be workflow-scoped");
+assert.match(route, /export async function GET/, "scheduler must expose protected read-only diagnostics");
+assert.doesNotMatch(route, /select:\s*\{[^}]*caption:/s, "diagnostics must not expose captions");
 assert.match(publisher, /if \(running\) return/, "internal publisher ticks must not overlap");
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");
 assert.match(worker, /"x-cron-secret": env\.TITAN_CRON_SECRET/, "Worker must authenticate to Titan");

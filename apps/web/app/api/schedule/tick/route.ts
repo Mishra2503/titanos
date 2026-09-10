@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { publishDuePosts } from "@/lib/server/publisher";
+import { db } from "@/lib/server/db";
 import { unauthorized, serverError } from "@/lib/server/errors";
 
 const GITHUB_OIDC_ISSUER = "https://token.actions.githubusercontent.com";
@@ -30,6 +31,46 @@ async function isAuthorized(req: NextRequest): Promise<boolean> {
   } catch (error) {
     console.warn("[schedule tick] GitHub OIDC rejected", error instanceof Error ? error.message : error);
     return false;
+  }
+}
+
+// Protected, read-only diagnostics for scheduler recovery. Deliberately omits
+// captions, Instagram handles/tokens, storage keys, and public media URLs.
+export async function GET(req: NextRequest) {
+  try {
+    if (!(await isAuthorized(req))) return unauthorized();
+    const now = new Date();
+    const due = await db.scheduledPost.findMany({
+      where: { status: "SCHEDULED", scheduledAt: { lte: now } },
+      orderBy: { scheduledAt: "asc" },
+      take: 10,
+      select: {
+        id: true,
+        scheduledAt: true,
+        attempts: true,
+        error: true,
+        containerId: true,
+        campaign: {
+          select: {
+            mediaAsset: {
+              select: {
+                filename: true,
+                width: true,
+                height: true,
+                durationS: true,
+                format: true,
+                sizeBytes: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    const processing = await db.scheduledPost.count({ where: { status: "PROCESSING" } });
+    return NextResponse.json({ ok: true, now, due, processing }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[schedule diagnostics]", error);
+    return serverError();
   }
 }
 
