@@ -25,6 +25,11 @@ assert.match(route, /x-cron-secret/, "external tick must require the cron secret
 assert.match(route, /jwtVerify/, "GitHub clock must use verified OIDC identity");
 assert.match(route, /payload\.workflow_ref === GITHUB_WORKFLOW_REF/, "OIDC identity must be workflow-scoped");
 assert.match(route, /export async function GET/, "scheduler must expose protected read-only diagnostics");
+assert.match(route, /export async function PUT/, "scheduler must expose a protected non-publishing preparation check");
+assert.match(route, /prepareInstagramMedia\(post\.campaign\.mediaAsset\)/, "preparation check must build the cached delivery copy");
+assert.match(route, /prepared: true/, "preparation check must report a successful cache build");
+const preparationHandler = route.match(/export async function PUT[\s\S]*?(?=\/\/ Authenticated publisher-only trigger)/)?.[0] ?? "";
+assert.doesNotMatch(preparationHandler, /publishDuePosts|graphPost|media_publish/, "preparation check must never publish a post");
 assert.doesNotMatch(route, /select:\s*\{[^}]*caption:/s, "diagnostics must not expose captions");
 assert.match(publisher, /if \(running\) return/, "internal publisher ticks must not overlap");
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");

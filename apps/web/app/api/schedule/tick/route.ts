@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { publishDuePosts } from "@/lib/server/publisher";
+import { prepareInstagramMedia } from "@/lib/server/instagramMedia";
 import { db } from "@/lib/server/db";
 import { unauthorized, serverError } from "@/lib/server/errors";
 
@@ -97,6 +98,42 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, now, due, processing }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[schedule diagnostics]", error);
+    return serverError();
+  }
+}
+
+// Authenticated, non-publishing production check. It prepares and caches the
+// delivery copy for the oldest overdue post but deliberately does not create an
+// Instagram container or change the post's workflow status.
+export async function PUT(req: NextRequest) {
+  try {
+    if (!(await isAuthorized(req))) return unauthorized();
+    const post = await db.scheduledPost.findFirst({
+      where: {
+        status: { in: ["SCHEDULED", "PROCESSING"] },
+        scheduledAt: { lte: new Date() },
+      },
+      orderBy: { scheduledAt: "asc" },
+      select: {
+        id: true,
+        campaign: {
+          select: {
+            mediaAsset: {
+              select: { id: true, publicUrl: true, sizeBytes: true },
+            },
+          },
+        },
+      },
+    });
+    if (!post) return NextResponse.json({ ok: true, prepared: false });
+
+    const delivery = await prepareInstagramMedia(post.campaign.mediaAsset);
+    return NextResponse.json(
+      { ok: true, prepared: true, postId: post.id, action: delivery.action, reasons: delivery.reasons },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    console.error("[schedule preparation check]", error);
     return serverError();
   }
 }
