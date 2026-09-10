@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   publish-due-posts:
@@ -17,15 +18,19 @@ jobs:
     timeout-minutes: 12
     steps:
       - name: Wake Titan and process one due post
-        env:
-          TITAN_CRON_SECRET: ${{ secrets.TITAN_CRON_SECRET }}
         run: |
-          test -n "$TITAN_CRON_SECRET"
+          OIDC_TOKEN="$(curl --fail-with-body --show-error --silent \
+            --header "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=titan-os-scheduler" \
+            | jq --raw-output '.value')"
+          test -n "$OIDC_TOKEN"
+          test "$OIDC_TOKEN" != "null"
+          echo "::add-mask::$OIDC_TOKEN"
           curl --fail-with-body --show-error --silent \
             --connect-timeout 90 \
             --max-time 600 \
             --request POST \
             --header "content-type: application/json" \
-            --header "x-cron-secret: $TITAN_CRON_SECRET" \
+            --header "authorization: Bearer $OIDC_TOKEN" \
             --data '{}' \
             https://titanos-dwh6.onrender.com/api/schedule/tick

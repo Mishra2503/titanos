@@ -19,11 +19,15 @@ const githubClock = readFileSync(path.join(repo, ".github/workflows/titan-schedu
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
 assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick must not run video analysis");
 assert.match(route, /x-cron-secret/, "external tick must require the cron secret");
+assert.match(route, /jwtVerify/, "GitHub clock must use verified OIDC identity");
+assert.match(route, /payload\.workflow_ref === GITHUB_WORKFLOW_REF/, "OIDC identity must be workflow-scoped");
 assert.match(publisher, /if \(running\) return/, "internal publisher ticks must not overlap");
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");
 assert.match(worker, /"x-cron-secret": env\.TITAN_CRON_SECRET/, "Worker must authenticate to Titan");
 assert.match(wrangler, /crons = \["\* \* \* \* \*"\]/, "Worker must run once per minute");
 assert.match(githubClock, /cron: "2-57\/5 \* \* \* \*"/, "GitHub backstop must run every five minutes");
-assert.match(githubClock, /secrets\.TITAN_CRON_SECRET/, "GitHub backstop must use an encrypted secret");
+assert.match(githubClock, /id-token: write/, "GitHub backstop must request a short-lived OIDC identity");
+assert.match(githubClock, /audience=titan-os-scheduler/, "GitHub OIDC audience must be Titan-specific");
+assert.doesNotMatch(githubClock, /secrets\./, "GitHub clock must not require a copied long-lived secret");
 
 console.log("scheduler contract: publisher-only authenticated minute clock and startup catch-up passed");
