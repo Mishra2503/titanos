@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
         attempts: true,
         error: true,
         containerId: true,
+        processingStartedAt: true,
         campaign: {
           select: {
             mediaAsset: {
@@ -66,7 +67,33 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-    const processing = await db.scheduledPost.count({ where: { status: "PROCESSING" } });
+    const processing = await db.scheduledPost.findMany({
+      where: { status: "PROCESSING" },
+      orderBy: { processingStartedAt: "asc" },
+      take: 10,
+      select: {
+        id: true,
+        scheduledAt: true,
+        attempts: true,
+        error: true,
+        containerId: true,
+        processingStartedAt: true,
+        campaign: {
+          select: {
+            mediaAsset: {
+              select: {
+                filename: true,
+                width: true,
+                height: true,
+                durationS: true,
+                format: true,
+                sizeBytes: true,
+              },
+            },
+          },
+        },
+      },
+    });
     return NextResponse.json({ ok: true, now, due, processing }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("[schedule diagnostics]", error);
