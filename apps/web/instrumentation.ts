@@ -20,6 +20,14 @@ export async function register() {
       startVideoAnalyzerLoop();
     }
 
+    // The external database clock survives Render sleep/restarts and wakes the
+    // publisher endpoint once per minute. It is independent of ENABLE_PUBLISHER,
+    // which can stay false on constrained free instances.
+    if (process.env.ENABLE_EXTERNAL_SCHEDULER !== "false" && process.env.DATABASE_URL && process.env.CRON_SECRET) {
+      const { startExternalSchedulerBootstrap } = await import("@/lib/server/externalScheduler");
+      startExternalSchedulerBootstrap();
+    }
+
     // MCP jobs run in-process, so a restart strands anything mid-flight.
     // Fail those rows now rather than leaving an LLM polling them forever.
     if (process.env.DATABASE_URL) {
