@@ -17,6 +17,7 @@ const route = readFileSync(path.join(web, "app/api/schedule/tick/route.ts"), "ut
 const worker = readFileSync(path.join(repo, "infra/cloudflare/titan-scheduler/src/index.js"), "utf8");
 const wrangler = readFileSync(path.join(repo, "infra/cloudflare/titan-scheduler/wrangler.toml"), "utf8");
 const githubClock = readFileSync(path.join(repo, ".github/workflows/titan-scheduler-clock.yml"), "utf8");
+const instagramMedia = readFileSync(path.join(web, "lib/server/instagramMedia.ts"), "utf8");
 
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
 assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick must not run video analysis");
@@ -37,5 +38,9 @@ assert.match(externalScheduler, /cron\.schedule/, "Supabase must own an external
 assert.match(externalScheduler, /\* \* \* \* \*/, "Supabase clock must run every minute");
 assert.match(externalScheduler, /net\.http_post/, "Supabase clock must wake Titan over HTTP");
 assert.match(instrumentation, /startExternalSchedulerBootstrap/, "server boot must install the Supabase clock");
+assert.match(instagramMedia, /"-threads", FFMPEG_THREADS/, "video encoding must be single-threaded on the free instance");
+assert.match(instagramMedia, /"-filter_threads", FFMPEG_THREADS/, "video filters must be single-threaded on the free instance");
+assert.match(instagramMedia, /"-preset", "veryfast"/, "video preparation must use a free-tier-safe preset");
+assert.doesNotMatch(instagramMedia, /"-preset", "slow"/, "video preparation must not use the CPU-heavy slow preset");
 
-console.log("scheduler contract: publisher-only authenticated minute clock and startup catch-up passed");
+console.log("scheduler contract: authenticated minute clock, startup catch-up, and bounded video preparation passed");

@@ -23,6 +23,10 @@ const MAX_AUDIO_KBPS = 128;
 const MAX_AUDIO_HZ = 48_000;
 const DEFAULT_PREP_TIMEOUT_MS = 20 * 60 * 1000;
 const MASTER_DOWNLOAD_TIMEOUT_MS = 20 * 60 * 1000;
+// Render's free web service has 512 MB of RAM and a fractional CPU. Keep
+// libx264 and the filter graph single-threaded so preparing a 4K master cannot
+// terminate the entire scheduler process. The original master is never changed.
+const FFMPEG_THREADS = "1";
 
 export interface InstagramMediaProbe {
   durationS: number | null;
@@ -194,7 +198,15 @@ export function buildInstagramFfmpegArgs(
   probe: InstagramMediaProbe,
 ): { args: string[]; action: "remuxed" | "transcoded"; reasons: string[] } {
   const plan = qualityPlan(probe);
-  const args = ["-hide_banner", "-y", "-i", inputPath, "-map", "0:v:0", "-map", "0:a:0?"];
+  const args = [
+    "-hide_banner",
+    "-y",
+    "-filter_threads", FFMPEG_THREADS,
+    "-filter_complex_threads", FFMPEG_THREADS,
+    "-i", inputPath,
+    "-map", "0:v:0",
+    "-map", "0:a:0?",
+  ];
 
   if (plan.videoCopy) {
     args.push("-c:v", "copy");
@@ -205,13 +217,14 @@ export function buildInstagramFfmpegArgs(
     if (!probe.progressive) filters.push("yadif");
     filters.push(
       (probe.width ?? 0) > INSTAGRAM_REEL_MAX_HORIZONTAL_PX
-        ? `scale=${INSTAGRAM_REEL_MAX_HORIZONTAL_PX}:-2:flags=lanczos`
-        : "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos",
+        ? `scale=${INSTAGRAM_REEL_MAX_HORIZONTAL_PX}:-2:flags=bicubic`
+        : "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=bicubic",
     );
     args.push(
       "-c:v", "libx264",
-      "-preset", "slow",
-      "-crf", "15",
+      "-threads", FFMPEG_THREADS,
+      "-preset", "veryfast",
+      "-crf", "18",
       "-maxrate", `${maxrate}k`,
       "-bufsize", `${maxrate * 2}k`,
       "-pix_fmt", "yuv420p",
@@ -253,7 +266,9 @@ export async function prepareInstagramMedia(asset: {
   const inputPath = path.join(tmpDir, "master");
   const outputPath = path.join(tmpDir, "instagram.mp4");
   try {
+    console.log(`[instagram-media] ${asset.id}: downloading master`);
     await downloadMaster(asset.publicUrl, inputPath);
+    console.log(`[instagram-media] ${asset.id}: probing master`);
     const probe = await probeMedia(inputPath);
     if (probe.durationS == null) throw new Error("Could not read the master video's duration");
     if (probe.durationS < INSTAGRAM_REEL_MIN_DURATION_S || probe.durationS > INSTAGRAM_REEL_MAX_DURATION_S) {
@@ -263,6 +278,7 @@ export async function prepareInstagramMedia(asset: {
 
     const { args, action, reasons } = buildInstagramFfmpegArgs(inputPath, outputPath, probe);
     const timeoutMs = Number(process.env.INSTAGRAM_MEDIA_PREP_TIMEOUT_MS ?? DEFAULT_PREP_TIMEOUT_MS);
+    console.log(`[instagram-media] ${asset.id}: ${action} started${reasons.length ? ` (${reasons.join(", ")})` : ""}`);
     const result = await runFfmpeg(args, Number.isFinite(timeoutMs) ? timeoutMs : DEFAULT_PREP_TIMEOUT_MS);
     if (result.code !== 0) {
       throw new Error(`Instagram quality preparation failed: ${result.stderr.trim().split("\n").slice(-3).join(" ")}`);
@@ -270,6 +286,7 @@ export async function prepareInstagramMedia(asset: {
     const output = await stat(outputPath);
     if (output.size > INSTAGRAM_REEL_MAX_BYTES) throw new Error("Prepared Reel still exceeds Instagram's 1 GB publishing limit");
 
+    console.log(`[instagram-media] ${asset.id}: uploading ${output.size} byte delivery copy`);
     await new Upload({
       client: getS3(),
       params: {
