@@ -45,7 +45,10 @@ assert.match(externalScheduler, /net\.http_post/, "Supabase clock must wake Tita
 assert.match(instrumentation, /startExternalSchedulerBootstrap/, "server boot must install the Supabase clock");
 assert.match(instagramMedia, /"-threads", FFMPEG_THREADS/, "video encoding must be single-threaded on the free instance");
 assert.match(instagramMedia, /"-filter_threads", FFMPEG_THREADS/, "video filters must be single-threaded on the free instance");
-assert.match(instagramMedia, /"-preset", "veryfast"/, "video preparation must use a free-tier-safe preset");
+assert.match(instagramMedia, /decoder thread pool[\s\S]*?"-threads", FFMPEG_THREADS,\s*"-i", inputPath/, "video decoding must be single-threaded on the free instance");
+assert.match(instagramMedia, /INSTAGRAM_DELIVERY_WIDTH_PX = 1080/, "oversized masters must use the standard 1080px Reel delivery width");
+assert.match(instagramMedia, /"-preset", "ultrafast"/, "video preparation must use the lowest-memory x264 preset");
+assert.match(instagramMedia, /"-tune", "zerolatency"/, "video preparation must avoid a buffered frame queue");
 assert.doesNotMatch(instagramMedia, /"-preset", "slow"/, "video preparation must not use the CPU-heavy slow preset");
 
 console.log("scheduler contract: authenticated minute clock, startup catch-up, and bounded video preparation passed");

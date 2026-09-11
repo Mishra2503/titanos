@@ -27,6 +27,7 @@ const MASTER_DOWNLOAD_TIMEOUT_MS = 20 * 60 * 1000;
 // libx264 and the filter graph single-threaded so preparing a 4K master cannot
 // terminate the entire scheduler process. The original master is never changed.
 const FFMPEG_THREADS = "1";
+const INSTAGRAM_DELIVERY_WIDTH_PX = 1080;
 
 export interface InstagramMediaProbe {
   durationS: number | null;
@@ -203,6 +204,9 @@ export function buildInstagramFfmpegArgs(
     "-y",
     "-filter_threads", FFMPEG_THREADS,
     "-filter_complex_threads", FFMPEG_THREADS,
+    // Input options must appear before -i. Without this, FFmpeg can create a
+    // decoder thread pool even when the x264 encoder itself is single-threaded.
+    "-threads", FFMPEG_THREADS,
     "-i", inputPath,
     "-map", "0:v:0",
     "-map", "0:a:0?",
@@ -216,15 +220,18 @@ export function buildInstagramFfmpegArgs(
     const filters: string[] = [];
     if (!probe.progressive) filters.push("yadif");
     filters.push(
-      (probe.width ?? 0) > INSTAGRAM_REEL_MAX_HORIZONTAL_PX
-        ? `scale=${INSTAGRAM_REEL_MAX_HORIZONTAL_PX}:-2:flags=bicubic`
+      (probe.width ?? 0) > INSTAGRAM_DELIVERY_WIDTH_PX
+        ? `scale=${INSTAGRAM_DELIVERY_WIDTH_PX}:-2:flags=bicubic`
         : "scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=bicubic",
     );
     args.push(
       "-c:v", "libx264",
       "-threads", FFMPEG_THREADS,
-      "-preset", "veryfast",
-      "-crf", "18",
+      "-preset", "ultrafast",
+      "-tune", "zerolatency",
+      "-refs", "1",
+      "-bf", "0",
+      "-crf", "20",
       "-maxrate", `${maxrate}k`,
       "-bufsize", `${maxrate * 2}k`,
       "-pix_fmt", "yuv420p",
