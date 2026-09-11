@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { publishDuePosts } from "@/lib/server/publisher";
 import { prepareInstagramMedia } from "@/lib/server/instagramMedia";
+import { maintainInstagramTokens } from "@/lib/server/instagramTokens";
 import { db } from "@/lib/server/db";
 import { unauthorized, serverError } from "@/lib/server/errors";
 
@@ -138,6 +139,19 @@ export async function PUT(req: NextRequest) {
   }
 }
 
+// Authenticated token maintenance does not publish content. It refreshes
+// unexpired tokens nearing their deadline and marks expired tokens for OAuth.
+export async function PATCH(req: NextRequest) {
+  try {
+    if (!(await isAuthorized(req))) return unauthorized();
+    const tokens = await maintainInstagramTokens();
+    return NextResponse.json({ ok: true, tokens }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    console.error("[schedule token maintenance]", error);
+    return serverError();
+  }
+}
+
 // Authenticated publisher-only trigger for an external scheduler. Keep this
 // endpoint independent from video analysis so a slow analysis job cannot block
 // the clock that wakes Render and publishes due posts.
@@ -149,9 +163,10 @@ export async function POST(req: NextRequest) {
 
     // One Reel can spend several minutes processing at Meta. Limit request-led
     // work to one post; the next minute tick safely claims the next due row.
+    const tokens = await maintainInstagramTokens();
     const publisher = await publishDuePosts({ maxPosts: 1 });
     return NextResponse.json(
-      { ok: true, ...publisher, publisher },
+      { ok: true, ...publisher, publisher, tokens },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (e) {

@@ -112,6 +112,10 @@ export default function ConnectionsPage() {
     }
   }
 
+  async function reconnect() {
+    await connect();
+  }
+
   async function disconnect(id: string, username: string) {
     if (!confirm(`Disconnect @${username}? This removes the stored token and its queued posts.`))
       return;
@@ -256,11 +260,11 @@ export default function ConnectionsPage() {
 
               <div className="mt-4 flex gap-2">
                 <button
-                  onClick={() => refresh(a.id)}
+                  onClick={() => a.status === "NEEDS_REAUTH" ? reconnect() : refresh(a.id)}
                   disabled={busy === a.id}
                   className="press flex-1 rounded-lg border border-charcoal-600 px-3 py-1.5 text-xs text-ink-muted hover:text-ink disabled:opacity-50"
                 >
-                  Refresh
+                  {a.status === "NEEDS_REAUTH" ? "Reconnect" : "Refresh"}
                 </button>
                 <button
                   onClick={() => disconnect(a.id, a.username)}

@@ -18,6 +18,8 @@ const worker = readFileSync(path.join(repo, "infra/cloudflare/titan-scheduler/sr
 const wrangler = readFileSync(path.join(repo, "infra/cloudflare/titan-scheduler/wrangler.toml"), "utf8");
 const githubClock = readFileSync(path.join(repo, ".github/workflows/titan-scheduler-clock.yml"), "utf8");
 const instagramMedia = readFileSync(path.join(web, "lib/server/instagramMedia.ts"), "utf8");
+const instagramTokens = readFileSync(path.join(web, "lib/server/instagramTokens.ts"), "utf8");
+const connectionsPage = readFileSync(path.join(web, "app/(app)/connections/page.tsx"), "utf8");
 
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
 assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick must not run video analysis");
@@ -30,6 +32,8 @@ assert.match(route, /prepareInstagramMedia\(post\.campaign\.mediaAsset\)/, "prep
 assert.match(route, /prepared: true/, "preparation check must report a successful cache build");
 const preparationHandler = route.match(/export async function PUT[\s\S]*?(?=\/\/ Authenticated publisher-only trigger)/)?.[0] ?? "";
 assert.doesNotMatch(preparationHandler, /publishDuePosts|graphPost|media_publish/, "preparation check must never publish a post");
+assert.match(route, /export async function PATCH/, "scheduler must expose protected non-publishing token maintenance");
+assert.match(route, /const tokens = await maintainInstagramTokens\(\)/, "every publisher tick must maintain Instagram tokens first");
 assert.doesNotMatch(route, /select:\s*\{[^}]*caption:/s, "diagnostics must not expose captions");
 assert.match(publisher, /if \(running\) return/, "internal publisher ticks must not overlap");
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");
@@ -50,5 +54,9 @@ assert.match(instagramMedia, /INSTAGRAM_DELIVERY_WIDTH_PX = 1080/, "oversized ma
 assert.match(instagramMedia, /"-preset", "ultrafast"/, "video preparation must use the lowest-memory x264 preset");
 assert.match(instagramMedia, /"-tune", "zerolatency"/, "video preparation must avoid a buffered frame queue");
 assert.doesNotMatch(instagramMedia, /"-preset", "slow"/, "video preparation must not use the CPU-heavy slow preset");
+assert.match(instagramTokens, /REFRESH_WINDOW_MS = 7 \*/, "tokens must refresh seven days before expiry");
+assert.match(instagramTokens, /status: "NEEDS_REAUTH"/, "expired tokens must be marked for OAuth reauthorization");
+assert.match(instagramTokens, /grant_type.*ig_refresh_token/s, "token maintenance must use Instagram's refresh grant");
+assert.match(connectionsPage, /a\.status === "NEEDS_REAUTH" \? "Reconnect" : "Refresh"/, "expired accounts must show a reconnect action");
 
 console.log("scheduler contract: authenticated minute clock, startup catch-up, and bounded video preparation passed");

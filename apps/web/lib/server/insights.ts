@@ -40,7 +40,11 @@ async function graphGet(path: string, token: string) {
   const sep = path.includes("?") ? "&" : "?";
   const r = await fetch(`${GRAPH}${path}${sep}access_token=${token}`, { signal: AbortSignal.timeout(15000) });
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`Graph API ${r.status}: ${body?.error?.message ?? "unknown error"}`);
+  if (!r.ok) {
+    const error = new Error(`Graph API ${r.status}: ${body?.error?.message ?? "unknown error"}`) as Error & { graphCode?: number };
+    error.graphCode = body?.error?.code;
+    throw error;
+  }
   return body;
 }
 
@@ -81,6 +85,9 @@ export async function buildAccountInsights(account: {
 
   const media: MediaItem[] = mediaList.status === "fulfilled" ? (mediaList.value?.data ?? []) : [];
   const mediaError = mediaList.status === "rejected" ? String((mediaList.reason as Error)?.message ?? mediaList.reason) : null;
+  if (mediaList.status === "rejected" && (mediaList.reason as Error & { graphCode?: number })?.graphCode === 190) {
+    db.igAccount.update({ where: { id: account.id }, data: { status: "NEEDS_REAUTH" } }).catch(() => {});
+  }
 
   const postInsights = await Promise.allSettled(
     media.map((m) => {
