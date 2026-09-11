@@ -161,6 +161,16 @@ export async function POST(req: NextRequest) {
     // exact GitHub workflow identity authorizes publishing.
     if (!(await isAuthorized(req))) return unauthorized();
 
+    // One kill switch must cover the in-process loop, Supabase clock, GitHub
+    // backstop, and any manual cron call. This keeps maintenance deployments
+    // from accidentally publishing queued content.
+    if (process.env.ENABLE_PUBLISHER === "false") {
+      return NextResponse.json(
+        { ok: true, claimed: 0, publisher: { claimed: 0 }, skipped: "publisher_disabled" },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     // One Reel can spend several minutes processing at Meta. Limit request-led
     // work to one post; the next minute tick safely claims the next due row.
     const tokens = await maintainInstagramTokens();

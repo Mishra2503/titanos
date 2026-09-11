@@ -23,6 +23,7 @@ const connectionsPage = readFileSync(path.join(web, "app/(app)/connections/page.
 const mediaRegister = readFileSync(path.join(web, "app/api/media/register/route.ts"), "utf8");
 
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
+assert.match(route, /ENABLE_PUBLISHER === "false"[\s\S]*?publisher_disabled/, "publisher kill switch must cover external ticks");
 assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick must not run video analysis");
 assert.match(route, /x-cron-secret/, "external tick must require the cron secret");
 assert.match(route, /jwtVerify/, "GitHub clock must use verified OIDC identity");
