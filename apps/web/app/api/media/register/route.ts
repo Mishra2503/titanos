@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/server/db";
 import { KEY_RE, publicUrlForKey } from "@/lib/server/s3";
 import { unauthorized, badRequest, serverError } from "@/lib/server/errors";
+import { prepareInstagramMedia } from "@/lib/server/instagramMedia";
 
 // Records a media asset after the browser finished a direct presigned upload
 // to the S3-compatible store. Clients send object KEYS (validated against the
@@ -37,6 +38,13 @@ export async function POST(req: NextRequest) {
         sizeBytes: body.bytes ?? null,
         uploadedBy: userId ?? null,
       },
+    });
+
+    // Start the expensive delivery preparation while the user is still editing
+    // the schedule. The minute clock keeps the free service awake, and the
+    // publisher later reuses the deterministic cached copy.
+    void prepareInstagramMedia(asset).catch((error) => {
+      console.error(`[media register] Instagram preparation failed for ${asset.id}:`, error instanceof Error ? error.message : error);
     });
 
     return NextResponse.json({ id: asset.id, filename: asset.filename, public_url: asset.publicUrl, thumbnail_url: asset.thumbnailUrl, width: asset.width, height: asset.height, duration_s: asset.durationS, format: asset.format, size_bytes: asset.sizeBytes }, { status: 201 });

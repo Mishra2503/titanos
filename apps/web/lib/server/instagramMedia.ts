@@ -257,7 +257,7 @@ export function buildInstagramFfmpegArgs(
   };
 }
 
-export async function prepareInstagramMedia(asset: {
+async function prepareInstagramMediaOnce(asset: {
   id: string;
   publicUrl: string;
   sizeBytes?: number | null;
@@ -312,4 +312,27 @@ export async function prepareInstagramMedia(asset: {
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+const globalForInstagramMedia = globalThis as unknown as {
+  __titanInstagramMediaInFlight?: Map<string, Promise<PreparedInstagramMedia>>;
+};
+const inFlightPreparations = globalForInstagramMedia.__titanInstagramMediaInFlight
+  ??= new Map<string, Promise<PreparedInstagramMedia>>();
+
+// Upload registration and publishing can ask for the same delivery copy at the
+// same time. Share one job per asset instead of running multiple FFmpeg
+// processes against the free instance.
+export function prepareInstagramMedia(asset: {
+  id: string;
+  publicUrl: string;
+  sizeBytes?: number | null;
+}): Promise<PreparedInstagramMedia> {
+  const existing = inFlightPreparations.get(asset.id);
+  if (existing) return existing;
+
+  const preparation = prepareInstagramMediaOnce(asset)
+    .finally(() => inFlightPreparations.delete(asset.id));
+  inFlightPreparations.set(asset.id, preparation);
+  return preparation;
 }

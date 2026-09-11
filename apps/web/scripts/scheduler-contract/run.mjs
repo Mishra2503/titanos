@@ -20,6 +20,7 @@ const githubClock = readFileSync(path.join(repo, ".github/workflows/titan-schedu
 const instagramMedia = readFileSync(path.join(web, "lib/server/instagramMedia.ts"), "utf8");
 const instagramTokens = readFileSync(path.join(web, "lib/server/instagramTokens.ts"), "utf8");
 const connectionsPage = readFileSync(path.join(web, "app/(app)/connections/page.tsx"), "utf8");
+const mediaRegister = readFileSync(path.join(web, "app/api/media/register/route.ts"), "utf8");
 
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
 assert.doesNotMatch(route, /videoAnalyzer|analyzePendingVideos/, "publisher tick must not run video analysis");
@@ -37,6 +38,8 @@ assert.match(route, /const tokens = await maintainInstagramTokens\(\)/, "every p
 assert.doesNotMatch(route, /select:\s*\{[^}]*caption:/s, "diagnostics must not expose captions");
 assert.match(publisher, /if \(running\) return/, "internal publisher ticks must not overlap");
 assert.match(publisher, /void tick\(\);\s*setInterval/, "publisher must catch up immediately at startup");
+assert.match(publisher, /SCHEDULER_MAX_LATE_MINUTES/, "publisher must bound how late a missed post can run");
+assert.match(publisher, /Missed the.*publishing window[\s\S]*Retry manually/, "days-old posts must require a manual retry");
 assert.match(worker, /"x-cron-secret": env\.TITAN_CRON_SECRET/, "Worker must authenticate to Titan");
 assert.match(wrangler, /crons = \["\* \* \* \* \*"\]/, "Worker must run once per minute");
 assert.match(githubClock, /cron: "2,7,12,17,22,27,32,37,42,47,52,57 \* \* \* \*"/, "GitHub backstop must run every five minutes");
@@ -58,5 +61,7 @@ assert.match(instagramTokens, /REFRESH_WINDOW_MS = 7 \*/, "tokens must refresh s
 assert.match(instagramTokens, /status: "NEEDS_REAUTH"/, "expired tokens must be marked for OAuth reauthorization");
 assert.match(instagramTokens, /grant_type.*ig_refresh_token/s, "token maintenance must use Instagram's refresh grant");
 assert.match(connectionsPage, /a\.status === "NEEDS_REAUTH" \? "Reconnect" : "Refresh"/, "expired accounts must show a reconnect action");
+assert.match(instagramMedia, /__titanInstagramMediaInFlight/, "delivery preparation must deduplicate work per asset");
+assert.match(mediaRegister, /void prepareInstagramMedia\(asset\)/, "delivery preparation must start immediately after upload registration");
 
 console.log("scheduler contract: authenticated minute clock, startup catch-up, and bounded video preparation passed");

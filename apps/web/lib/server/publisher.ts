@@ -13,6 +13,7 @@ const MAX_ATTEMPTS = 3;
 const CONTAINER_POLL_MS = 10_000;
 const CONTAINER_POLL_TRIES = 24; // up to ~4 min of video processing
 const STALE_PROCESSING_MS = 30 * 60 * 1000;
+const DEFAULT_MAX_LATE_MINUTES = 120;
 
 type PublishDuePostsOptions = {
   /** Bound work for request-driven schedulers. Defaults to the internal batch size. */
@@ -107,17 +108,40 @@ async function publishOne(postId: string): Promise<void> {
 
 export async function publishDuePosts(options: PublishDuePostsOptions = {}): Promise<{ claimed: number }> {
   const now = new Date();
+  const configuredLateMinutes = Number(process.env.SCHEDULER_MAX_LATE_MINUTES ?? DEFAULT_MAX_LATE_MINUTES);
+  const maxLateMinutes = Number.isFinite(configuredLateMinutes) && configuredLateMinutes >= 1
+    ? configuredLateMinutes
+    : DEFAULT_MAX_LATE_MINUTES;
+  const missedBefore = new Date(now.getTime() - maxLateMinutes * 60 * 1000);
   const requestedMax = Math.trunc(options.maxPosts ?? BATCH_SIZE);
   const maxPosts = Math.min(BATCH_SIZE, Math.max(1, requestedMax));
 
-  // Recover posts stuck in PROCESSING (e.g. server restarted mid-publish)
+  // Never surprise the user by publishing content days after its intended
+  // time. Missed rows remain visible and can be retried manually from the UI.
   await db.scheduledPost.updateMany({
-    where: { status: "PROCESSING", processingStartedAt: { lt: new Date(now.getTime() - STALE_PROCESSING_MS) } },
-    data: { status: "SCHEDULED" },
+    where: {
+      status: { in: ["SCHEDULED", "PROCESSING"] },
+      scheduledAt: { lt: missedBefore },
+    },
+    data: {
+      status: "FAILED",
+      error: `Missed the ${maxLateMinutes}-minute publishing window while the scheduler was unavailable. Retry manually.`,
+      processingStartedAt: null,
+    },
+  });
+
+  // Recover recent posts stuck in PROCESSING (e.g. server restarted mid-publish).
+  await db.scheduledPost.updateMany({
+    where: {
+      status: "PROCESSING",
+      scheduledAt: { gte: missedBefore },
+      processingStartedAt: { lt: new Date(now.getTime() - STALE_PROCESSING_MS) },
+    },
+    data: { status: "SCHEDULED", processingStartedAt: null },
   }).catch(() => {});
 
   const due = await db.scheduledPost.findMany({
-    where: { status: "SCHEDULED", scheduledAt: { lte: now } },
+    where: { status: "SCHEDULED", scheduledAt: { gte: missedBefore, lte: now } },
     orderBy: { scheduledAt: "asc" },
     take: maxPosts,
     select: { id: true },
