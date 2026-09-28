@@ -5,6 +5,7 @@ import {
   verifyToken,
   createAccessToken,
 } from "@/lib/server/jwt";
+import { publicOrigin } from "@/lib/server/mcp/origin";
 
 // /api/mcp self-authenticates via Bearer (PAT or OAuth). The OAuth endpoints and
 // /.well-known discovery docs are public / self-authenticating too (the authorize
@@ -73,8 +74,8 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/api/")) {
     return NextResponse.json({ error: { code: "unauthorized", message: "Unauthorized" } }, { status: 401 });
   }
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = "/login";
+  const loginUrl = new URL("/login", publicOrigin(req));
+  loginUrl.search = req.nextUrl.search;
   return NextResponse.redirect(loginUrl);
 }
 

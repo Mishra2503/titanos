@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/server/jwt";
+import { publicOrigin } from "@/lib/server/mcp/origin";
 import {
   getClient,
   redirectUriAllowed,
@@ -73,7 +74,10 @@ export async function GET(req: NextRequest) {
   // Require a logged-in Titan OS user; if absent, bounce through login and back.
   const session = await getSessionFromRequest(req);
   if (!session) {
-    const login = new URL("/login", req.nextUrl.origin);
+    // Render rewrites the request URL to its internal bind address
+    // (`https://localhost:10000`). Always construct browser-facing redirects
+    // from the configured/forwarded public origin instead.
+    const login = new URL("/login", publicOrigin(req));
     login.searchParams.set("next", req.nextUrl.pathname + req.nextUrl.search);
     return NextResponse.redirect(login.toString(), { status: 302 });
   }

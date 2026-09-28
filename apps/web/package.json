@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test:scheduler": "node scripts/scheduler-contract/run.mjs",
     "test:upload": "node scripts/upload-contract/run.mjs",
+    "test:oauth": "node scripts/oauth-contract/run.mjs",
     "test:mcp": "node scripts/mcp-contract/run.mjs",
     "test:mcp:live": "node scripts/mcp-smoke.mjs"
   },
