@@ -12,7 +12,9 @@ import { db } from "@/lib/server/db";
 import type { TokenIdentity } from "@/lib/server/pat";
 
 /** Jobs left RUNNING longer than this were killed by a restart, not still working. */
-const STALE_AFTER_MS = 20 * 60 * 1000;
+// 4K/10-bit Instagram preparation is deliberately single-threaded on the
+// memory-constrained Render instance and may legitimately run for an hour.
+const STALE_AFTER_MS = 75 * 60 * 1000;
 
 export interface JobView {
   job_id: string;
@@ -80,7 +82,7 @@ export async function startJob(
     job_id: job.id,
     tool,
     status: "running",
-    note: "Started. Poll get_job_status with this job_id until status is 'done' or 'failed'. Typically 30-120 seconds.",
+    note: "Started. Poll get_job_status with this job_id until status is 'done' or 'failed'. AI work usually takes 30-120 seconds; large video preparation can take up to an hour.",
   };
 }
 

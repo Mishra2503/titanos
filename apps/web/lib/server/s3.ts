@@ -1,6 +1,7 @@
 // S3-compatible object storage (Cloudflare R2 or Backblaze B2) - hosts master
 // reels at public URLs that Instagram's Graph API can download from.
 import { S3Client } from "@aws-sdk/client-s3";
+import { randomUUID } from "node:crypto";
 
 const REQUIRED_VARS = [
   "S3_ENDPOINT",
@@ -69,7 +70,9 @@ export function makeObjectKey(filename: string): { videoKey: string; thumbKey: s
     .replace(/[^a-zA-Z0-9_-]+/g, "_")
     .slice(0, 60) || "reel";
   const ext = (filename.match(/\.([a-zA-Z0-9]+)$/)?.[1] ?? "mp4").toLowerCase();
-  const videoKey = `titan-os/masters/${Date.now()}-${base}.${ext}`;
+  // The random component is security-relevant: media keys cross the browser /
+  // MCP boundary and must not be guessable by another workspace.
+  const videoKey = `titan-os/masters/${Date.now()}-${randomUUID()}-${base}.${ext}`;
   const thumbKey = videoKey.replace(/\.[^.]+$/, "") + "-thumb.jpg";
   return { videoKey, thumbKey };
 }

@@ -74,6 +74,8 @@ console.log("\n── tool catalogue ──────────────�
   ok(tools.every((t) => t.annotations), "every tool is annotated");
   ok(tools.every((t) => /^[a-zA-Z0-9_-]{1,64}$/.test(t.name)), "names are client-safe");
   ok(tools.every((t) => t.inputSchema?.type === "object"), "every inputSchema is an object");
+  const ingest = tools.find((t) => t.name === "ingest_media");
+  ok(ingest?._meta?.["openai/fileParams"]?.includes("video_file"), "ingest_media declares the OpenAI file parameter bridge");
 }
 {
   const { json } = await post(rpc("tools/list", {}), { url: "https://titan.example.com/api/mcp?tools=core" });
@@ -86,6 +88,10 @@ console.log("\n── tool catalogue ──────────────�
 console.log("\n── typed results ─────────────────────────────────────────");
 const READ_TOOLS = [
   ["get_workspace", {}], ["list_connections", {}], ["list_media", {}],
+  ["create_media_upload", { filename: "agent-reel.mp4", bytes: 900, content_type: "video/mp4" }],
+  ["register_media_upload", { storage_key: "titan-os/masters/reel.mp4", upload_token: "upload_ticket_123", filename: "agent-reel.mp4", bytes: 900 }],
+  ["ingest_media", { source_url: "https://cdn.example.com/reel.mp4?signature=secret" }],
+  ["prepare_media", { media_asset_id: "m1" }],
   ["list_scheduled_posts", {}], ["get_board", {}], ["list_competitors", {}],
   ["get_competitor", { id: "c1" }], ["get_competitor_analytics", { id: "c1" }],
   ["list_competitor_reels", { id: "c1", sort: "outlier" }],
@@ -98,7 +104,7 @@ const READ_TOOLS = [
   ["search", { query: "hook" }], ["fetch", { id: "reel:c1:p1" }],
   ["run_card_ai", { id: "cd1", action: "hooks" }],
   ["create_card", { column_id: "col1", title: "New idea" }],
-  ["schedule_posts", { media_asset_id: "m1", posts: [{ ig_account_id: "a1", caption: "x", scheduled_at: "2026-09-01T09:00:00Z" }] }],
+  ["schedule_posts", { media_asset_id: "m1", idempotency_key: "agent-request-1", posts: [{ ig_account_id: "a1", caption: "x", scheduled_at: "2026-10-01T09:00:00Z" }] }],
   ["cancel_scheduled_post", { id: "s1" }],
   ["refresh_connection", { id: "a1" }],
   ["sync_competitor", { id: "c1" }],
@@ -134,6 +140,18 @@ console.log("\n── error handling ──────────────�
   const { json } = await post(rpc("tools/call", { name: "delete_card", arguments: { id: "cd1" } }), { auth: "Bearer tos_readonly" });
   ok(json.result.isError === true, "read-only token refused a write");
   ok(/read-only/i.test(json.result.content[0].text), "refusal explains why");
+}
+{
+  const { json } = await post(rpc("tools/call", {
+    name: "schedule_posts",
+    arguments: {
+      media_asset_id: "not-ready",
+      idempotency_key: "not-ready-request",
+      posts: [{ ig_account_id: "a1", caption: "x", scheduled_at: "2026-10-01T09:00:00Z" }],
+    },
+  }));
+  ok(json.result.isError === true, "unprepared media is refused before scheduling");
+  ok(/prepare_media/.test(json.result.content[0].text), "refusal gives the agent the recovery tool");
 }
 {
   const { json } = await post(rpc("tools/call", { name: "get_reel", arguments: { competitor_id: "c1", reel_id: "nope" } }));

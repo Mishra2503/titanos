@@ -22,6 +22,8 @@ import { startJob, getJob, listJobs } from "@/lib/server/mcp/jobs";
 import { configuredOrigin } from "@/lib/server/mcp/origin";
 import { OUT } from "@/lib/server/mcp/outputs";
 import type { Schema } from "@/lib/server/mcp/schemas";
+import { redactRemoteMediaUrl } from "@/lib/server/remoteMediaPolicy";
+import { isInstagramMediaPrepared, prepareInstagramMedia } from "@/lib/server/instagramMedia";
 
 // JSON Schema (draft-07-ish) - enough for MCP clients to render/validate inputs.
 type JsonSchema = {
@@ -57,6 +59,8 @@ export interface McpTool {
   outputSchema: Schema;
   write?: boolean;
   annotations?: ToolAnnotations;
+  /** Client-specific descriptor extensions such as ChatGPT/Codex file parameters. */
+  _meta?: Record<string, unknown>;
   handler: (identity: TokenIdentity, args: Record<string, unknown>, origin?: string) => Promise<unknown>;
 }
 
@@ -72,6 +76,24 @@ const int = (v: unknown, dflt: number): number => {
 };
 const clampLimit = (v: unknown, dflt = 20, max = 100): number =>
   Math.min(Math.max(int(v, dflt), 1), max);
+
+type McpMediaAsset = Record<string, unknown> & {
+  id?: string;
+  public_url?: string;
+  size_bytes?: number | null;
+};
+
+async function prepareMcpMedia(asset: McpMediaAsset) {
+  const id = str(asset.id);
+  const publicUrl = str(asset.public_url);
+  if (!id || !publicUrl) throw new Error("Titan returned an invalid media asset");
+  const preparation = await prepareInstagramMedia({
+    id,
+    publicUrl,
+    sizeBytes: typeof asset.size_bytes === "number" ? asset.size_bytes : null,
+  });
+  return { ...asset, instagram_preparation: preparation };
+}
 
 /** Cap a long free-text field so one reel cannot swallow the model's context. */
 function trim(text: string | null | undefined, max: number, hint: string): string | null {
@@ -254,6 +276,178 @@ export const TOOLS: McpTool[] = [
     },
   },
   {
+    name: "create_media_upload",
+    title: "Create a video upload",
+    outputSchema: OUT.create_media_upload,
+    description:
+      "Create a one-hour direct upload URL for a video on the agent's local filesystem. After this returns, PUT the raw file bytes to upload_url using the exact Content-Type header, then call register_media_upload with upload_token and storage_key. Never send the video as base64 through MCP.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        filename: { type: "string", description: "Filename including extension, for example reel.mp4." },
+        content_type: { type: "string", description: "Video MIME type, normally video/mp4." },
+        bytes: { type: "number", description: "Exact local file size in bytes. Maximum 1GB." },
+      },
+      required: ["filename", "bytes"],
+    },
+    write: true,
+    annotations: WRITE,
+    handler: async (id, a) => {
+      const filename = str(a.filename).trim();
+      const bytes = Number(a.bytes);
+      if (!filename) throw new Error("filename is required");
+      if (!Number.isSafeInteger(bytes) || bytes <= 0) throw new Error("bytes must be a positive integer");
+      const contentType = str(a.content_type).trim() || "video/mp4";
+      const signed = await call<{
+        upload_token: string;
+        video: { key: string; upload_url: string };
+      }>(id, "/api/media/sign", {
+        method: "POST",
+        body: { filename, content_type: contentType, bytes },
+      });
+      return {
+        upload_url: signed.video.upload_url,
+        upload_token: signed.upload_token,
+        storage_key: signed.video.key,
+        method: "PUT",
+        headers: { "Content-Type": contentType },
+        expires_in_seconds: 3600,
+        next_step: "PUT the raw video bytes to upload_url, then call register_media_upload with upload_token, storage_key and the same metadata.",
+      };
+    },
+  },
+  {
+    name: "register_media_upload",
+    title: "Register an uploaded video",
+    outputSchema: OUT.register_media_upload,
+    description:
+      "Verify and register a video after create_media_upload's PUT completed, then prepare an Instagram-safe delivery copy. Returns a job_id: poll get_job_status until done and use result.id as media_asset_id. A done result means the video is ready to schedule.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        storage_key: { type: "string", description: "storage_key returned by create_media_upload." },
+        upload_token: { type: "string", description: "Opaque upload_token returned by create_media_upload." },
+        filename: { type: "string" },
+        bytes: { type: "number", description: "Exact uploaded file size in bytes." },
+        width: { type: "number" },
+        height: { type: "number" },
+        duration: { type: "number", description: "Video duration in seconds." },
+        format: { type: "string", description: "Container extension, for example mp4." },
+      },
+      required: ["storage_key", "upload_token", "filename", "bytes"],
+    },
+    write: true,
+    annotations: { ...WRITE, idempotentHint: true },
+    handler: (id, a) => {
+      // Do not persist the opaque upload ticket in MCP job history.
+      const storedArgs = {
+        storage_key: a.storage_key,
+        filename: a.filename,
+        bytes: a.bytes,
+      };
+      return startJob(id, "register_media_upload", storedArgs, async () => {
+        const asset = await call<McpMediaAsset>(id, "/api/media/register", {
+          method: "POST",
+          body: {
+            key: a.storage_key,
+            upload_token: a.upload_token,
+            filename: a.filename,
+            bytes: a.bytes,
+            width: a.width,
+            height: a.height,
+            duration: a.duration,
+            format: a.format,
+          },
+        });
+        return prepareMcpMedia(asset);
+      });
+    },
+  },
+  {
+    name: "ingest_media",
+    title: "Ingest a video",
+    outputSchema: OUT.ingest_media,
+    description:
+      "Ingest an attached OpenAI file or a publicly downloadable HTTPS video into Titan OS. ChatGPT/Codex can populate video_file automatically. Other clients should supply source_url. Local paths such as /Users/... cannot be read by a remote MCP server. Returns a job_id: poll get_job_status until done, then use result.id as media_asset_id for schedule_posts.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        source_url: { type: "string", description: "Public or signed HTTPS URL that returns the raw video bytes." },
+        video_file: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            download_url: { type: "string", description: "Temporary HTTPS download URL supplied by ChatGPT or Codex." },
+            file_id: { type: "string" },
+            file_name: { type: "string" },
+            mime_type: { type: "string" },
+          },
+          required: ["download_url", "file_id"],
+        },
+        filename: { type: "string", description: "Optional filename including extension." },
+      },
+    },
+    write: true,
+    annotations: { ...WRITE, openWorldHint: true },
+    _meta: { "openai/fileParams": ["video_file"] },
+    handler: async (id, a) => {
+      const videoFile = a.video_file && typeof a.video_file === "object"
+        ? a.video_file as Record<string, unknown>
+        : null;
+      const sourceUrl = str(a.source_url || videoFile?.download_url).trim();
+      if (!sourceUrl) throw new Error("Provide exactly one of source_url or video_file");
+      if (a.source_url && videoFile?.download_url) throw new Error("Provide source_url or video_file, not both");
+      const filename = typeof a.filename === "string"
+        ? a.filename
+        : typeof videoFile?.file_name === "string"
+          ? videoFile.file_name
+          : undefined;
+      // Never persist a signed URL's query string in MCP job history.
+      const storedArgs = {
+        source_url: redactRemoteMediaUrl(sourceUrl),
+        ...(filename ? { filename } : {}),
+        ...(typeof videoFile?.file_id === "string" ? { file_id: videoFile.file_id } : {}),
+      };
+      return startJob(id, "ingest_media", storedArgs, async () => {
+        const asset = await call<McpMediaAsset>(id, "/api/media/import", {
+          method: "POST",
+          body: { source_url: sourceUrl, filename },
+        });
+        return prepareMcpMedia(asset);
+      });
+    },
+  },
+  {
+    name: "prepare_media",
+    title: "Prepare a video for Instagram",
+    outputSchema: OUT.prepare_media,
+    description:
+      "Create or verify the Instagram-safe delivery copy for an existing Titan media asset. Use this for an older list_media item before scheduling it. Returns a job_id; poll get_job_status until done.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        media_asset_id: { type: "string", description: "Asset id from list_media." },
+      },
+      required: ["media_asset_id"],
+    },
+    write: true,
+    annotations: { ...WRITE, idempotentHint: true },
+    handler: (identity, a) => {
+      const mediaAssetId = str(a.media_asset_id).trim();
+      if (!mediaAssetId) throw new Error("media_asset_id is required");
+      return startJob(identity, "prepare_media", { media_asset_id: mediaAssetId }, async () => {
+        const media = await call<McpMediaAsset[]>(identity, "/api/media");
+        const asset = media.find((item) => item.id === mediaAssetId);
+        if (!asset) throw new Error(`No media asset ${mediaAssetId} in this workspace`);
+        return prepareMcpMedia(asset);
+      });
+    },
+  },
+  {
     name: "list_scheduled_posts",
     title: "Scheduled and published posts",
     outputSchema: OUT.list_scheduled_posts,
@@ -275,12 +469,13 @@ export const TOOLS: McpTool[] = [
     title: "Schedule a post",
     outputSchema: OUT.schedule_posts,
     description:
-      "Schedule one media asset to one or more connected accounts. Publishing happens on the scheduler at the given time; this does NOT publish immediately. Times must be in the future and at least the workspace minimum-gap apart per account.",
+      "Idempotently schedule one media asset to one or more connected accounts. Publishing happens on the scheduler at the given time; this does NOT publish immediately. Reuse the same idempotency_key when retrying an uncertain call. Times must be in the future and at least the workspace minimum-gap apart per account.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
       properties: {
         media_asset_id: { type: "string", description: "Id from list_media." },
+        idempotency_key: { type: "string", description: "Stable caller-generated key. Reuse it for retries; use a new key for a new schedule request." },
         title: { type: "string", description: "Optional campaign title." },
         posts: {
           type: "array",
@@ -298,14 +493,19 @@ export const TOOLS: McpTool[] = [
           },
         },
       },
-      required: ["media_asset_id", "posts"],
+      required: ["media_asset_id", "idempotency_key", "posts"],
     },
     write: true,
-    annotations: WRITE,
+    annotations: { ...DESTRUCTIVE, openWorldHint: true },
     handler: async (id, a) => {
+      const mediaAssetId = str(a.media_asset_id).trim();
+      if (!mediaAssetId) throw new Error("media_asset_id is required");
+      if (!(await isInstagramMediaPrepared(mediaAssetId))) {
+        throw new Error("This video is not ready for reliable publishing. Call prepare_media with this media_asset_id, poll get_job_status until done, then retry schedule_posts.");
+      }
       const out = await call<{ id?: string }>(id, "/api/campaigns", {
         method: "POST",
-        body: { media_asset_id: a.media_asset_id, title: a.title, posts: a.posts },
+        body: { media_asset_id: mediaAssetId, title: a.title, idempotency_key: a.idempotency_key, posts: a.posts },
       });
       return {
         id: str(out?.id),
@@ -1453,6 +1653,10 @@ export const CORE_TOOLS = new Set<string>([
   "fetch",
   // scheduling
   "list_media",
+  "create_media_upload",
+  "register_media_upload",
+  "ingest_media",
+  "prepare_media",
   "list_scheduled_posts",
   "schedule_posts",
   "update_scheduled_post",

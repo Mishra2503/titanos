@@ -21,6 +21,7 @@ const instagramMedia = readFileSync(path.join(web, "lib/server/instagramMedia.ts
 const instagramTokens = readFileSync(path.join(web, "lib/server/instagramTokens.ts"), "utf8");
 const connectionsPage = readFileSync(path.join(web, "app/(app)/connections/page.tsx"), "utf8");
 const mediaRegister = readFileSync(path.join(web, "app/api/media/register/route.ts"), "utf8");
+const campaignRoute = readFileSync(path.join(web, "app/api/campaigns/route.ts"), "utf8");
 
 assert.match(route, /publishDuePosts\(\{ maxPosts: 1 \}\)/, "external tick must bound publishing work");
 assert.match(route, /ENABLE_PUBLISHER === "false"[\s\S]*?publisher_disabled/, "publisher kill switch must cover external ticks");
@@ -55,6 +56,7 @@ assert.match(instagramMedia, /"-threads", FFMPEG_THREADS/, "video encoding must 
 assert.match(instagramMedia, /"-filter_threads", FFMPEG_THREADS/, "video filters must be single-threaded on the free instance");
 assert.match(instagramMedia, /decoder thread pool[\s\S]*?"-threads", FFMPEG_THREADS,\s*"-i", inputPath/, "video decoding must be single-threaded on the free instance");
 assert.match(instagramMedia, /INSTAGRAM_DELIVERY_WIDTH_PX = 1080/, "oversized masters must use the standard 1080px Reel delivery width");
+assert.match(instagramMedia, /DEFAULT_PREP_TIMEOUT_MS = 60 \* 60 \* 1000/, "heavy 4K masters must get one bounded hour-long preparation attempt");
 assert.match(instagramMedia, /"-preset", "ultrafast"/, "video preparation must use the lowest-memory x264 preset");
 assert.match(instagramMedia, /"-tune", "zerolatency"/, "video preparation must avoid a buffered frame queue");
 assert.doesNotMatch(instagramMedia, /"-preset", "slow"/, "video preparation must not use the CPU-heavy slow preset");
@@ -64,5 +66,10 @@ assert.match(instagramTokens, /grant_type.*ig_refresh_token/s, "token maintenanc
 assert.match(connectionsPage, /a\.status === "NEEDS_REAUTH" \? "Reconnect" : "Refresh"/, "expired accounts must show a reconnect action");
 assert.match(instagramMedia, /__titanInstagramMediaInFlight/, "delivery preparation must deduplicate work per asset");
 assert.match(mediaRegister, /void prepareInstagramMedia\(asset\)/, "delivery preparation must start immediately after upload registration");
+assert.match(campaignRoute, /idempotency_key must be a non-empty string/, "scheduled batches must require a bounded caller idempotency key");
+assert.match(campaignRoute, /requestFingerprint = requestKey \? sha256\(JSON\.stringify/, "scheduled batch idempotency must bind the key to the request payload");
+assert.match(campaignRoute, /idempotencyKey: \{ startsWith: prefix \}/, "scheduled batch retries must detect reuse of a key with a changed payload");
+assert.match(campaignRoute, /error\.code === "P2002"/, "concurrent scheduled batch retries must recover through the unique idempotency constraint");
+assert.match(campaignRoute, /status: \{ in: \["SCHEDULED", "PROCESSING"\] \}/, "new schedules must enforce minimum gaps against existing queued posts");
 
 console.log("scheduler contract: authenticated minute clock, startup catch-up, and bounded video preparation passed");

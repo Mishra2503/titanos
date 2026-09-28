@@ -79,6 +79,7 @@ function toolDescriptors(tools: McpTool[]) {
     inputSchema: t.inputSchema,
     outputSchema: t.outputSchema,
     ...(t.annotations ? { annotations: t.annotations } : {}),
+    ...(t._meta ? { _meta: t._meta } : {}),
   }));
 }
 
@@ -150,13 +151,14 @@ async function handleOne(
         serverInfo: SERVER_INFO,
         instructions:
           "Titan OS: multi-account Instagram content ops and competitor intelligence. " +
+          "A remote server cannot read a local file path. For an attached OpenAI file or a public HTTPS video, call ingest_media and poll get_job_status. For a local file in a coding agent, call create_media_upload, PUT the raw file to its upload_url, call register_media_upload, then poll its job. A done upload/import job means the Instagram delivery copy is ready. For older media call prepare_media and poll before scheduling. " +
           "Every number comes from the Instagram Graph API or a stored scrape. If a metric is null it was not " +
           "captured - say so, never estimate it, and never fill it in from general knowledge. " +
           "Tool results arrive as structured JSON; answer only from the fields you were given. " +
           "To find what is working for a competitor: list_competitors, then list_competitor_reels " +
           "(sort by outlier), then get_reel for the transcript and why it works. " +
           "Tools that call Claude return a job_id - poll get_job_status every ~15s until it is done. " +
-          "Scheduling honors per-account rate-limit safety; check get_safety_health before bulk scheduling.",
+          "Scheduling honors per-account rate-limit safety; check get_safety_health before scheduling and do not claim a queued post will publish when publishing.enabled is false.",
       });
 
     case "ping":

@@ -48,7 +48,7 @@ no separate URL is needed.
 
 ### Cursor, Antigravity, Windsurf, and other editors
 
-These cap how many tools they will accept from one server. Titan OS exposes 50,
+These cap how many tools they will accept from one server. Titan OS exposes 54,
 which is over the limit for several of them, and the failure mode is a silent
 drop rather than an error. Use the core profile:
 
@@ -56,8 +56,8 @@ drop rather than an error. Use the core profile:
 https://<your-app>/api/mcp?tools=core
 ```
 
-That serves 31 tools covering the whole workflow: read the workspace, find what
-is working, turn it into a script or a card, schedule it, poll the job. Drop the
+That serves 35 tools covering the whole workflow: read the workspace, ingest a
+video, find what is working, turn it into a script or a card, schedule it, poll the job. Drop the
 query param once you need the long tail.
 
 `~/.cursor/mcp.json`:
@@ -100,7 +100,8 @@ Graph API or a stored scrape, and a missing number is reported as missing.
 ## Long-running work
 
 Anything that calls Claude (reports, deep reel analysis, script writing, syncs)
-takes 30 to 120 seconds. Clients give up well before that. Those tools return a
+takes 30 to 120 seconds, while a large 4K video preparation can take up to an
+hour on a constrained instance. Clients give up well before that. Those tools return a
 `job_id` immediately:
 
 ```
@@ -109,6 +110,44 @@ get_job_status(job_id) → { status: "done", result: { … } }
 ```
 
 Poll about every 15 seconds. `list_jobs` shows recent work and how it ended.
+
+---
+
+## Uploading and scheduling a video from an agent
+
+A remote MCP server cannot open a path on the client machine. Passing
+`/Users/name/Videos/reel.mp4` to Titan does not transfer the file.
+
+Use the path that matches the client:
+
+1. **ChatGPT or Codex attachment:** attach the video and call `ingest_media`.
+   The tool declares OpenAI's `video_file` bridge, so the client supplies a
+   temporary download URL. Poll `get_job_status`; only a `done` job means the
+   delivery copy is ready, and `result.id` is the new `media_asset_id`.
+2. **Public or signed HTTPS URL:** call `ingest_media` with `source_url`, poll
+   the job, then use `result.id`. Titan blocks local/private addresses,
+   revalidates redirects, caps the stream at 1 GB, and stores its own durable
+   master.
+3. **Claude Code, Codex, or another local coding agent:** call
+   `create_media_upload`, `PUT` the raw file bytes to `upload_url` with the
+   returned headers, then call `register_media_upload` with the unchanged
+   `upload_token` and `storage_key`. Registration returns a job; poll it until
+   `done`, then use `result.id`.
+
+For an older item returned by `list_media`, call `prepare_media` and poll its
+job before scheduling. `schedule_posts` refuses unprepared media instead of
+accepting a schedule that is likely to fail at publish time.
+
+Then call `get_safety_health` and `list_connections`. If
+`publishing.enabled` is false, scheduling is still available but nothing will
+auto-publish until the server kill switch is enabled. Finally call
+`schedule_posts` with the media id, target account, future ISO 8601 time,
+caption, hashtags, and a stable `idempotency_key`. Reuse that key only when
+retrying the same uncertain call.
+
+`schedule_posts` queues future work; it never means "already published".
+Confirm the eventual result with `list_scheduled_posts` and look for
+`PUBLISHED` plus a permalink.
 
 ---
 
@@ -160,3 +199,9 @@ user. Mint a new one in Settings.
 **Writes rejected as read-only.** The token has a `read` scope without `write`,
 or the user's role is VIEWER. Both are enforced server side; the tool list does
 not hide write tools, it refuses them.
+
+**The agent can see a local video but Titan cannot.** Seeing/analyzing an
+attachment and transferring it to a remote connector are different operations.
+Use `ingest_media` for an OpenAI attachment/HTTPS URL, or the
+`create_media_upload` → PUT → `register_media_upload` sequence for a local
+coding agent. Do not base64-encode a large video into an MCP call.

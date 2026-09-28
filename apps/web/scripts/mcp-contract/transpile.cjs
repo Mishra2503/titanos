@@ -13,6 +13,8 @@ for (const [dest, src] of Object.entries(files)) {
   // Stub rules FIRST: the generic mcp/* rule would otherwise claim them.
   let js = res.code
     .replace(/from "@\/lib\/server\/mcp\/(internal-call|jobs|origin)"/g, 'from "./stub-$1.js"')
+    .replace(/from "@\/lib\/server\/remoteMediaPolicy"/g, 'from "./stub-remote-media-policy.js"')
+    .replace(/from "@\/lib\/server\/instagramMedia"/g, 'from "./stub-instagram-media.js"')
     .replace(/from "@\/lib\/server\/(pat|oauth|db)"/g, 'from "./stub-$1.js"')
     .replace(/from "@\/lib\/server\/mcp\/(\w[\w-]*)"/g, 'from "./$1.js"')
     .replace(/from "next\/server"/g, 'from "./stub-next.js"');

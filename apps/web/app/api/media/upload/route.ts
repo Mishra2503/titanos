@@ -6,6 +6,7 @@ import { db } from "@/lib/server/db";
 import { getS3, s3Bucket, makeObjectKey, publicUrlForKey } from "@/lib/server/s3";
 import { apiError, unauthorized, badRequest, serverError } from "@/lib/server/errors";
 import { SERVER_UPLOAD_MAX_BYTES } from "@/lib/upload-limits";
+import { prepareInstagramMedia } from "@/lib/server/instagramMedia";
 
 const CAP_MB = Math.round(SERVER_UPLOAD_MAX_BYTES / 1024 / 1024);
 const TOO_LARGE_MSG = `the server upload fallback accepts at most ${CAP_MB}MB - larger files must upload directly to storage from the browser`;
@@ -77,6 +78,10 @@ export async function POST(req: NextRequest) {
         sizeBytes: Number.isFinite(contentLength) ? contentLength : seenBytes || null,
         uploadedBy: userId ?? null,
       },
+    });
+
+    void prepareInstagramMedia(asset).catch((error) => {
+      console.error(`[media upload] Instagram preparation failed for ${asset.id}:`, error instanceof Error ? error.message : error);
     });
 
     return NextResponse.json({ id: asset.id, filename: asset.filename, public_url: asset.publicUrl, thumbnail_url: asset.thumbnailUrl, width: asset.width, height: asset.height, duration_s: asset.durationS, format: asset.format, size_bytes: asset.sizeBytes }, { status: 201 });

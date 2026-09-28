@@ -21,7 +21,11 @@ const MAX_FPS = 60;
 const MAX_VIDEO_KBPS = 25_000;
 const MAX_AUDIO_KBPS = 128;
 const MAX_AUDIO_HZ = 48_000;
-const DEFAULT_PREP_TIMEOUT_MS = 20 * 60 * 1000;
+// A 4K, 10-bit master can take longer than twenty minutes on Render's
+// fractional free CPU even with the single-threaded memory guard below. The
+// old timeout killed FFmpeg and restarted the same work on every publisher
+// retry. Keep the job bounded, but allow one useful attempt to finish.
+const DEFAULT_PREP_TIMEOUT_MS = 60 * 60 * 1000;
 const MASTER_DOWNLOAD_TIMEOUT_MS = 20 * 60 * 1000;
 // Render's free web service has 512 MB of RAM and a fractional CPU. Keep
 // libx264 and the filter graph single-threaded so preparing a 4K master cannot
@@ -156,6 +160,11 @@ async function deliveryExists(key: string): Promise<boolean> {
     if (status === 404 || (error as { name?: string }).name === "NotFound") return false;
     throw error;
   }
+}
+
+/** Cheap readiness check used by MCP before it accepts a schedule request. */
+export function isInstagramMediaPrepared(assetId: string): Promise<boolean> {
+  return deliveryExists(instagramDeliveryKey(assetId));
 }
 
 function qualityPlan(probe: InstagramMediaProbe): { videoCopy: boolean; audioCopy: boolean; reasons: string[] } {

@@ -15,6 +15,9 @@ import type { NextRequest } from "next/server";
 import * as connections from "@/app/api/connections/route";
 import * as connectionRefresh from "@/app/api/connections/[id]/refresh/route";
 import * as media from "@/app/api/media/route";
+import * as mediaSign from "@/app/api/media/sign/route";
+import * as mediaRegister from "@/app/api/media/register/route";
+import * as mediaImport from "@/app/api/media/import/route";
 import * as schedule from "@/app/api/schedule/route";
 import * as scheduleItem from "@/app/api/schedule/[id]/route";
 import * as scheduleCancel from "@/app/api/schedule/[id]/cancel/route";
@@ -65,6 +68,9 @@ export const ROUTES = {
   "/api/connections": connections,
   "/api/connections/[id]/refresh": connectionRefresh,
   "/api/media": media,
+  "/api/media/sign": mediaSign,
+  "/api/media/register": mediaRegister,
+  "/api/media/import": mediaImport,
   "/api/schedule": schedule,
   "/api/schedule/[id]": scheduleItem,
   "/api/schedule/[id]/cancel": scheduleCancel,

@@ -54,6 +54,25 @@ export const OUT: Record<string, Schema> = {
 
   list_media: listOf("media", MEDIA_ASSET, "Uploaded assets available for scheduling."),
 
+  create_media_upload: obj(
+    {
+      upload_url: str("One-hour presigned HTTPS URL. PUT the raw video bytes here."),
+      upload_token: str("Opaque one-hour ticket. Pass unchanged to register_media_upload."),
+      storage_key: str("Pass this unchanged to register_media_upload after the PUT succeeds."),
+      method: str("Always PUT."),
+      headers: passthroughRef("HTTP headers that must be sent with the upload."),
+      expires_in_seconds: num("How long the presigned upload URL remains valid."),
+      next_step: str("Exact next action for the agent."),
+    },
+    { required: ["upload_url", "upload_token", "storage_key", "method", "headers", "expires_in_seconds", "next_step"] },
+  ),
+
+  register_media_upload: JOB_STARTED,
+
+  ingest_media: JOB_STARTED,
+
+  prepare_media: JOB_STARTED,
+
   list_scheduled_posts: obj(
     {
       count: num("Total scheduled and published posts in the workspace."),
@@ -291,6 +310,11 @@ export const OUT: Record<string, Schema> = {
   }),
 
   get_safety_health: obj({
+    publishing: obj({
+      enabled: bool("False means posts can be queued but will not auto-publish."),
+      external_scheduler_enabled: bool(),
+      note: str(),
+    }),
     defaults: obj({
       enabled: bool(),
       daily_cap: num("Max posts per account per day."),
@@ -298,6 +322,7 @@ export const OUT: Record<string, Schema> = {
       min_gap_minutes: num("Minimum spacing between posts on one account."),
       jitter_seconds: num(),
     }),
+    enforcement: passthroughRef("Which safety settings are enforced versus advisory-only."),
     accounts: arr(passthrough("Per-account rate-limit state."), "Check before bulk scheduling."),
   }),
 

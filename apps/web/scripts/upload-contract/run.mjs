@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import ts from "typescript";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -45,3 +46,35 @@ assert.equal(isCompletedMultipartPartList([
 ]), false);
 
 console.log("upload contract: exact 274,698,417-byte master -> 33 contiguous parts; completion list validation passed");
+
+const require = createRequire(import.meta.url);
+const policyPath = path.resolve(here, "../../lib/server/remoteMediaPolicy.ts");
+const policySource = readFileSync(policyPath, "utf8");
+const policyCompiled = ts.transpileModule(policySource, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true },
+}).outputText;
+const policyShim = { exports: {} };
+new Function("require", "module", "exports", policyCompiled)(require, policyShim, policyShim.exports);
+const {
+  isPublicImportAddress,
+  parseRemoteMediaUrl,
+  redactRemoteMediaUrl,
+  remoteMediaFilename,
+} = policyShim.exports;
+
+assert.equal(isPublicImportAddress("8.8.8.8"), true);
+for (const address of ["127.0.0.1", "10.0.0.1", "169.254.169.254", "172.16.0.1", "192.168.1.2", "::1"]) {
+  assert.equal(isPublicImportAddress(address), false, `${address} must be rejected`);
+}
+assert.throws(() => parseRemoteMediaUrl("http://cdn.example.com/reel.mp4"), /HTTPS/);
+assert.throws(() => parseRemoteMediaUrl("https://localhost/reel.mp4"), /public hostname/);
+assert.throws(() => parseRemoteMediaUrl("https://127.0.0.1/reel.mp4"), /private or reserved/);
+assert.throws(() => parseRemoteMediaUrl("https://cdn.example.com:8443/reel.mp4"), /standard HTTPS port/);
+assert.equal(
+  redactRemoteMediaUrl("https://cdn.example.com/reel.mp4?X-Amz-Signature=secret#fragment"),
+  "https://cdn.example.com/reel.mp4",
+);
+assert.equal(remoteMediaFilename(new URL("https://cdn.example.com/reel.mov")), "reel.mov");
+assert.equal(remoteMediaFilename(new URL("https://cdn.example.com/download"), "campaign"), "campaign.mp4");
+
+console.log("upload contract: remote imports reject private networks and redact signed URL secrets");
